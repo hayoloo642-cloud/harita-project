@@ -274,9 +274,10 @@ function openModal(opts) {
   const delBtn = $('#modalDelete');
   if (delBtn) {
     delBtn.addEventListener('click', async () => {
-      if (!modalState.onDelete) return;
+      const fn = modalState.onDelete;
+      if (!fn) return;
       closeModal();
-      await modalState.onDelete();
+      await fn();
     });
   }
   const form = $('#modalForm');

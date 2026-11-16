@@ -16,11 +16,15 @@ function gradeSummary() {
 }
 
 async function loadGrades() {
+  state.loading.grades = true;
+  renderGradesView();
   try {
     const d = await api('/api/grades');
     state.grades = { grades: d.grades || [], kkm: Number(d.kkm) || 75 };
+    state.loading.grades = false;
     renderGradesView();
   } catch (err) {
+    state.loading.grades = false;
     toast(err.message, 'error');
   }
 }
@@ -28,6 +32,10 @@ async function loadGrades() {
 function renderGradesView() {
   const avgEl = $('#gradeAvg');
   if (!avgEl) return;
+  if (state.loading.grades && !state.grades.grades.length) {
+    $('#gradeList').innerHTML = `<div class="skeleton-stack">${skeletonRows(4, 'skeleton-row')}</div>`;
+    return;
+  }
   const { avg, count } = gradeSummary();
   const kkm = state.grades.kkm;
   avgEl.textContent = count ? avg.toFixed(1) : '—';

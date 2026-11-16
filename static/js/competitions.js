@@ -27,6 +27,10 @@ function renderCompetitionsView() {
     <div class="comp-stat"><div class="cs-ico" style="background:rgba(62,224,192,.1);color:var(--accent)">${iconSvg('check-circle')}</div><div><strong>${readiness}%</strong><span>checklist persiapan selesai</span></div></div>`;
 
   const grid = $('#compGrid');
+  if (state.loading.competitions && !state.competitions.length) {
+    grid.innerHTML = `<div class="skeleton-grid">${skeletonRows(4, 'skeleton-card')}</div>`;
+    return;
+  }
   const list = state.competitions.slice().sort((a, b) => {
     const aDone = a.status === 'selesai' ? 1 : 0;
     const bDone = b.status === 'selesai' ? 1 : 0;

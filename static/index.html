@@ -137,11 +137,13 @@
 
   <main class="main" id="main-content" tabindex="-1">
     <header class="topbar">
+      <button class="icon-btn top-home" id="topHome" title="Ke Beranda (Alt+H)" aria-label="Ke Beranda"><span class="ico" data-icon="home"></span></button>
       <div class="topbar-title">
         <p class="eyebrow" id="pageEyebrow">Ringkasan hari ini</p>
         <h1 id="pageTitle">Beranda</h1>
       </div>
       <div class="topbar-actions">
+        <span class="save-status" id="saveStatus" role="status" aria-live="polite"></span>
         <button class="icon-btn" id="topTheme" title="Ganti tema gelap/terang" aria-label="Ganti tema"><span class="ico" data-icon="sun"></span></button>
         <button class="weather-chip" id="topWeather" title="Lihat cuaca lengkap">
           <span class="weather-chip-ico" id="topWeatherIcon"></span>
@@ -389,10 +391,14 @@
           <div class="card span-8 task-main">
             <div class="card-head">
               <div><p class="eyebrow">Daftar</p><h3>Tugas</h3></div>
-              <div class="task-filters" id="taskFilters">
-                <button class="filter-pill active" data-filter="all">Semua</button>
-                <button class="filter-pill" data-filter="open">Aktif</button>
-                <button class="filter-pill" data-filter="done">Selesai</button>
+              <div class="task-head-tools">
+                <input class="task-search" id="taskSearch" type="search" placeholder="Cari tugas…" maxlength="60" autocomplete="off" aria-label="Cari tugas" />
+                <div class="task-filters" id="taskFilters">
+                  <button class="filter-pill active" data-filter="all">Semua</button>
+                  <button class="filter-pill" data-filter="open">Aktif</button>
+                  <button class="filter-pill" data-filter="done">Selesai</button>
+                </div>
+                <button class="btn btn-ghost btn-xs" id="taskCompleteAll" hidden><span class="ico" data-icon="check"></span> Selesaikan semua</button>
               </div>
             </div>
             <div id="taskList" class="task-list"></div>

@@ -4,6 +4,8 @@
 state.flashcards = { cards: [], due: [], subject: '', showAnswer: false, session: [] };
 
 async function loadFlashcards() {
+  state.loading.flashcards = true;
+  renderFlashcardsView();
   try {
     const [all, due] = await Promise.all([
       api('/api/flashcards'),
@@ -11,8 +13,10 @@ async function loadFlashcards() {
     ]);
     state.flashcards.cards = all.cards || [];
     state.flashcards.due = due.cards || [];
+    state.loading.flashcards = false;
     renderFlashcardsView();
   } catch (err) {
+    state.loading.flashcards = false;
     toast(err.message, 'error');
   }
 }
@@ -38,6 +42,10 @@ function renderFlashcardsView() {
 
   // library
   const lib = $('#flashcardLibrary');
+  if (state.loading.flashcards && !state.flashcards.cards.length) {
+    lib.innerHTML = `<div class="skeleton-stack">${skeletonRows(4, 'skeleton-row')}</div>`;
+    return;
+  }
   const filtered = state.flashcards.subject ? state.flashcards.cards.filter((c) => c.subject === state.flashcards.subject) : state.flashcards.cards;
   lib.innerHTML = filtered.length
     ? filtered.map((c) => `

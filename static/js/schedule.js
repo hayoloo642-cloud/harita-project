@@ -10,6 +10,10 @@ function renderScheduleView() {
       ${DAYS[day]}
     </button>`).join('');
 
+  if (state.loading.schedule && !state.schedule.length) {
+    $('#scheduleList').innerHTML = `<div class="skeleton-stack">${skeletonRows(5, 'skeleton-row')}</div>`;
+    return;
+  }
   const rows = state.schedule
     .filter((s) => Number(s.weekday) === Number(state.scheduleDay))
     .sort((a, b) => String(a.start_time).localeCompare(String(b.start_time)));

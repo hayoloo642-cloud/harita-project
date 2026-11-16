@@ -58,27 +58,33 @@ async function loadEvents() {
 }
 
 async function loadCompetitions() {
+  state.loading.competitions = true;
   try {
     const data = await api('/api/competitions');
     state.competitions = data.competitions || [];
+    state.loading.competitions = false;
     if (state.view === 'lomba') renderCompetitionsView();
     if (state.view === 'beranda') renderDashboard();
   } catch (err) { toast(err.message, 'error'); }
 }
 
 async function loadNotes() {
+  state.loading.notes = true;
   try {
     const data = await api('/api/notes');
     state.notes = data.notes || [];
+    state.loading.notes = false;
     renderNotesView();
     if (state.view === 'beranda') renderDashboard();
   } catch (err) { toast(err.message, 'error'); }
 }
 
 async function loadSchedule() {
+  state.loading.schedule = true;
   try {
     const data = await api('/api/schedule');
     state.schedule = data.schedule || [];
+    state.loading.schedule = false;
     if (state.view === 'jadwal') renderScheduleView();
     if (state.view === 'beranda') renderDashboard();
   } catch (err) { toast(err.message, 'error'); }

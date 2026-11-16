@@ -119,6 +119,8 @@ const state = {
   todayTasks: { date: todayStr(), tasks: [], templates: [] },
   taskDate: todayStr(),
   taskFilter: 'all',
+  taskQuery: '',
+  loading: { tasks: false, notes: false, schedule: false, grades: false, flashcards: false, competitions: false },
   events: [],
   competitions: [],
   notes: [],
@@ -137,8 +139,23 @@ const storage = {
 };
 
 /* ---------- API ---------- */
+let saveStatusTimer = null;
+function markSaved(phase) {
+  const node = document.getElementById('saveStatus');
+  if (!node) return;
+  node.textContent = phase === 'saving' ? 'Menyimpan…' : 'Tersimpan';
+  node.classList.toggle('saving', phase === 'saving');
+  node.classList.add('show');
+  clearTimeout(saveStatusTimer);
+  if (phase !== 'saving') {
+    saveStatusTimer = setTimeout(() => node.classList.remove('show'), 1800);
+  }
+}
+
 async function api(path, options = {}) {
   const config = { headers: {}, ...options };
+  const isWrite = config.method && String(config.method).toUpperCase() !== 'GET';
+  if (isWrite) markSaved('saving');
   if (config.body !== undefined && typeof config.body !== 'string') {
     config.body = JSON.stringify(config.body);
     config.headers['Content-Type'] = 'application/json';
@@ -152,8 +169,16 @@ async function api(path, options = {}) {
     showLockScreen();
     throw new Error('Aplikasi terkunci');
   }
-  if (!res.ok) throw new Error((data && data.error) || `Permintaan gagal (${res.status})`);
+  if (!res.ok) {
+    if (isWrite) markSaved('saved');
+    throw new Error((data && data.error) || `Permintaan gagal (${res.status})`);
+  }
+  if (isWrite) markSaved('saved');
   return data;
+}
+
+function skeletonRows(count = 4, cls = 'skeleton-row') {
+  return Array.from({ length: count }, () => `<div class="${cls} skeleton" aria-hidden="true"></div>`).join('');
 }
 
 /* ---------- toast ---------- */

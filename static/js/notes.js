@@ -4,6 +4,10 @@
 function renderNotesView() {
   const grid = $('#notesGrid');
   if (!grid) return;
+  if (state.loading.notes && !state.notes.length) {
+    grid.innerHTML = `<div class="skeleton-grid">${skeletonRows(6, 'skeleton-card')}</div>`;
+    return;
+  }
   const query = state.noteQuery.trim().toLowerCase();
   const notes = state.notes.filter((n) => !query || `${n.title} ${n.body || ''}`.toLowerCase().includes(query));
   if (!notes.length) {

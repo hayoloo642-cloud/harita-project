@@ -688,6 +688,21 @@ def api_task_carry(handler: BaseHTTPRequestHandler) -> None:
         conn.close()
 
 
+def api_task_complete_all(handler: BaseHTTPRequestHandler) -> None:
+    body = parse_json_body(handler)
+    day = body.get("date") or today_local()
+    conn = db_connect()
+    try:
+        cur = conn.execute(
+            "UPDATE tasks SET done = 1, updated_at = ? WHERE date = ? AND deleted_at IS NULL AND done = 0",
+            (now_local(), day),
+        )
+        conn.commit()
+        send_json(handler, 200, {"ok": True, "date": day, "count": cur.rowcount})
+    finally:
+        conn.close()
+
+
 def api_task_reset(handler: BaseHTTPRequestHandler) -> None:
     body = parse_json_body(handler)
     day = body.get("date") or today_local()
@@ -2483,6 +2498,8 @@ class Handler(BaseHTTPRequestHandler):
                 api_task_carry(self)
             elif path == "/api/tasks/reset":
                 api_task_reset(self)
+            elif path == "/api/tasks/complete-all":
+                api_task_complete_all(self)
             elif path == "/api/events":
                 api_event_create(self)
             elif path == "/api/competitions":

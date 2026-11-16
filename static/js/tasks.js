@@ -5,15 +5,20 @@ function renderTasksView() {
   const listNode = $('#taskList');
   if (!listNode) return;
   const day = state.tasks.date || state.taskDate;
-  const tasks = state.tasks.tasks || [];
+  const allTasks = state.tasks.tasks || [];
+  const query = (state.taskQuery || '').trim().toLowerCase();
+  const tasks = query
+    ? allTasks.filter((t) => `${t.title} ${t.notes || ''}`.toLowerCase().includes(query))
+    : allTasks;
   const done = tasks.filter((t) => t.done);
   const open = tasks.filter((t) => !t.done);
-  const total = tasks.length;
-  const pct = total ? Math.round((done.length / total) * 100) : 0;
+  const total = allTasks.length;
+  const allDone = allTasks.filter((t) => t.done).length;
+  const pct = total ? Math.round((allDone / total) * 100) : 0;
 
   $('#taskDateLabel').textContent = relDayLabel(day);
   $('#taskDateFull').textContent = fmtLong(day);
-  $('#taskProgressTxt').textContent = `${done.length}/${total} selesai`;
+  $('#taskProgressTxt').textContent = `${allDone}/${total} selesai`;
   $('#taskProgressPct').textContent = `${pct}%`;
   $('#taskProgressBar').style.width = `${pct}%`;
   const headSub = $('#taskHeadSub');
@@ -26,6 +31,15 @@ function renderTasksView() {
   $$('#taskFilters .filter-pill').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.filter === state.taskFilter);
   });
+  const searchInput = $('#taskSearch');
+  if (searchInput && searchInput.value !== (state.taskQuery || '')) searchInput.value = state.taskQuery || '';
+  const completeAll = $('#taskCompleteAll');
+  if (completeAll) completeAll.hidden = !(allTasks.length - allDone > 0);
+
+  if (state.tasks.loading && !allTasks.length) {
+    listNode.innerHTML = `<div class="task-loading">${skeletonRows(5, 'skeleton-task')}</div>`;
+    return;
+  }
 
   const taskItem = (t) => `
     <div class="task-item ${t.done ? 'done' : ''}" data-task-id="${t.id}">
@@ -59,7 +73,9 @@ function renderTasksView() {
       open: `<b>Semua tugas sudah selesai.</b><br>Kerja bagus! Waktunya istirahat atau kerjakan hal lain.`,
       done: `<b>Belum ada tugas yang selesai.</b><br>Centang tugas pertamamu hari ini.`,
     };
-    html = `<div class="task-empty">${iconSvg('check-square')}<span>${messages[state.taskFilter] || messages.all}</span></div>`;
+    html = query
+      ? `<div class="task-empty">${iconSvg('search')}<span><b>Tidak ada tugas yang cocok.</b><br>Coba kata kunci lain atau hapus pencarian.</span></div>`
+      : `<div class="task-empty">${iconSvg('check-square')}<span>${messages[state.taskFilter] || messages.all}</span></div>`;
   }
   listNode.innerHTML = html;
 
@@ -277,4 +293,31 @@ function bindTaskQuickActions() {
     state.taskFilter = btn.dataset.filter;
     renderTasksView();
   });
+  const taskSearch = $('#taskSearch');
+  if (taskSearch) {
+    taskSearch.addEventListener('input', (e) => {
+      state.taskQuery = e.target.value;
+      renderTasksView();
+    });
+    taskSearch.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.target.value = ''; state.taskQuery = ''; renderTasksView(); }
+    });
+  }
+  const completeAll = $('#taskCompleteAll');
+  if (completeAll) {
+    completeAll.addEventListener('click', () => {
+      const openTasks = (state.tasks.tasks || []).filter((t) => !t.done);
+      if (!openTasks.length) return;
+      confirmDialog({
+        title: 'Selesaikan semua tugas?',
+        message: `${openTasks.length} tugas aktif pada <strong>${esc(fmtLong(state.tasks.date || state.taskDate))}</strong> akan ditandai selesai.`,
+        confirmLabel: 'Selesaikan semua',
+        onConfirm: async () => {
+          await api('/api/tasks/complete-all', { method: 'POST', body: { date: state.tasks.date || state.taskDate } });
+          await loadTasks(state.taskDate);
+          toast(`${openTasks.length} tugas diselesaikan`);
+        },
+      });
+    });
+  }
 }

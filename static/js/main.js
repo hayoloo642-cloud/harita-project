@@ -408,6 +408,8 @@ function bindShortcutsHelp() {
 function openShortcutsHelp() {
   const rows = [
     ['Ctrl / ⌘ + K', 'Buka command palette (lompat ke halaman / aksi)'],
+    ['Ctrl / ⌘ + N', 'Tugas baru — dari halaman mana pun'],
+    ['Alt + H', 'Kembali ke Beranda'],
     ['Ctrl / ⌘ + /', 'Bantuan shortcut keyboard'],
     ['Esc', 'Tutup modal / command palette / mode fokus / pengunci'],
     ['Enter', 'Jalankan perintah di palette · simpan form'],
@@ -483,6 +485,8 @@ function bindOnboarding() {
 
 function bindGlobal() {
   $$('.nav-item').forEach((item) => item.addEventListener('click', () => setView(item.dataset.view)));
+  const topHome = $('#topHome');
+  if (topHome) topHome.addEventListener('click', () => setView('beranda'));
   $('#topWeather').addEventListener('click', () => setView('cuaca'));
   const refreshAppBtn = $('#refreshApp');
   if (refreshAppBtn) refreshAppBtn.addEventListener('click', refreshApp);
@@ -494,7 +498,16 @@ function bindGlobal() {
 
   document.addEventListener('keydown', (e) => {
     const isMac = /Mac/i.test(navigator.platform || '');
-    if ((isMac ? e.metaKey : e.ctrlKey) && e.key === '/') { e.preventDefault(); openShortcutsHelp(); }
+    const mod = isMac ? e.metaKey : e.ctrlKey;
+    if (mod && e.key === '/') { e.preventDefault(); openShortcutsHelp(); }
+    if (mod && !e.shiftKey && !e.altKey && String(e.key).toLowerCase() === 'n') {
+      const tag = (document.activeElement && document.activeElement.tagName) || '';
+      if (!/^(INPUT|TEXTAREA|SELECT)$/.test(tag)) {
+        e.preventDefault();
+        openTaskModal(null, state.taskDate || state.today);
+      }
+    }
+    if (e.altKey && String(e.key).toLowerCase() === 'h') { e.preventDefault(); setView('beranda'); }
     if (e.key === 'Escape' && !$('#modalOverlay').hidden) closeModal();
   });
 
@@ -750,7 +763,8 @@ async function init() {
         setTimeout(() => { splash.hidden = true; splash.style.display = 'none'; }, 480);
       }
     }, 300);
-    const initial = window.location.hash.replace(/^#\/?/, '');
+    const hashView = window.location.hash.replace(/^#\/?/, '');
+    const initial = hashView || state.settings.default_view || 'beranda';
     if (PAGE_META[initial] && initial !== 'beranda') setView(initial);
     window.addEventListener('hashchange', () => {
       const hashView = window.location.hash.replace(/^#\/?/, '') || 'beranda';

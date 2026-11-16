@@ -105,25 +105,93 @@ async function refreshAll() {
   }
 }
 
+const ACCENT_SWATCHES = [
+  { id: 'terracotta', label: 'Terracotta', color: '#fc8f8f' },
+  { id: 'teal',       label: 'Teal',       color: '#67e8f9' },
+  { id: 'emerald',    label: 'Emerald',    color: '#6ee7b7' },
+  { id: 'amber',      label: 'Amber',      color: '#fcd34d' },
+  { id: 'rose',       label: 'Rose',       color: '#fb7185' },
+  { id: 'violet',     label: 'Violet',     color: '#c4b5fd' },
+  { id: 'sky',        label: 'Sky',        color: '#7dd3fc' },
+  { id: 'slate',      label: 'Slate',      color: '#e2e8f0' },
+];
+
 function openSettingsModal() {
   const name = esc(state.settings.name || '');
   const locOptions = Object.entries(state.locations).map(([key, locName]) =>
     `<option value="${key}" ${state.settings.location === key ? 'selected' : ''}>${esc(locName)}</option>`).join('');
+
+  const viewOptions = [
+    ['beranda', 'Beranda'], ['tugas', 'Tugas'], ['kalender', 'Kalender'],
+    ['fokus', 'Fokus'], ['catatan', 'Catatan'], ['jadwal', 'Jadwal'],
+    ['nilai', 'Nilai'], ['flashcard', 'Flashcard'], ['lomba', 'Lomba'],
+    ['streak', 'Streak'], ['cuaca', 'Cuaca'], ['music', 'Musik'],
+  ].map(([v, l]) => `<option value="${v}" ${(state.settings.default_view || 'beranda') === v ? 'selected' : ''}>${esc(l)}</option>`).join('');
+
+  const currentAccent = state.settings.accent || 'terracotta';
+  const accentHtml = ACCENT_SWATCHES.map((s) => `
+    <button type="button" class="accent-swatch ${currentAccent === s.id ? 'active' : ''}" data-accent="${s.id}" title="${s.label}" aria-label="Aksen ${s.label}" style="background:${s.color}"></button>
+  `).join('');
+
   const body = `
-    <div class="form-grid">
-      <div class="field">
-        <label>Nama kamu</label>
-        <input name="name" maxlength="40" value="${name}" placeholder="Nama panggilan" />
+    <div class="settings-scroll">
+      <!-- Profil -->
+      <p class="eyebrow" style="margin:4px 0 12px">Profil</p>
+      <div class="form-grid">
+        <div class="field">
+          <label>Nama kamu</label>
+          <input name="name" maxlength="40" value="${name}" placeholder="Nama panggilan" />
+        </div>
+        <div class="field">
+          <label>Lokasi cuaca utama</label>
+          <select name="location">${locOptions}</select>
+        </div>
       </div>
-      <div class="field">
-        <label>Lokasi cuaca utama</label>
-        <select name="location">${locOptions}</select>
+
+      <!-- Tampilan -->
+      <p class="eyebrow" style="margin:22px 0 12px">Tampilan</p>
+
+      <div class="field full">
+        <label>Tema</label>
+        <div class="segmented" role="radiogroup" aria-label="Tema">
+          <label class="seg-option ${state.settings.theme === 'dark' ? 'active' : ''}"><input type="radio" name="theme" value="dark" ${state.settings.theme === 'dark' ? 'checked' : ''} /> Gelap</label>
+          <label class="seg-option ${state.settings.theme === 'light' ? 'active' : ''}"><input type="radio" name="theme" value="light" ${state.settings.theme === 'light' ? 'checked' : ''} /> Terang</label>
+          <label class="seg-option ${(!state.settings.theme || state.settings.theme === 'system') ? 'active' : ''}"><input type="radio" name="theme" value="system" ${(!state.settings.theme || state.settings.theme === 'system') ? 'checked' : ''} /> Sistem</label>
+        </div>
       </div>
+
+      <div class="field full">
+        <label>Aksen warna</label>
+        <div class="accent-grid" role="radiogroup" aria-label="Aksen warna">${accentHtml}</div>
+        <span class="help">Tema tetap, aksen berubah untuk tombol, ring, dan highlight.</span>
+      </div>
+
+      <div class="field full">
+        <label>Ukuran teks</label>
+        <div class="segmented" role="radiogroup" aria-label="Ukuran teks">
+          <label class="seg-option ${(!state.settings.font_size || state.settings.font_size === 'small') ? 'active' : ''}"><input type="radio" name="font_size" value="small" ${(!state.settings.font_size || state.settings.font_size === 'small') ? 'checked' : ''} /> Kecil</label>
+          <label class="seg-option ${(!state.settings.font_size || state.settings.font_size === 'normal') ? 'active' : ''}"><input type="radio" name="font_size" value="normal" ${(!state.settings.font_size || state.settings.font_size === 'normal') ? 'checked' : ''} /> Normal</label>
+          <label class="seg-option ${state.settings.font_size === 'large' ? 'active' : ''}"><input type="radio" name="font_size" value="large" ${state.settings.font_size === 'large' ? 'checked' : ''} /> Besar</label>
+        </div>
+      </div>
+
+      <div class="field full">
+        <label>Halaman utama saat dibuka</label>
+        <select name="default_view">${viewOptions}</select>
+      </div>
+
+      <!-- Tugas -->
+      <p class="eyebrow" style="margin:22px 0 12px">Tugas</p>
+
       <div class="field full">
         <label class="check-line"><input type="checkbox" name="carry_over" ${state.settings.carry_over === '1' ? 'checked' : ''} />
           <span><strong>Bawa tugas yang belum selesai</strong>Saat hari baru dibuka, tugas yang belum dicentang otomatis disalin ke hari itu.</span>
         </label>
       </div>
+
+      <!-- Notifikasi -->
+      <p class="eyebrow" style="margin:22px 0 12px">Notifikasi</p>
+
       <div class="field full">
         <label class="check-line"><input type="checkbox" name="sound" ${state.settings.sound === '1' ? 'checked' : ''} />
           <span><strong>Suara timer</strong>Bunyi singkat saat sesi fokus selesai.</span>
@@ -131,9 +199,13 @@ function openSettingsModal() {
       </div>
       <div class="field full">
         <label class="check-line"><input type="checkbox" name="notifications" ${state.settings.notifications === '1' ? 'checked' : ''} />
-          <span><strong>Notifikasi browser</strong>Pengingat agenda/tugas 10 menit sebelum dimulai.</span>
+          <span><strong>Notifikasi browser</strong>Pengingat agenda/tugas 10 menit sebelum dimulai, dan deadline lomba 24 jam sebelumnya.</span>
         </label>
       </div>
+
+      <!-- Keamanan -->
+      <p class="eyebrow" style="margin:22px 0 12px">Keamanan</p>
+
       <div class="field full">
         <label>Kunci aplikasi dengan PIN (opsional)</label>
         <input name="lock_pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="Buat PIN 4+ digit — kosongkan untuk tetap terbuka" autocomplete="off" />
@@ -142,21 +214,27 @@ function openSettingsModal() {
           <span><strong>Matikan kunci aplikasi</strong>Hapus PIN dan buka kunci — aplikasi terbuka seperti biasa.</span>
         </label>
       </div>
-      <div class="field full">
-        <div class="modal-info">
-          <strong style="color:var(--text)">Data tersimpan lokal.</strong><br>
-          Semua progres ada di <code>data/myact.db</code> (SQLite).
-          Cuaca memakai Open-Meteo tanpa API key.<br><br>
-          MyAct v${APP_VERSION} · <a class="link-btn" href="https://github.com/MyAct/myact/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a><br>
-          <a class="btn btn-ghost btn-sm" href="/api/export" download>${ico('download')} Unduh backup JSON</a>
-        </div>
+
+      <!-- Data -->
+      <p class="eyebrow" style="margin:22px 0 12px">Data</p>
+      <div class="field full" style="display:flex; gap:10px; flex-wrap:wrap">
+        <a class="btn btn-ghost btn-sm" href="/api/export" download>${ico('download')} Unduh backup JSON</a>
+        <button type="button" class="btn btn-ghost btn-sm" id="resetDataBtn">${ico('trash')} Hapus semua data</button>
       </div>
+
+      <p style="font-size:9.5px;color:var(--faint);line-height:1.7;margin-top:16px">
+        Semua data tersimpan lokal di <code>data/myact.db</code> (SQLite). Cuaca memakai Open-Meteo tanpa API key.<br>
+        MyAct v${APP_VERSION} · <a class="link-btn" href="https://github.com/MyAct/myact/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a> · <a class="link-btn" href="https://github.com/MyAct/myact/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Kontribusi</a>
+      </p>
     </div>`;
+
   openModal({
     title: 'Pengaturan',
     eyebrow: 'MyAct',
-    body,
+    wide: true,
+    hideSubmit: false,
     submitLabel: 'Simpan pengaturan',
+    body,
     onSubmit: async (form) => {
       const wantsNotifications = formValue(form, 'notifications');
       let notificationValue = wantsNotifications ? '1' : '0';
@@ -173,6 +251,10 @@ function openSettingsModal() {
         carry_over: formValue(form, 'carry_over') ? '1' : '0',
         sound: formValue(form, 'sound') ? '1' : '0',
         notifications: notificationValue,
+        theme: formValue(form, 'theme') || 'dark',
+        font_size: formValue(form, 'font_size') || 'normal',
+        default_view: formValue(form, 'default_view') || 'beranda',
+        accent: document.querySelector('.accent-swatch.active')?.dataset.accent || 'terracotta',
       };
       const lockPin = formValue(form, 'lock_pin');
       const lockDisable = formValue(form, 'lock_disable');
@@ -184,12 +266,45 @@ function openSettingsModal() {
       }
       const data = await api('/api/settings', { method: 'POST', body: payload });
       state.settings = data.settings;
+      // apply theme/accent/font immediately
+      document.documentElement.setAttribute('data-theme', state.settings.theme === 'system' ? resolveInitialTheme() : state.settings.theme);
+      document.documentElement.setAttribute('data-accent', state.settings.accent);
+      document.documentElement.setAttribute('data-font-size', state.settings.font_size);
       renderChrome();
       renderDashboard();
       toast(lockPin ? 'PIN kunci aplikasi diaktifkan' : lockDisable ? 'Kunci aplikasi dimatikan' : 'Pengaturan disimpan');
       if (payload.location !== state.weather.key) await changeWeatherLocation(payload.location);
     },
   });
+
+  // accent swatch clicks — apply + mark active immediately (visual feedback)
+  setTimeout(() => {
+    document.querySelectorAll('.accent-swatch').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.accent-swatch').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        const accent = btn.dataset.accent;
+        document.documentElement.setAttribute('data-accent', accent);
+      });
+    });
+    // reset data button
+    const resetBtn = document.getElementById('resetDataBtn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        confirmDialog({
+          title: 'Hapus semua data?',
+          message: '<strong>Semua data</strong> (tugas, kalender, catatan, lomba, nilai, flashcard, streak, fokus, musik) akan dihapus permanen. <em>Hanya nama & pengaturan tampilan yang dipertahankan.</em> Unduh backup JSON dulu kalau butuh.',
+          confirmLabel: 'Hapus semua data',
+          danger: true,
+          onConfirm: async () => {
+            await api('/api/reset', { method: 'POST' });
+            toast('Semua data dihapus. Aplikasi akan dimuat ulang.');
+            setTimeout(() => window.location.reload(), 1200);
+          },
+        });
+      });
+    }
+  }, 60);
 }
 
 /* ---------- ticker (ringan) ---------- */
@@ -627,6 +742,14 @@ async function init() {
     maybeShowOnboarding();
     if (typeof loadWeeklyReview === 'function') loadWeeklyReview();
     registerServiceWorker();
+    // splash out setelah app siap — beri sedikit napas untuk animasi
+    setTimeout(() => {
+      const splash = document.getElementById('splash');
+      if (splash) {
+        splash.style.opacity = '0';
+        setTimeout(() => { splash.hidden = true; splash.style.display = 'none'; }, 480);
+      }
+    }, 300);
     const initial = window.location.hash.replace(/^#\/?/, '');
     if (PAGE_META[initial] && initial !== 'beranda') setView(initial);
     window.addEventListener('hashchange', () => {
@@ -642,6 +765,8 @@ async function init() {
     setInterval(tick, 1000);
     setInterval(() => loadWeather(state.weather.key, false), 10 * 60 * 1000);
   } catch (err) {
+    const splash = document.getElementById('splash');
+    if (splash) splash.hidden = true;
     toast(`Tidak dapat terhubung ke server MyAct: ${err.message}`, 'error', 8000);
   }
 }

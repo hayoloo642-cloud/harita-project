@@ -218,6 +218,9 @@ DEFAULT_SETTINGS = {
     "onboarded": "0",
     "lock_enabled": "0",
     "lock_pin_hash": "",
+    "accent": "terracotta",
+    "font_size": "normal",
+    "default_view": "beranda",
 }
 
 
@@ -1602,7 +1605,15 @@ def _validate_setting(key: str, value) -> str:
     if key in ("carry_over", "sound", "notifications", "music_paused"):
         return "1" if s in ("1", "true", "True", "yes") else "0"
     if key == "theme":
-        return s if s in ("dark", "light") else "dark"
+        return s if s in ("dark", "light", "system") else "dark"
+    if key == "accent":
+        allowed = {"terracotta", "teal", "emerald", "amber", "rose", "violet", "sky", "slate"}
+        return s if s in allowed else "terracotta"
+    if key == "font_size":
+        return s if s in ("small", "normal", "large") else "normal"
+    if key == "default_view":
+        allowed = {"beranda", "tugas", "kalender", "fokus", "catatan", "jadwal", "nilai", "flashcard", "lomba", "streak", "cuaca", "music"}
+        return s if s in allowed else "beranda"
     if key == "music_volume":
         try:
             return str(max(0, min(100, int(float(s)))))
@@ -2409,6 +2420,8 @@ class Handler(BaseHTTPRequestHandler):
                 api_activity(self)
             elif path == "/api/lock-status":
                 api_lock_status(self)
+            elif path == "/api/reset":
+                api_reset(self)
             elif path == "/api/flashcards":
                 api_flashcards(self, query)
             elif path == "/api/grades":

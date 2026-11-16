@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#16090e" />
+<title>MyAct — Konsisten & Rajin Setiap Hari</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="/icon-192.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+<a class="skip-link" href="#main-content">Lompat ke konten utama</a>
+<div class="aurora">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+  </div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="brandGrad" x1="0" y1="0" x2="64" y2="64">
+              <stop offset="0" stop-color="#3E1A20"/>
+              <stop offset="1" stop-color="#64242F"/>
+            </linearGradient>
+            <linearGradient id="brandRing" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#FC8F8F"/>
+              <stop offset="1" stop-color="#B44446"/>
+            </linearGradient>
+          </defs>
+          <rect width="64" height="64" rx="15" fill="url(#brandGrad)"/>
+          <circle cx="32" cy="25" r="11.5" stroke="url(#brandRing)" stroke-width="4.2"/>
+          <path d="M26 25.2l4.4 4.4 7.8-8.2" stroke="#ECE4E1" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="13" cy="49" r="2.1" fill="#FC8F8F" opacity=".30"/>
+          <circle cx="20" cy="49" r="2.1" fill="#FC8F8F" opacity=".42"/>
+          <circle cx="27" cy="49" r="2.1" fill="#FC8F8F" opacity=".54"/>
+          <circle cx="34" cy="49" r="2.1" fill="#FC8F8F" opacity=".67"/>
+          <circle cx="41" cy="49" r="2.1" fill="#FC8F8F" opacity=".79"/>
+          <circle cx="48" cy="49" r="2.1" fill="#FC8F8F" opacity=".90"/>
+          <circle cx="55" cy="49" r="2.1" fill="#FC8F8F"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <strong>MyAct</strong>
+        <span>Konsisten &amp; rajin</span>
+      </div>
+    </div>
+
+    <nav class="nav" aria-label="Navigasi utama">
+      <p class="nav-group-label">Harian</p>
+      <button class="nav-item active" data-view="beranda">
+        <span class="nav-ico" data-icon="home"></span><span>Beranda</span>
+      </button>
+      <button class="nav-item" data-view="tugas">
+        <span class="nav-ico" data-icon="check-square"></span><span>Tugas</span>
+        <span class="nav-badge" id="navTaskBadge" hidden></span>
+      </button>
+      <button class="nav-item" data-view="kalender">
+        <span class="nav-ico" data-icon="calendar"></span><span>Kalender</span>
+      </button>
+      <button class="nav-item" data-view="fokus">
+        <span class="nav-ico" data-icon="timer"></span><span>Fokus</span>
+      </button>
+
+      <p class="nav-group-label">Belajar</p>
+      <button class="nav-item" data-view="lomba">
+        <span class="nav-ico" data-icon="trophy"></span><span>Lomba</span>
+      </button>
+      <button class="nav-item" data-view="jadwal">
+        <span class="nav-ico" data-icon="book"></span><span>Jadwal</span>
+      </button>
+      <button class="nav-item" data-view="nilai">
+        <span class="nav-ico" data-icon="star"></span><span>Nilai</span>
+      </button>
+      <button class="nav-item" data-view="flashcard">
+        <span class="nav-ico" data-icon="list"></span><span>Flashcard</span>
+      </button>
+      <button class="nav-item" data-view="catatan">
+        <span class="nav-ico" data-icon="note"></span><span>Catatan</span>
+      </button>
+
+      <p class="nav-group-label">Lainnya</p>
+      <button class="nav-item" data-view="streak">
+        <span class="nav-ico" data-icon="flame"></span><span>Streak</span>
+      </button>
+      <button class="nav-item" data-view="music">
+        <span class="nav-ico" data-icon="play"></span><span>Musik</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-foot">
+      <div class="mini-status">
+        <span class="pulse-dot"></span>
+        <div>
+          <strong id="sideClock">--:--</strong>
+          <span>Waktu lokal</span>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm full" id="openSettings">
+        <span class="ico" data-icon="settings"></span> Pengaturan
+      </button>
+      <p style="font-size:9px;color:var(--faint);text-align:center;margin:4px 0 0">MyAct <span id="appVersion">v1.0.0</span></p>
+    </div>
+  </aside>
+
+  <main class="main" id="main-content" tabindex="-1">
+    <header class="topbar">
+      <div class="topbar-title">
+        <p class="eyebrow" id="pageEyebrow">Ringkasan hari ini</p>
+        <h1 id="pageTitle">Beranda</h1>
+      </div>
+      <div class="topbar-actions">
+        <button class="icon-btn" id="topTheme" title="Ganti tema gelap/terang" aria-label="Ganti tema"><span class="ico" data-icon="sun"></span></button>
+        <button class="weather-chip" id="topWeather" title="Lihat cuaca lengkap">
+          <span class="weather-chip-ico" id="topWeatherIcon"></span>
+          <span class="weather-chip-temp" id="topWeatherTemp">—</span>
+          <span class="weather-chip-meta">
+            <strong id="topWeatherLoc">Lokal</strong>
+            <span id="topWeatherDesc">memuat…</span>
+          </span>
+        </button>
+        <button class="btn btn-ghost btn-sm refresh-app-btn" id="refreshApp" title="Segarkan aplikasi — muat file terbaru" aria-label="Segarkan aplikasi">
+          <span class="ico" data-icon="refresh"></span><span class="refresh-app-text">Segarkan</span>
+        </button>
+        <button class="icon-btn" id="shortcutsHelp" title="Shortcut keyboard (Ctrl+/)" aria-label="Shortcut keyboard"><span class="ico" data-icon="keyboard"></span></button>
+        <button class="avatar" id="topAvatar" title="Pengaturan">D</button>
+      </div>
+    </header>
+
+    <div class="content">
+      <!-- ============ BERANDA ============ -->
+      <section class="view active" id="view-beranda">
+        <div class="dash-grid">
+          <article class="card span-12 weekly-review" id="weeklyReview" hidden>
+            <div class="wr-ring"><svg width="72" height="72" viewBox="0 0 72 72"><circle cx="36" cy="36" r="30" fill="none" stroke="var(--border)" stroke-width="8"/><circle id="wrRing" cx="36" cy="36" r="30" fill="none" stroke="var(--accent)" stroke-width="8" stroke-linecap="round" stroke-dasharray="188.5" stroke-dashoffset="188.5" transform="rotate(-90 36 36)" style="transition:stroke-dashoffset .8s ease"/></svg></div>
+            <div>
+              <p class="wr-label">Rekap minggu ini</p>
+              <div class="wr-time" id="wrFocus">0 menit</div>
+              <div class="hint" style="margin:4px 0 0">fokus minggu berjalan · Senin–Minggu</div>
+            </div>
+            <div class="wr-stats" id="wrStats"></div>
+          </article>
+          <article class="card hero span-8 ukiran">
+            <svg class="hero-arch" viewBox="0 0 320 320" fill="none" aria-hidden="true"><defs><linearGradient id="archSun" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fc8f8f" stop-opacity=".95"/><stop offset="1" stop-color="#b44446" stop-opacity=".18"/></linearGradient></defs><path d="M20 210 A140 140 0 0 1 300 210 Z" fill="url(#archSun)"/><path d="M0 240 Q40 222 80 240 T160 240 T240 240 T320 240" stroke="#fc8f8f" stroke-width="2" opacity=".5"/><path d="M0 268 Q40 252 80 268 T160 268 T240 268 T320 268" stroke="#b44446" stroke-width="2" opacity=".35"/><circle cx="160" cy="128" r="26" stroke="#fc8f8f" stroke-width="2" opacity=".8"/></svg>
+            <div class="hero-glow"></div>
+            <div class="hero-main">
+              <div class="hero-left">
+                <div class="eyebrow live"><span class="live-dot"></span> Realtime · Asia/Makassar</div>
+                <h2 class="greeting">Selamat pagi, <span id="greetName">Kamu</span></h2>
+                <div class="clock-wrap">
+                  <div class="clock" id="heroClock">--:--<span class="clock-sec">:--</span></div>
+                  <div class="clock-date">
+                    <strong id="heroDay">—</strong>
+                    <span id="heroDate">—</span>
+                  </div>
+                </div>
+                <p class="hero-sub" id="heroSub">Menyiapkan ringkasan harimu…</p>
+              </div>
+              <div class="hero-weather" id="heroWeather">
+                <div class="skeleton-wx"></div>
+              </div>
+            </div>
+            <div class="hourly-strip" id="heroHourly">
+              <div class="hourly-empty">Memuat prakiraan jam-jaman…</div>
+            </div>
+          </article>
+
+          <article class="card span-4 focus-summary">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Progres hari ini</p>
+                <h3>Tugas harian</h3>
+              </div>
+              <button class="link-btn" data-goto="tugas">Kelola <span class="ico" data-icon="arrow-right"></span></button>
+            </div>
+            <div class="ring-wrap">
+              <svg class="progress-ring" viewBox="0 0 128 128">
+                <defs>
+                  <linearGradient id="ringGrad" x1="0" y1="0" x2="128" y2="128">
+                    <stop stop-color="#fc8f8f"/><stop offset="1" stop-color="#b44446"/>
+                  </linearGradient>
+                </defs>
+                <circle class="ring-track" cx="64" cy="64" r="54"/>
+                <circle class="ring-fill" id="ringFill" cx="64" cy="64" r="54"/>
+              </svg>
+              <div class="ring-label">
+                <strong id="statDone">0</strong>
+                <span>dari <b id="statTotal">0</b> selesai</span>
+              </div>
+            </div>
+            <div class="task-mini-list" id="heroTasks"></div>
+            <div class="beranda-focus-subjects" id="berandaFocusSubjects" style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px"></div>
+            <button class="btn btn-ghost btn-sm full" id="heroAddTask">
+              <span class="ico" data-icon="plus"></span> Tambah tugas cepat
+            </button>
+          </article>
+
+          <article class="card span-5">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Timeline</p>
+                <h3>Agenda hari ini</h3>
+              </div>
+              <button class="link-btn" data-goto="kalender">Kalender <span class="ico" data-icon="arrow-right"></span></button>
+            </div>
+            <div class="agenda" id="heroAgenda"></div>
+          </article>
+
+          <article class="card span-4">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Sekilas</p>
+                <h3 id="miniCalTitle">Kalender</h3>
+              </div>
+              <div class="cal-nav">
+                <button class="icon-btn xs" id="miniPrev" aria-label="Bulan sebelumnya"><span class="ico" data-icon="chevron-left"></span></button>
+                <button class="icon-btn xs" id="miniNext" aria-label="Bulan berikutnya"><span class="ico" data-icon="chevron-right"></span></button>
+              </div>
+            </div>
+            <div class="mini-calendar" id="miniCalendar"></div>
+            <div class="mini-cal-foot" id="miniCalFoot"></div>
+          </article>
+
+          <article class="card span-3 comp-mini" id="compMini">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Countdown</p>
+                <h3>Lomba terdekat</h3>
+              </div>
+              <button class="icon-btn xs" data-goto="lomba" aria-label="Buka lomba"><span class="ico" data-icon="arrow-up-right"></span></button>
+            </div>
+            <div id="compMiniBody" class="comp-mini-body"></div>
+          </article>
+
+          <!-- Device Performance on Dashboard -->
+          <article class="card span-4 device-dashboard-card">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Performa Device · Realtime</p>
+                <h3>Sistem</h3>
+              </div>
+              <button class="link-btn" data-goto="device">Detail <span class="ico" data-icon="arrow-right"></span></button>
+            </div>
+            <div class="device-quick-stats" id="deviceQuickStats">
+              <div class="dqs-item"><span class="dqs-label">CPU</span><span class="dqs-value" id="dqsCpu">—</span></div>
+              <div class="dqs-item"><span class="dqs-label">RAM</span><span class="dqs-value" id="dqsRam">—</span></div>
+              <div class="dqs-item"><span class="dqs-label">Disk</span><span class="dqs-value" id="dqsDisk">—</span></div>
+              <div class="dqs-item"><span class="dqs-label">Baterai</span><span class="dqs-value" id="dqsBatt">—</span></div>
+            </div>
+          </article>
+
+          <article class="card span-8 insight-card">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Saran cerdas</p>
+                <h3>Cuaca & rencanamu</h3>
+              </div>
+              <button class="link-btn" data-goto="cuaca">Detail cuaca <span class="ico" data-icon="arrow-right"></span></button>
+            </div>
+            <div class="insight-grid" id="insightGrid"></div>
+          </article>
+
+          <article class="card span-4 note-mini" id="noteMini">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Disematkan</p>
+                <h3>Catatan</h3>
+              </div>
+              <button class="icon-btn xs" data-goto="catatan" aria-label="Buka catatan"><span class="ico" data-icon="arrow-up-right"></span></button>
+            </div>
+            <div id="noteMiniBody"></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============ CUACA ============ -->
+      <section class="view" id="view-cuaca">
+        <div class="view-head">
+          <div>
+            <h2>Cuaca realtime</h2>
+            <p>Data Open-Meteo · diperbarui otomatis tiap 10 menit</p>
+          </div>
+          <div class="view-actions">
+            <span class="updated-tag" id="weatherUpdated">—</span>
+            <button class="btn btn-ghost btn-sm" id="refreshWeather"><span class="ico" data-icon="refresh"></span> Perbarui</button>
+          </div>
+        </div>
+        <div class="location-pills" id="locationPills"></div>
+        <div class="weather-grid">
+          <article class="card wx-current span-5" id="wxCurrent"></article>
+          <article class="card span-3" id="wxDetails"></article>
+          <article class="card span-4 advice-card" id="wxAdvice"></article>
+          <article class="card span-12">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">24 jam ke depan</p>
+                <h3>Prakiraan per jam</h3>
+              </div>
+              <div class="legend"><span class="legend-dot rain"></span> Peluang hujan</div>
+            </div>
+            <div class="hourly-scroll" id="wxHourly"></div>
+          </article>
+          <article class="card span-12">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">7 hari</p>
+                <h3>Prakiraan mingguan</h3>
+              </div>
+              <div class="legend"><span class="legend-bar"></span> rentang suhu</div>
+            </div>
+            <div class="daily-list" id="wxDaily"></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============ TUGAS ============ -->
+      <section class="view" id="view-tugas">
+        <div class="view-head">
+          <div>
+            <h2>Tugas harian</h2>
+            <p id="taskHeadSub">Checklist otomatis direset setiap hari — yang belum selesai bisa dibawa.</p>
+          </div>
+          <div class="view-actions">
+            <button class="btn btn-ghost btn-sm" id="taskCarry"><span class="ico" data-icon="copy"></span> Bawa dari kemarin</button>
+            <button class="btn btn-primary btn-sm" id="taskAdd"><span class="ico" data-icon="plus"></span> Tugas baru</button>
+          </div>
+        </div>
+
+        <div class="task-datebar card">
+          <div class="date-nav">
+            <button class="icon-btn" id="taskPrev" aria-label="Hari sebelumnya"><span class="ico" data-icon="chevron-left"></span></button>
+            <div class="date-nav-label">
+              <strong id="taskDateLabel">Hari ini</strong>
+              <span id="taskDateFull">—</span>
+            </div>
+            <button class="icon-btn" id="taskNext" aria-label="Hari berikutnya"><span class="ico" data-icon="chevron-right"></span></button>
+            <button class="btn btn-ghost btn-sm" id="taskTodayBtn">Hari ini</button>
+          </div>
+          <div class="datebar-progress">
+            <div class="progress-meta"><span id="taskProgressTxt">0/0 selesai</span><span id="taskProgressPct">0%</span></div>
+            <div class="progress-bar"><span id="taskProgressBar"></span></div>
+          </div>
+        </div>
+
+        <form class="quick-add card" id="quickAddForm">
+          <span class="ico quick-ico" data-icon="plus"></span>
+          <input type="text" id="quickAddInput" placeholder="Tambah tugas cepat… (Enter untuk simpan)" autocomplete="off" maxlength="140" />
+          <select id="quickAddPriority" class="select-inline" aria-label="Prioritas">
+            <option value="1">Penting</option>
+            <option value="2" selected>Normal</option>
+            <option value="3">Santai</option>
+          </select>
+          <button type="button" class="btn btn-ghost btn-sm" id="quickAddMore">Detail</button>
+        </form>
+
+        <div class="task-layout">
+          <div class="card span-8 task-main">
+            <div class="card-head">
+              <div><p class="eyebrow">Daftar</p><h3>Tugas</h3></div>
+              <div class="task-filters" id="taskFilters">
+                <button class="filter-pill active" data-filter="all">Semua</button>
+                <button class="filter-pill" data-filter="open">Aktif</button>
+                <button class="filter-pill" data-filter="done">Selesai</button>
+              </div>
+            </div>
+            <div id="taskList" class="task-list"></div>
+          </div>
+
+          <aside class="task-side">
+            <div class="card">
+              <div class="card-head"><div><p class="eyebrow">Otomatis</p><h3>Rutinitas harian</h3></div></div>
+              <div id="routineList" class="routine-list"></div>
+              <p class="hint">Rutinitas muncul otomatis di setiap hari baru.</p>
+            </div>
+            <div class="card">
+              <div class="card-head"><div><p class="eyebrow">Cadangan</p><h3>Data</h3></div></div>
+              <p class="hint">Tugas, agenda, catatan, dan progres tersimpan di SQLite lokal. Unduh salinan kapan saja.</p>
+              <a class="btn btn-ghost btn-sm full" href="/api/export" download><span class="ico" data-icon="download"></span> Unduh backup JSON</a>
+              <button class="btn btn-danger-ghost btn-sm full" id="taskResetDay">Reset tugas hari ini</button>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ============ KALENDER ============ -->
+      <section class="view" id="view-kalender">
+        <div class="view-head">
+          <div>
+            <h2>Kalender</h2>
+            <p>Agenda sekolah, lomba, tugas, dan kegiatan pribadi dalam satu tempat.</p>
+          </div>
+          <div class="view-actions">
+            <div class="cal-nav">
+              <button class="icon-btn" id="calPrev" aria-label="Bulan sebelumnya"><span class="ico" data-icon="chevron-left"></span></button>
+              <button class="icon-btn" id="calNext" aria-label="Bulan berikutnya"><span class="ico" data-icon="chevron-right"></span></button>
+            </div>
+            <button class="btn btn-ghost btn-sm" id="calToday">Hari ini</button>
+            <input type="file" id="calIcsFile" accept=".ics,text/calendar" hidden />
+            <button class="btn btn-ghost btn-sm" id="calImportIcs" title="Import file .ics"><span class="ico" data-icon="upload"></span> Import .ics</button>
+            <a class="btn btn-ghost btn-sm" href="/api/calendar.ics" download><span class="ico" data-icon="download"></span> Export .ics</a>
+            <button class="btn btn-primary btn-sm" id="calAdd"><span class="ico" data-icon="plus"></span> Agenda</button>
+          </div>
+        </div>
+        <div class="calendar-layout">
+          <div class="card cal-main">
+            <div class="cal-head">
+              <h3 id="calTitle">—</h3>
+              <div class="legend-row">
+                <span class="cat-dot cat-lomba"></span><span>Lomba</span>
+                <span class="cat-dot cat-sekolah"></span><span>Sekolah</span>
+                <span class="cat-dot cat-tugas"></span><span>Tugas</span>
+                <span class="cat-dot cat-pribadi"></span><span>Pribadi</span>
+              </div>
+            </div>
+            <div class="cal-weekdays">
+              <span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span>
+            </div>
+            <div class="cal-grid" id="calGrid"></div>
+          </div>
+          <aside class="card cal-side">
+            <div class="card-head">
+              <div><p class="eyebrow">Detail</p><h3 id="calSideTitle">—</h3></div>
+              <button class="icon-btn xs" id="calSideAdd" aria-label="Tambah agenda"><span class="ico" data-icon="plus"></span></button>
+            </div>
+            <div id="calSideList" class="cal-side-list"></div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ============ LOMBA ============ -->
+      <section class="view" id="view-lomba">
+        <div class="view-head">
+          <div>
+            <h2>Lomba & proyek</h2>
+            <p>Pantau deadline, progres persiapan, dan checklist kebutuhanmu.</p>
+          </div>
+          <button class="btn btn-primary btn-sm" id="compAdd"><span class="ico" data-icon="plus"></span> Tambah lomba</button>
+        </div>
+        <div class="comp-stats" id="compStats"></div>
+        <div class="comp-grid" id="compGrid"></div>
+      </section>
+
+      <!-- ============ FOKUS ============ -->
+      <section class="view" id="view-fokus">
+        <div class="view-head">
+          <div>
+            <h2>Ruang fokus</h2>
+            <p>Pomodoro sederhana supaya belajar dan mengerjakan proyek lebih terarah.</p>
+          </div>
+          <div class="view-actions">
+            <span class="updated-tag" id="focusTodayTag">0 menit hari ini</span>
+            <button class="btn btn-ghost btn-sm" id="focusModeOpen"><span class="ico" data-icon="timer"></span> Mode fokus</button>
+          </div>
+        </div>
+        <div class="focus-layout">
+          <div class="card focus-timer-card">
+            <div class="mode-tabs" id="focusModes">
+              <button class="mode-tab active" data-mode="focus" data-min="25">Fokus · 25</button>
+              <button class="mode-tab" data-mode="short" data-min="5">Istirahat · 5</button>
+              <button class="mode-tab" data-mode="long" data-min="15">Istirahat · 15</button>
+              <button class="mode-tab" data-mode="custom" id="focusCustomTab">Kustom · 45</button>
+            </div>
+            <div class="focus-custom-row" id="focusCustomRow" hidden>
+              <label for="focusCustomMinutes">Waktu kustom</label>
+              <input type="number" id="focusCustomMinutes" min="1" max="240" step="1" value="45" inputmode="numeric" aria-label="Menit kustom" />
+              <span>menit</span>
+            </div>
+            <div class="timer-visual">
+              <svg viewBox="0 0 300 300" class="timer-ring">
+                <defs>
+                  <linearGradient id="timerGrad" x1="0" y1="0" x2="300" y2="300">
+                    <stop stop-color="#fc8f8f"/><stop offset="1" stop-color="#b44446"/>
+                  </linearGradient>
+                </defs>
+                <circle class="timer-track" cx="150" cy="150" r="132"/>
+                <circle class="timer-fill" id="timerFill" cx="150" cy="150" r="132"/>
+              </svg>
+              <div class="timer-center">
+                <span class="timer-label" id="timerLabel">Waktu fokus</span>
+                <strong class="timer-display" id="timerDisplay">25:00</strong>
+                <span class="timer-state" id="timerState">Siap dimulai</span>
+              </div>
+            </div>
+            <div class="timer-controls">
+              <button class="btn btn-primary" id="timerStart"><span class="ico" data-icon="play"></span> Mulai</button>
+              <button class="icon-btn" id="timerReset" title="Reset timer" aria-label="Reset timer"><span class="ico" data-icon="rotate"></span></button>
+            </div>
+            <div class="timer-task">
+              <label for="focusTaskSelect">Fokus pada tugas</label>
+              <select id="focusTaskSelect" class="select-inline"></select>
+            </div>
+            <div class="timer-task">
+              <label for="focusSubjectSelect">Mata pelajaran (untuk statistik)</label>
+              <select id="focusSubjectSelect" class="select-inline"></select>
+            </div>
+          </div>
+
+          <aside class="focus-side">
+            <div class="card">
+              <div class="card-head"><div><p class="eyebrow">Hari ini</p><h3>Sesi fokus</h3></div></div>
+              <div class="focus-stat-row">
+                <div class="focus-stat"><strong id="focusTotal">0</strong><span>menit total</span></div>
+                <div class="focus-stat"><strong id="focusCount">0</strong><span>sesi selesai</span></div>
+                <div class="focus-stat"><strong id="focusTarget">0%</strong><span>dari 100 menit</span></div>
+              </div>
+              <div class="progress-bar"><span id="focusProgress"></span></div>
+              <div id="focusSessions" class="focus-sessions"></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><div><p class="eyebrow">Tips</p><h3>Supaya fokus</h3></div></div>
+              <ul class="tip-list">
+                <li><span class="ico" data-icon="check"></span> Taruh HP di luar jangkauan selama sesi.</li>
+                <li><span class="ico" data-icon="check"></span> Tulis satu target kecil yang jelas.</li>
+                <li><span class="ico" data-icon="check"></span> Saat istirahat, berdiri dan lihat jauh.</li>
+                <li><span class="ico" data-icon="check"></span> Jangan skip istirahat — otak butuh recovery.</li>
+              </ul>
+            </div>
+          </aside>
+        </div>
+        <div class="card" style="margin-top:18px">
+          <div class="card-head"><div><p class="eyebrow">7 hari terakhir</p><h3>Fokus per mata pelajaran</h3></div></div>
+          <div id="focusSubjectStats"></div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <div class="card-head"><div><p class="eyebrow">14 hari terakhir</p><h3>Tren fokus harian</h3></div><span class="hint" style="margin:0" id="focusTrendTotal">0 menit total</span></div>
+          <div class="focus-trend" id="focusTrend" role="img" aria-label="Grafik batang fokus 14 hari terakhir"></div>
+        </div>
+      </section>
+
+      <!-- ============ CATATAN ============ -->
+      <section class="view" id="view-catatan">
+        <div class="view-head">
+          <div>
+            <h2>Catatan cepat</h2>
+            <p>Ide, materi lomba, rumus, atau hal yang tidak boleh lupa.</p>
+          </div>
+          <div class="view-actions">
+            <div class="search-box">
+              <span class="ico" data-icon="search"></span>
+              <input type="search" id="noteSearch" placeholder="Cari catatan…" aria-label="Cari catatan" />
+            </div>
+            <button class="btn btn-primary btn-sm" id="noteAdd"><span class="ico" data-icon="plus"></span> Catatan</button>
+          </div>
+        </div>
+        <div class="notes-grid" id="notesGrid"></div>
+      </section>
+
+      <!-- ============ JADWAL ============ -->
+      <section class="view" id="view-jadwal">
+        <div class="view-head">
+          <div>
+            <h2>Jadwal sekolah</h2>
+            <p>Atur jadwal pelajaran tetap. Hari ini otomatis tampil di beranda dan agenda.</p>
+          </div>
+          <div class="view-actions">
+            <input type="file" id="scheduleCsvFile" accept=".csv" hidden />
+            <button class="btn btn-ghost btn-sm" id="scheduleImport" title="Import CSV: kolom hari,jam,mapel,ruang,guru"><span class="ico" data-icon="upload"></span> Import CSV</button>
+            <button class="btn btn-primary btn-sm" id="scheduleAdd"><span class="ico" data-icon="plus"></span> Tambah mapel</button>
+          </div>
+        </div>
+        <div class="card schedule-card">
+          <div class="weekday-tabs" id="weekdayTabs"></div>
+          <div class="schedule-list" id="scheduleList"></div>
+        </div>
+      </section>
+
+      <!-- ============ DEVICE ============ -->
+      <section class="view" id="view-device">
+        <div class="view-head">
+          <div>
+            <h2>Performa Device</h2>
+            <p>Monitor CPU, RAM, penyimpanan, baterai, dan jaringan laptop secara realtime.</p>
+          </div>
+          <div class="view-actions">
+            <span class="updated-tag" id="deviceUpdated">—</span>
+            <button class="btn btn-ghost btn-sm" id="refreshDevice"><span class="ico" data-icon="refresh"></span> Perbarui</button>
+          </div>
+        </div>
+        <div class="device-grid" id="deviceGrid"></div>
+        <div class="device-detail card" id="deviceDetail"></div>
+      </section>
+
+      <!-- ============ MUSIC ============ -->
+      <section class="view" id="view-music">
+        <div class="view-head">
+          <div>
+            <h2>Music Player</h2>
+            <p>Putar musik lokal di laptop. Taruh file audio di folder <code>music/</code> di dalam folder MyAct.</p>
+          </div>
+          <div class="view-actions">
+            <button class="btn btn-ghost btn-sm" id="musicRescan"><span class="ico" data-icon="refresh"></span> Rescan</button>
+          </div>
+        </div>
+        <div class="music-layout">
+          <aside class="music-sidebar">
+            <div class="music-search">
+              <span class="ico" data-icon="search"></span>
+              <input type="search" id="musicSearch" placeholder="Cari lagu…" aria-label="Cari lagu" />
+            </div>
+            <div class="music-library">
+              <div class="music-library-head">
+                <h4>Library</h4>
+                <span id="musicCount">0 lagu</span>
+              </div>
+              <div class="music-track-list" id="musicTrackList"></div>
+            </div>
+          </aside>
+          <div class="music-player now" id="musicPlayerNow">
+            <div class="mp-art" id="mpArt">
+              <span class="mp-art-empty">♪</span>
+            </div>
+            <div class="mp-info">
+              <div class="mp-title" id="mpTitle">—</div>
+              <div class="mp-artist" id="mpArtist">Tidak ada yang diputar</div>
+            </div>
+            <div class="mp-time"><span id="mpCur">0:00</span><span id="mpDur">0:00</span></div>
+            <div class="mp-progress" id="mpProgress"></div>
+            <div class="mp-controls">
+              <button class="mp-btn" id="musicPrev" title="Sebelumnya"><span class="ico" data-icon="chevron-left"></span></button>
+              <button class="mp-btn play" id="musicPlayPause" title="Putar/Jeda"><span class="ico" data-icon="play"></span></button>
+              <button class="mp-btn" id="musicNext" title="Berikutnya"><span class="ico" data-icon="chevron-right"></span></button>
+              <div class="mp-volume" id="mpVolume"></div>
+            </div>
+          </div>
+          <div class="music-player empty" id="musicPlayerEmpty">
+            <div class="mp-art"><span class="mp-art-empty">♪</span></div>
+            <div class="mp-info">
+              <div class="mp-title">Belum ada musik</div>
+              <div class="mp-artist">Tambahkan file audio ke folder music</div>
+            </div>
+          </div>
+          <div class="music-empty" id="musicEmpty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="19" r="2"/><path d="M3 16c0-.9.11-1.76.3-2.57l1.27-1.42c.71-.8 1.3-1.39 1.7-1.87l1.6-1.85c.4-.47.69-1 .9-1.47.21-.47.33-.97.33-1.48 0-1.41-1.21-2.56-2.7-2.56A2.7 2.7 0 0 0 3 9c0 1.61 1.34 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92 0-1.61-1.34-2.92-2.92-2.92A2.92 2.92 0 0 0 1 6.08C1 7.69 2.23 9 3.84 9h.16c1.02 0 1.92-.67 2.28-1.69l2.42-6.44c.36-.96.52-1.95.42-2.93s-.57-1.92-1.49-2.36l-1.9-.9c-1.13-.56-2.34-.31-3.22.54l-1.3 1.3c-.93.93-1.24 2.18-.88 3.45l1.58 1.78c.4 1.34.41 2.73.01 4.07l-1.78 4.75c-.47 1.25-.59 2.54-.37 3.81.11.68.37 1.28.72 1.78l1.06 1.53c.7 1.01 1.57 1.72 2.57 2.02 1 .31 2.05.39 3.05.39 2.34 0 4.46-1.47 5.31-3.69l.72-1.93c.4-1.07.51-2.19.35-3.31s-.64-2.16-1.6-2.9l-1.9-1.47c-1.1-.86-2.29-.58-3.22.32l-1.48 1.43c-.99.96-1.2 2.36-.66 3.6l.85 1.95c.5 1.16.53 2.37.1 3.56s-1.14 2.11-2.3 2.62c-1.17.52-2.39.52-3.56 0l-1.96-.8c-1.12-.48-2.28-.22-3.14.64l-1.36 1.36c-.91.91-1.19 2.19-.79 3.41l.63 1.93c.34 1.02.38 2.07.14 3.07s-1.01 1.84-2.03 2.32c-1.02.48-2.06.48-3.08 0l-1.62-.72c-1-.45-2.02-.18-2.77.58l-1.2 1.2c-.78.78-1.03 1.85-.66 2.8l.58 1.47c.32.82.34 1.67.09 2.51s-.86 1.44-1.68 1.8c-1.01.44-2.03.44-3.05 0l-1.64-.73c-1.03-.46-2.09-.19-2.86.57l-1.22 1.22c-.82.82-1.08 1.92-.71 2.94l.56 1.57c.31.89.33 1.8.09 2.64s-.84 1.56-1.65 2s-1.18.12-1.78-.48l-1.12-1.12c-.72-.72-.97-1.69-.63-2.6l.53-1.43c.29-.76.31-1.54.08-2.3s-.8-1.32-1.56-1.69c-1-.5-2.02-.5-3.02 0l-1.58.7c-1 .44-2.02.17-2.79-.6l-1.22-1.22c-.8-.8-1.05-1.89-.69-2.9l.55-1.54c.3-.85.32-1.73.08-2.57s-.79-1.49-1.55-1.86c-1-.49-2.02-.49-3.01 0l-1.57.7c-1 .44-2.03.17-2.8-.6l-1.21-1.21c-.8-.8-1.05-1.89-.69-2.9l.54-1.53c.3-.84.32-1.72.08-2.56s-.78-1.48-1.54-1.85c-1-.49-2.02-.49-3.01 0l-1.57.7c-1 .44-2.03.17-2.8-.6l-1.21-1.21c-.8-.8-1.05-1.89-.69-2.9l.54-1.53c.3-.84.32-1.72.08-2.56s-.78-1.48-1.54-1.85c-1-.49-2.02-.49-3.01 0l-1.57.7c-1 .44-2.03.17-2.8-.6l-1.21-1.21c-.8-.8-1.05-1.89-.69-2.9l.54-1.53c.3-.84.32-1.72.08-2.56s-.78-1.48-1.54-1.85c-1-.49-2.02-.49-3.01 0l-1.57.7c-1 .44-2.03.17-2.8-.6l-1.21-1.21c-.8-.8-1.05-1.89-.69-2.9z"/></svg>
+            <p>Folder <strong>music/</strong> masih kosong.</p>
+            <p class="hint" style="margin-top:8px">Masukkan file .mp3, .wav, .ogg, .flac atau .m4a lalu klik “Rescan”.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+<!-- ============ STREAK ============ -->
+      <section class="view" id="view-streak">
+        <div class="view-head">
+          <div>
+            <h2>Streak & Kebiasaan</h2>
+            <p>Catat kebiasaan harian kamu — lihat berapa hari berturut-turut tetap terjaga.</p>
+          </div>
+          <div class="view-actions">
+            <button class="btn btn-primary btn-sm" id="habitAdd"><span class="ico" data-icon="plus"></span> Kebiasaan baru</button>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:16px"><div class="card-head"><div><p class="eyebrow">16 minggu terakhir</p><h3>Aktivitas</h3></div></div><div class="heatmap" id="activityHeatmap"></div></div>
+        <div class="habits-grid" id="habitsGrid"></div>
+        <div class="empty-state" id="habitsEmpty" hidden>
+          <div class="empty-state-ico"><span class="ico" data-icon="flame"></span></div>
+          <strong>Belum ada kebiasaan</strong>
+          <span>Tambahkan kebiasaan pertama — misal "Belajar 30 menit", "Olahraga", atau "Baca buku".</span>
+          <button class="btn btn-primary btn-sm" data-habit-new><span class="ico" data-icon="plus"></span> Tambah kebiasaan</button>
+        </div>
+
+        <div class="modal-overlay" id="habitOverlay" hidden>
+          <div class="modal" role="dialog" aria-modal="true" aria-label="Kebiasaan baru">
+            <div class="modal-head"><div><p class="eyebrow">Streak & Kebiasaan</p><h2>Kebiasaan baru</h2></div><button class="icon-btn" id="habitClose" aria-label="Tutup"><span class="ico" data-icon="x"></span></button></div>
+            <form id="habitForm">
+              <div class="modal-body">
+                <div class="form-grid">
+                  <div class="field full"><label for="habitName">Nama kebiasaan</label><input id="habitName" name="name" maxlength="60" required placeholder="Contoh: Belajar 30 menit, Olahraga…" autocomplete="off" /></div>
+                  <div class="field full"><label for="habitIcon">Ikon</label><select id="habitIcon" name="icon"><option value="flame">🔥 Flame</option><option value="check-circle">✓ Check</option><option value="book">📚 Buku</option><option value="bolt">⚡ Energi</option><option value="target">🎯 Target</option><option value="heart">❤️ Jantung</option><option value="timer">⏱ Timer</option><option value="coffee">☕ Kopi</option></select></div>
+                </div>
+                <div class="form-error" id="habitError"></div>
+              </div>
+              <div class="modal-foot"><button type="button" class="btn btn-ghost" id="habitCancel">Batal</button><button type="submit" class="btn btn-primary">Simpan</button></div>
+            </form>
+          </div>
+        </div>
+      </section>
+      <!-- ============ NILAI ============ -->
+      <section class="view" id="view-nilai">
+        <div class="view-head">
+          <div>
+            <h2>Nilai & KKM</h2>
+            <p>Catat nilai tiap mapel — lihat posisimu terhadap KKM dan cetak laporan.</p>
+          </div>
+          <div class="view-actions">
+            <button class="btn btn-ghost btn-sm" id="gradeCsvExport" title="Unduh nilai sebagai CSV"><span class="ico" data-icon="download"></span> CSV</button>
+            <button class="btn btn-ghost btn-sm" id="gradePrint"><span class="ico" data-icon="printer"></span> Cetak / PDF</button>
+          </div>
+        </div>
+
+        <div class="grades-layout">
+          <div class="card grade-summary">
+            <p class="eyebrow">Rata-rata keseluruhan</p>
+            <div class="grade-avg" id="gradeAvg">0</div>
+            <div class="progress-meta" style="margin-top:14px"><span>Target KKM</span><b id="gradeKkm">75</b></div>
+            <div class="grade-kkm-bar"><div class="grade-kkm-fill" id="gradeKkmFill" style="width:0%"></div></div>
+            <p class="hint" id="gradeHint">Tambah nilai untuk melihat progress.</p>
+
+            <form id="gradeForm" style="margin-top:18px;border-top:1px solid var(--border);padding-top:18px">
+              <p class="eyebrow" style="margin-bottom:10px">Tambah nilai</p>
+              <div class="form-grid">
+                <div class="field"><label for="gradeSubject">Mata pelajaran</label><input id="gradeSubject" name="subject" list="gradeSubjectList" required placeholder="Fisika / MTK / …" autocomplete="off" maxlength="60" /><datalist id="gradeSubjectList"><option value="Matematika"></option><option value="Fisika"></option><option value="Kimia"></option><option value="Biologi"></option><option value="Bahasa Indonesia"></option><option value="Bahasa Inggris"></option><option value="Pemrograman Web"></option><option value="Jaringan Dasar"></option><option value="PKWU"></option><option value="PJOK"></option></datalist></div>
+                <div class="field"><label for="gradeLabel">Jenis</label><select id="gradeLabel" name="label"><option value="UH">UH</option><option value="Quiz">Quiz</option><option value="Tugas">Tugas</option><option value="PTS">PTS</option><option value="PAS">PAS</option><option value="Proyek">Proyek</option></select></div>
+                <div class="field"><label for="gradeScore">Nilai (0–100)</label><input id="gradeScore" name="score" type="number" min="0" max="100" step="0.5" required placeholder="85" /></div>
+                <div class="field"><label for="gradeKkmInput">KKM</label><input id="gradeKkmInput" name="kkm" type="number" min="0" max="100" step="1" value="75" /></div>
+              </div>
+              <button class="btn btn-primary full" type="submit" style="margin-top:12px"><span class="ico" data-icon="plus"></span> Simpan nilai</button>
+              <div class="form-error" id="gradeError"></div>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><div><p class="eyebrow">Per mapel</p><h3>Progress vs KKM</h3></div></div>
+            <div id="gradeSubjects"></div>
+            <div class="card-head" style="margin-top:20px"><div><p class="eyebrow">Riwayat</p><h3>Semua nilai</h3></div></div>
+            <div class="grade-list" id="gradeList"></div>
+          </div>
+        </div>
+
+        <div class="grade-print-only" id="gradePrintBlock"></div>
+      </section>
+
+      <!-- ============ FLASHCARD ============ -->
+      <section class="view" id="view-flashcard">
+        <div class="view-head">
+          <div>
+            <h2>Flashcard</h2>
+            <p>Kartu pintar dengan SM-2 spaced repetition — ulangi tepat waktu sebelum kamu lupa.</p>
+          </div>
+          <span class="updated-tag" id="flashcardCount">0 kartu</span>
+        </div>
+
+        <div class="grades-layout">
+          <div class="card">
+            <div class="card-head"><div><p class="eyebrow">Kartu baru</p><h3>Tambah flashcard</h3></div></div>
+            <form id="flashcardAddForm">
+              <div class="form-grid">
+                <div class="field"><label for="fcSubject">Mata pelajaran</label><input id="fcSubject" name="subject" list="fcSubjectList" required placeholder="Fisika / Bahasa Inggris…" autocomplete="off" maxlength="60" /><datalist id="fcSubjectList"><option value="Matematika"></option><option value="Fisika"></option><option value="Kimia"></option><option value="Biologi"></option><option value="Bahasa Indonesia"></option><option value="Bahasa Inggris"></option><option value="Jaringan Dasar"></option><option value="Pemrograman Web"></option></datalist></div>
+                <div class="field full"><label for="fcFront">Pertanyaan (sisi depan)</label><input id="fcFront" name="front" required placeholder="Contoh: Rumus percepatan?" maxlength="200" autocomplete="off" /></div>
+                <div class="field full"><label for="fcBack">Jawaban (sisi belakang)</label><textarea id="fcBack" name="back" required placeholder="a = Δv / t — perubahan kecepatan ÷ waktu" maxlength="400"></textarea></div>
+              </div>
+              <button class="btn btn-primary full" type="submit" style="margin-top:12px"><span class="ico" data-icon="plus"></span> Simpan kartu</button>
+              <div class="form-error" id="flashcardError"></div>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><div><p class="eyebrow">Sesi belajar</p><h3>Jatuh tempo hari ini</h3></div></div>
+            <div id="flashcardDueList"></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:14px">
+          <div class="card-head"><div><p class="eyebrow">Koleksi saya</p><h3>Library kartu</h3></div></div>
+          <div class="location-pills" id="flashcardSubjects" style="margin-bottom:12px"></div>
+          <div class="fc-grid" id="flashcardLibrary"></div>
+        </div>
+      </section>
+
+  </main>
+</div>
+
+
+<div class="now-playing-bar" id="nowPlayingBar" hidden>
+  <div class="npb-art" id="npbArt"><span class="mp-art-empty">♪</span></div>
+  <div class="npb-info">
+    <div class="npb-title" id="npbTitle">—</div>
+    <div class="npb-artist" id="npbArtist">—</div>
+  </div>
+  <div class="npb-progress" id="npbProgress"></div>
+  <div class="npb-controls">
+    <button class="npb-btn" id="npbPrev" title="Sebelumnya"><span class="ico" data-icon="chevron-left"></span></button>
+    <button class="npb-btn" id="npbPlayPause" title="Putar/Jeda"><span class="ico" data-icon="play"></span></button>
+    <button class="npb-btn" id="npbNext" title="Berikutnya"><span class="ico" data-icon="chevron-right"></span></button>
+  </div>
+</div>
+
+<!-- modal root -->
+<div class="modal-overlay" id="modalOverlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <header class="modal-head">
+      <div>
+        <p class="eyebrow" id="modalEyebrow">MyAct</p>
+        <h2 id="modalTitle">Judul</h2>
+      </div>
+      <button class="icon-btn" id="modalClose" aria-label="Tutup"><span class="ico" data-icon="x"></span></button>
+    </header>
+    <div class="modal-body" id="modalBody"></div>
+    <footer class="modal-foot" id="modalFoot"></footer>
+  </div>
+</div>
+
+<div class="palette-overlay" id="paletteOverlay" hidden role="dialog" aria-modal="true" aria-label="Command palette">
+  <div class="palette">
+    <div class="palette-input-wrap">
+      <span class="ico" data-icon="search"></span>
+      <input id="paletteInput" class="palette-input" type="text" placeholder="Ketik perintah… mis. 'tugas', 'tema', 'musik'" autocomplete="off" spellcheck="false" aria-label="Perintah" />
+    </div>
+    <div class="palette-list" id="paletteList" role="listbox"></div>
+    <div class="palette-foot"><span><kbd>↑</kbd><kbd>↓</kbd> pilih</span><span><kbd>Enter</kbd> jalankan</span><span><kbd>Esc</kbd> tutup</span></div>
+  </div>
+</div>
+
+<div class="focusmode" id="focusMode" aria-hidden="true">
+  <button class="fm-exit" id="focusModeExit"><span class="ico" data-icon="x"></span> Keluar (Esc)</button>
+  <div class="fm-label" id="focusModeLabel">Waktu fokus</div>
+  <div class="fm-time" id="focusModeTime">25:00</div>
+  <div class="fm-controls">
+    <button class="fm-btn" id="focusModeToggle" title="Mulai / jeda" aria-label="Mulai atau jeda timer"><span class="ico" data-icon="play"></span></button>
+    <button class="fm-btn" id="focusModeReset" title="Reset timer" aria-label="Reset timer"><span class="ico" data-icon="rotate"></span></button>
+  </div>
+  <svg class="fm-wave" viewBox="0 0 1440 140" preserveAspectRatio="none" fill="none" aria-hidden="true"><path d="M0 90 Q90 55 180 90 T360 90 T540 90 T720 90 T900 90 T1080 90 T1260 90 T1440 90 V140 H0 Z" fill="#2c1216"/><path d="M0 112 Q90 84 180 112 T360 112 T540 112 T720 112 T900 112 T1080 112 T1260 112 T1440 112 V140 H0 Z" fill="#3e1a20" opacity=".7"/></svg>
+</div>
+
+
+<div class="modal-overlay" id="flashcardReview" hidden role="dialog" aria-modal="true" aria-label="Review flashcard">
+  <div class="modal" style="text-align:center">
+    <div class="modal-head" style="border:0"><div><p class="eyebrow" id="fcReviewSubject">Mapel</p><h2>Flashcard</h2></div><button class="icon-btn" id="fcReviewClose" aria-label="Tutup"><span class="ico" data-icon="x"></span></button></div>
+    <div class="modal-body" style="text-align:center">
+      <div class="fc-review-front" id="fcReviewFront">Pertanyaan</div>
+      <button class="btn btn-ghost" id="fcReveal" style="margin:22px auto 0;display:inline-flex"><span class="ico" data-icon="eye"></span> Lihat jawaban</button>
+      <div id="fcReviewAnswer" class="fc-review-answer" hidden>Jawaban</div>
+      <div id="fcGradeButtons" class="fc-grade-row" hidden>
+        <button class="btn btn-ghost" data-fc-grade="0">Lupa</button>
+        <button class="btn btn-ghost" data-fc-grade="1">Sulit</button>
+        <button class="btn btn-primary" data-fc-grade="2">Bagus</button>
+        <button class="btn btn-ghost" data-fc-grade="3">Mudah</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="lock-overlay" id="lockOverlay" hidden role="dialog" aria-modal="true" aria-label="Aplikasi terkunci">
+  <div class="lock-box">
+    <div class="lock-ico"><span class="ico" data-icon="flame"></span></div>
+    <h2>Aplikasi terkunci</h2>
+    <p>Masukkan PIN untuk membuka data MyAct kamu.</p>
+    <form id="lockForm">
+      <input type="password" id="lockPin" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="off" placeholder="••••" aria-label="PIN" />
+      <div class="form-error" id="lockError"></div>
+      <button class="btn btn-primary full" type="submit">Buka</button>
+    </form>
+  </div>
+</div>
+
+<div class="crash-overlay" id="crashOverlay" hidden tabindex="-1" role="alertdialog" aria-label="Terjadi kesalahan">
+  <div class="crash-box">
+    <div class="empty-state-ico" style="margin:0 auto"><span class="ico" data-icon="alert"></span></div>
+    <h2>Ups!</h2>
+    <p>MyAct menemukan masalah. Data kamu aman — tersimpan lokal di SQLite.</p>
+    <p class="hint" id="crashDetail" style="margin:8px 0 0;word-break:break-word"></p>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:18px">
+      <a class="btn btn-ghost" href="/api/export" download><span class="ico" data-icon="download"></span> Export data</a>
+      <button class="btn btn-primary" id="crashReload"><span class="ico" data-icon="refresh"></span> Muat ulang</button>
+    </div>
+    <button class="link-btn" id="crashClose" style="margin:14px auto 0">Tetap di halaman ini</button>
+  </div>
+</div>
+
+<div class="onboard-overlay" id="onboardOverlay" hidden role="dialog" aria-modal="true" aria-label="Selamat datang di MyAct">
+  <div class="onboard-box">
+    <div class="onboard-step" data-step="1">
+      <div class="onboard-ico"><span class="ico" data-icon="home"></span></div>
+      <h2>Selamat datang di MyAct</h2>
+      <p>Dashboard harian kamu — cuaca, tugas, jadwal, lomba, fokus belajar. Semuanya di laptop ini, tanpa akun.</p>
+      <button class="btn btn-primary" data-onboard-next>Mulai</button>
+    </div>
+    <div class="onboard-step" data-step="2" hidden>
+      <div class="onboard-ico"><span class="ico" data-icon="check-square"></span></div>
+      <h2>Apa yang bisa kamu lakukan</h2>
+      <ul class="onboard-list">
+        <li><span class="ico" data-icon="check-square"></span>Tugas harian — reset tiap hari, yang belum selesai dibawa ke besok</li>
+        <li><span class="ico" data-icon="timer"></span>Fokus pomodoro dengan statistik per mapel</li>
+        <li><span class="ico" data-icon="flame"></span>Streak kebiasaan — jaga konsistensi tiap hari</li>
+        <li><span class="ico" data-icon="star"></span>Catat nilai dan pantau KKM</li>
+        <li><span class="ico" data-icon="book"></span>Flashcard SM-2 — ulangi sebelum lupa</li>
+      </ul>
+      <button class="btn btn-primary" data-onboard-next>Lanjut</button>
+    </div>
+    <div class="onboard-step" data-step="3" hidden>
+      <div class="onboard-ico"><span class="ico" data-icon="keyboard"></span></div>
+      <h2>Satu tips pamungkas</h2>
+      <p class="onboard-kbd-hint">Tekan <kbd>Ctrl</kbd> + <kbd>K</kbd> di mana pun — ketik apa saja ("tugas", "tema", "musik") dan langsung lompat ke sana.</p>
+      <button class="btn btn-primary" id="onboardFinish">Selesai — mulai sekarang</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script src="/js/icons.js"></script>
+<script src="/js/core.js"></script>
+<script src="/js/data.js"></script>
+<script src="/js/dashboard.js"></script>
+<script src="/js/tasks.js"></script>
+<script src="/js/calendar.js"></script>
+<script src="/js/competitions.js"></script>
+<script src="/js/notes.js"></script>
+<script src="/js/schedule.js"></script>
+<script src="/js/focus.js"></script>
+<script src="/js/device.js"></script>
+<script src="/js/music.js"></script>
+<script src="/js/streak.js"></script>
+<script src="/js/grades.js"></script>
+<script src="/js/flashcards.js"></script>
+<script src="/js/review.js"></script>
+<script src="/js/palette.js"></script>
+<script src="/js/main.js"></script>
+</body>
+</html>

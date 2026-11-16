@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python syntax check
+        run: python3 -m py_compile server.py
+      - name: JS syntax check
+        run: |
+          for f in static/js/*.js; do
+            node --check "$f" || exit 1
+          done
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start server & health check
+        run: |
+          python3 server.py &
+          sleep 3
+          curl -s http://127.0.0.1:8777/api/health | grep -q '"ok": true'
+          curl -s http://127.0.0.1:8777/api/bootstrap > /dev/null
+        env:
+          MYACT_DB: /tmp/myact_test.db
+          MYACT_DATA: /tmp/myact_test_data

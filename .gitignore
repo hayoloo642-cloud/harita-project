@@ -1,0 +1,28 @@
+# Data — never commit user data
+data/
+backups/
+*.db
+*.db-journal
+*.db-wal
+*.log
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Env
+.env
+.env.local
+
+# Screenshots (optional)
+# docs/screenshots/

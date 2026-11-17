@@ -31,10 +31,17 @@ jobs:
           python-version: "3.11"
       - name: Install PyInstaller
         run: python -m pip install --user pyinstaller
+      - name: Install Linux packaging tools
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm curl
+          curl -L -o /tmp/appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x /tmp/appimagetool
       - name: Build Linux binary
         if: matrix.os == 'ubuntu-latest'
         run: |
-          sh packaging/build-linux.sh
+          APPIMAGETOOL=/tmp/appimagetool sh packaging/build-linux.sh
           version=$(sed -n 's/^__version__ = "\([^"]*\)".*$/\1/p' server.py)
           mv dist/Harita "dist/harita-${version}-linux-x86_64"
       - name: Build macOS binary
@@ -48,8 +55,19 @@ jobs:
       - name: Build Windows binary
         if: matrix.os == 'windows-latest'
         shell: pwsh
+        run: .\packaging\build-windows.bat
+      - name: Install Inno Setup
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+      - name: Build Windows installer
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: .\packaging\windows\build-installer.ps1
+      - name: Rename Windows portable binary
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
         run: |
-          .\packaging\build-windows.bat
           $version = (Select-String -Path server.py -Pattern '__version__ = "([^"]+)"').Matches[0].Groups[1].Value
           Move-Item dist\Harita.exe "dist\harita-$version-windows-x86_64.exe"
       - name: Upload workflow artifacts

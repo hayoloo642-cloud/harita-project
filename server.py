@@ -1809,16 +1809,7 @@ def streak_current() -> int:
     """Return current consecutive-day streak count."""
     conn = db_connect()
     try:
-        day = today_local()
-        streak = 0
-        for i in range(0, 365):
-            d = addDays(day, -i)
-            r = conn.execute("SELECT completed FROM streak WHERE date = ?", (d,)).fetchone()
-            if r and r["completed"]:
-                streak += 1
-            else:
-                break
-        return streak
+        return streak_from(conn, "streak", None, None, today_local())
     finally:
         conn.close()
 
@@ -3059,20 +3050,39 @@ def api_grade_delete(handler: BaseHTTPRequestHandler, grade_id: int) -> None:
 # ----------------------------------------------------------------------------
 # Habits (multi-habit streak)
 # ----------------------------------------------------------------------------
-def habit_current(conn: sqlite3.Connection, habit_id: int) -> int:
-    day = today_local()
-    count = 0
-    for i in range(0, 365):
-        d = addDays(day, -i)
-        r = conn.execute(
-            "SELECT completed FROM habit_log WHERE habit_id = ? AND date = ?",
-            (habit_id, d),
+def streak_from(conn: sqlite3.Connection, table: str, key_col: str | None, key, day: str) -> int:
+    """Count consecutive completed days ending today; pending today falls back to yesterday."""
+    today_row = None
+    if key_col:
+        today_row = conn.execute(
+            f"SELECT completed FROM {table} WHERE {key_col} = ? AND date = ?",
+            (key, day),
         ).fetchone()
-        if r and r["completed"]:
+    else:
+        today_row = conn.execute(
+            f"SELECT completed FROM {table} WHERE date = ?",
+            (day,),
+        ).fetchone()
+    offset = 0 if today_row and today_row["completed"] else 1
+    count = 0
+    for i in range(offset, 365):
+        d = addDays(day, -i)
+        if key_col:
+            row = conn.execute(
+                f"SELECT completed FROM {table} WHERE {key_col} = ? AND date = ?",
+                (key, d),
+            ).fetchone()
+        else:
+            row = conn.execute(f"SELECT completed FROM {table} WHERE date = ?", (d,)).fetchone()
+        if row and row["completed"]:
             count += 1
         else:
             break
     return count
+
+
+def habit_current(conn: sqlite3.Connection, habit_id: int) -> int:
+    return streak_from(conn, "habit_log", "habit_id", habit_id, today_local())
 
 
 def habit_week(conn: sqlite3.Connection, habit_id: int) -> list[dict]:

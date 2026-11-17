@@ -158,6 +158,13 @@ git pull
 
 ### Paket biner (opsional)
 
+Release resmi tersedia untuk:
+
+- **Windows** — portable `.exe` atau installer `Harita-Setup-*.exe`
+- **Linux** — binary raw, **AppImage**, dan **RPM**
+- **macOS** — `.app` (`.zip`), `.dmg`, dan binary raw (Apple Silicon)
+
+Lihat halaman Release: https://github.com/hayoloo642-cloud/harita-project/releases
 Release biner dibuat dari folder [`packaging/`](packaging/README.md). Frozen build menyimpan data di folder user yang persisten dan membuka browser otomatis. Lihat [docs/RELEASE.md](docs/RELEASE.md) untuk checklist rilis.
 
 ---

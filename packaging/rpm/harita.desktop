@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Harita
+GenericName=Dashboard Harian
+Comment=Konsisten & rajin setiap hari — tugas, kalender, fokus, kebiasaan, cuaca
+Exec=harita
+Icon=harita
+Terminal=false
+Categories=Utility;Office;Education;
+StartupWMClass=Harita
+StartupNotify=true
+Keywords=harita;tugas;fokus;kalender;kebiasaan;pengeluaran;

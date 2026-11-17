@@ -13,6 +13,14 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/).
 - Laporan minggu ini: ringkasan fokus, tugas, kebiasaan, streak, target mingguan, dan pengeluaran; bisa dicetak / disimpan sebagai PDF dari browser
 - Tombol “Kirim notifikasi percobaan” di Pengaturan untuk memastikan izin dan delivery notifikasi browser
 
+### Desktop packaging
+- Binary Linux kini tersedia sebagai raw binary dan **AppImage**, plus paket **RPM** untuk Fedora/RHEL/openSUSE-style distros
+- Windows kini tersedia sebagai portable `.exe` dan **installer Inno Setup** (`Harita-Setup-<versi>.exe`) dengan shortcut Desktop/Start Menu
+- Release workflow membuat Linux (.AppImage/.RPM), Windows (.exe/installer), macOS (.app/.dmg), dan source archive otomatis
+
+### Diperbaiki
+- Streak tampil dengan benar saat hari ini belum ditandai: Harita menghitung dari hari terakhir yang selesai, bukan langsung nol.
+
 ### Catatan
 - Enkripsi memakai Web Crypto API (PBKDF2 + AES-256-GCM) dan berjalan sepenuhnya di perangkat — tanpa server tambahan atau layanan pihak ketiga.
 - Backup JSON biasa dan backup terenkripsi `.harita` sama-sama memakai pratinjau/impor yang sama setelah file didekripsi.

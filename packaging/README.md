@@ -13,8 +13,12 @@ repositori — build dilakukan di mesin masing-masing.
 | File | Fungsi |
 |------|--------|
 | `harita.spec` | Spec PyInstaller one-file: `server.py` + `static/` + `LICENSE` |
-| `build-linux.sh` | Build Linux, lalu AppImage jika `appimagetool` tersedia |
-| `build-windows.bat` | Build Windows → `dist\Harita.exe` |
+| `build-linux.sh` | Build Linux binary, lalu AppImage jika `appimagetool` tersedia, dan RPM jika `rpmbuild` tersedia |
+| `build-rpm.sh` | Membungkus binary `dist/Harita` menjadi paket RPM |
+| `rpm/harita.spec` | Spec RPM: `/opt/harita`, symlink `/usr/bin/harita`, desktop entry, ikon |
+| `build-windows.bat` | Build Windows portable → `dist\Harita.exe` |
+| `windows/build-installer.ps1` | Membuat installer Inno Setup → `dist\Harita-Setup-<versi>.exe` |
+| `windows/installer.iss` | Definisi installer Inno Setup (Desktop shortcut, Start Menu, uninstall) |
 | `build-macos.sh` | Build macOS, lalu `.app` + `.dmg` jika `hdiutil` tersedia |
 | `assets/music/README.txt` | Placeholder agar folder `music/` ikut terbundel |
 
@@ -47,7 +51,8 @@ sh packaging/build-linux.sh
 Hasil:
 
 - `dist/Harita` — binary one-file.
-- `dist/Harita-<arch>.AppImage` — hanya jika `appimagetool` ada di `PATH`.
+- `dist/harita-<versi>-linux-<arch>.AppImage` — jika `appimagetool` ada di `PATH` atau diset lewat `APPIMAGETOOL`.
+- `dist/harita-<versi>-linux-<arch>.rpm` — jika `rpmbuild` tersedia.
 
 ### Windows
 
@@ -56,6 +61,14 @@ packaging\build-windows.bat
 ```
 
 Hasil: `dist\Harita.exe`.
+
+Untuk installer Windows juga:
+
+```powershell
+.\packaging\windows\build-installer.ps1
+```
+
+Hasil: `dist\Harita-Setup-<versi>.exe` (perlu Inno Setup; di CI dipasang otomatis).
 
 ### macOS
 

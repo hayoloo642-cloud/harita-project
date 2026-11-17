@@ -25,18 +25,22 @@ rm -rf "$ROOT/build" "$ROOT/dist"
 BIN="$ROOT/dist/Harita"
 [ -x "$BIN" ] || die "Build selesai tanpa dist/Harita yang bisa dieksekusi."
 
+VERSION=$(sed -n 's/^__version__ = "\([^"]*\)".*$/\1/p' server.py | head -1)
+APP_NAME="harita-${VERSION}-linux-${ARCH_NAME:-$(uname -m)}.AppImage"
 say ""
 say "OK — binary: $BIN"
 say "Jalankan: $BIN"
 say "Lalu buka: http://127.0.0.1:8777"
 
 # --- AppImage opsional -------------------------------------------------------
-if command -v appimagetool >/dev/null 2>&1; then
+APPIMAGETOOL_BIN=${APPIMAGETOOL:-appimagetool}
+if command -v "$APPIMAGETOOL_BIN" >/dev/null 2>&1; then
   say ""
   say "==> appimagetool ditemukan — membuat AppImage"
 
   APPDIR="$ROOT/dist/Harita.AppDir"
   ARCH_NAME=$(uname -m)
+  APP_NAME="harita-${VERSION:-$(sed -n 's/^__version__ = "\([^"]*\)".*$/\1/p' server.py | head -1)}-linux-${ARCH_NAME}.AppImage"
   rm -rf "$APPDIR"
   mkdir -p "$APPDIR/usr/bin" \
            "$APPDIR/usr/share/applications" \
@@ -67,12 +71,14 @@ Comment=Dashboard harian lokal: tugas, fokus, kebiasaan, cuaca
 Exec=Harita
 Icon=harita
 Categories=Utility;Office;
-Terminal=true
+Terminal=false
 DESKTOP
   cp "$APPDIR/harita.desktop" "$APPDIR/usr/share/applications/harita.desktop"
 
-  if ARCH="$ARCH_NAME" appimagetool "$APPDIR" "$ROOT/dist/Harita-$ARCH_NAME.AppImage"; then
-    say "OK — AppImage: $ROOT/dist/Harita-$ARCH_NAME.AppImage"
+  APPIMAGETOOL_FLAGS=""
+  case "$APPIMAGETOOL_BIN" in *.AppImage|*.appimage|*/*) case "$APPIMAGETOOL_BIN" in *.AppImage|*.appimage) APPIMAGETOOL_FLAGS=--appimage-extract-and-run;; esac;; esac
+  if ARCH="$ARCH_NAME" "$APPIMAGETOOL_BIN" $APPIMAGETOOL_FLAGS "$APPDIR" "$ROOT/dist/$APP_NAME"; then
+    say "OK — AppImage: $ROOT/dist/$APP_NAME"
     rm -rf "$APPDIR"
   else
     say "PERINGATAN: appimagetool gagal; binary dist/Harita tetap bisa dipakai."
@@ -81,7 +87,17 @@ else
   say ""
   say "Info: appimagetool tidak ditemukan — langkah AppImage dilewati."
   say "      Pasang appimagetool lalu jalankan ulang skrip ini bila ingin .AppImage."
-  say "      (Skrip TIDAK mengunduh apa pun dari internet.)"
+  say "      Atau set APPIMAGETOOL=/path/ke/appimagetool dan jalankan lagi."
+fi
+
+# --- RPM opsional ----------------------------------------------------------
+if command -v rpmbuild >/dev/null 2>&1; then
+  say ""
+  say "==> rpmbuild ditemukan — membuat RPM"
+  sh packaging/build-rpm.sh
+else
+  say ""
+  say "Info: rpmbuild tidak ditemukan — langkah RPM dilewati."
 fi
 
 say ""

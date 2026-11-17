@@ -1871,6 +1871,23 @@ def backup_now() -> str | None:
         return None
 
 
+def api_reset(handler: BaseHTTPRequestHandler) -> None:
+    """Delete every user record while keeping preferences intact."""
+    parse_json_body(handler)
+    conn = db_connect()
+    try:
+        for table in (
+            "tasks", "task_templates", "events", "competitions", "competition_tasks",
+            "notes", "schedule", "focus_sessions", "music_tracks", "music_state",
+            "streak", "habits", "habit_log", "grades", "flashcards", "reminder",
+        ):
+            conn.execute(f"DELETE FROM {table}")
+        conn.commit()
+        send_json(handler, 200, {"ok": True})
+    finally:
+        conn.close()
+
+
 def api_export(handler: BaseHTTPRequestHandler) -> None:
     data = export_all_tables()
     send_json(
@@ -2536,8 +2553,6 @@ class Handler(BaseHTTPRequestHandler):
                 api_activity(self)
             elif path == "/api/lock-status":
                 api_lock_status(self)
-            elif path == "/api/reset":
-                api_reset(self)
             elif path == "/api/flashcards":
                 api_flashcards(self, query)
             elif path == "/api/grades":
@@ -2603,6 +2618,8 @@ class Handler(BaseHTTPRequestHandler):
                 api_task_complete_all(self)
             elif path == "/api/demo":
                 api_demo(self)
+            elif path == "/api/reset":
+                api_reset(self)
             elif path == "/api/events":
                 api_event_create(self)
             elif path == "/api/competitions":

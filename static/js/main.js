@@ -230,6 +230,7 @@ function openSettingsModal() {
         <a class="btn btn-ghost btn-sm" href="/api/export" download>${ico('download')} Unduh backup JSON</a>
         <button type="button" class="btn btn-ghost btn-sm" id="demoDataBtn">${ico('sparkles')} Isi data contoh</button>
         <button type="button" class="btn btn-ghost btn-sm" id="swResetBtn">${ico('refresh')} Bersihkan cache file</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="diagCopyBtn">${ico('copy')} Salin info sistem</button>
         <button type="button" class="btn btn-ghost btn-sm" id="resetDataBtn">${ico('trash')} Hapus semua data</button>
       </div>
 
@@ -300,6 +301,8 @@ function openSettingsModal() {
         document.documentElement.setAttribute('data-accent', accent);
       });
     });
+    const diagBtn = document.getElementById('diagCopyBtn');
+    if (diagBtn) diagBtn.addEventListener('click', copyDiagnostics);
     const swResetBtn = document.getElementById('swResetBtn');
     if (swResetBtn) swResetBtn.addEventListener('click', async () => {
       try {
@@ -777,7 +780,42 @@ function registerServiceWorker() {
 
 /* ---------- global error boundary (C6/F4) ---------- */
 let crashShown = false;
+function recordError(message) {
+  try {
+    storage.set('last_error', { message: String(message || '').slice(0, 1200), at: new Date().toISOString(), view: state.view, version: APP_VERSION });
+  } catch { /* ignore */ }
+}
+function buildDiagnostics() {
+  const last = storage.get('last_error', null);
+  const lines = [
+    `MyAct v${APP_VERSION}`,
+    `Waktu: ${new Date().toISOString()}`,
+    `Halaman: ${state.view || 'beranda'}`,
+    `Tema: ${document.documentElement.getAttribute('data-theme') || '-'} / aksen ${document.documentElement.getAttribute('data-accent') || '-'}`,
+    `Layar: ${window.innerWidth}x${window.innerHeight} @${window.devicePixelRatio || 1}`,
+    `Bahasa: ${navigator.language || '-'} · TZ ${Intl.DateTimeFormat().resolvedOptions().timeZone}`,
+    `Browser: ${navigator.userAgent}`,
+    last ? `Error terakhir (${last.at} di ${last.view || '-'}): ${last.message}` : 'Error terakhir: tidak ada',
+  ];
+  return lines.join('\n');
+}
+async function copyDiagnostics() {
+  const text = buildDiagnostics();
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('Laporan disalin ke clipboard');
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); toast('Laporan disalin ke clipboard'); }
+    catch { toast('Gagal menyalin — buka konsol untuk menyalin manual', 'error'); console.log(text); }
+    ta.remove();
+  }
+}
 function showCrashOverlay(message) {
+  recordError(message);
   if (crashShown) return;
   crashShown = true;
   const overlay = $('#crashOverlay');
@@ -797,6 +835,7 @@ window.addEventListener('unhandledrejection', (e) => {
   const reason = e.reason;
   showCrashOverlay(reason && reason.message ? reason.message : String(reason));
 });
+$('#crashCopy')?.addEventListener('click', copyDiagnostics);
 $('#crashReload')?.addEventListener('click', () => window.location.reload());
 $('#crashClose')?.addEventListener('click', () => {
   const overlay = $('#crashOverlay');

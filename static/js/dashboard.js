@@ -22,6 +22,8 @@ function renderChrome() {
   document.documentElement.setAttribute("data-theme", theme);
   document.documentElement.setAttribute("data-accent", state.settings.accent || "terracotta");
   document.documentElement.setAttribute("data-font-size", state.settings.font_size || "normal");
+  document.documentElement.setAttribute("data-contrast", state.settings.contrast || "normal");
+  document.documentElement.setAttribute("data-sidebar", state.settings.sidebar === "collapsed" ? "collapsed" : "expanded");
   const tBtn = $('#topTheme');
   if (tBtn) {
     tBtn.querySelector(".ico").innerHTML = iconSvg(theme === "dark" ? "sun" : "moon");

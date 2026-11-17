@@ -133,7 +133,14 @@ const state = {
 };
 
 const storage = {
-  get(key, fallback) { try { const v = localStorage.getItem(`myact:${key}`); return v ? JSON.parse(v) : fallback; } catch { return fallback; } },
+  get(key, fallback) {
+    try {
+      const raw = localStorage.getItem(`myact:${key}`);
+      if (raw === null) return fallback;
+      const parsed = JSON.parse(raw);
+      return parsed === null || parsed === undefined ? fallback : parsed;
+    } catch { return fallback; }
+  },
   set(key, value) { try { localStorage.setItem(`myact:${key}`, JSON.stringify(value)); } catch { /* ignore */ } },
   remove(key) { try { localStorage.removeItem(`myact:${key}`); } catch { /* ignore */ } },
 };
@@ -162,7 +169,21 @@ async function api(path, options = {}) {
   }
   const pinToken = storage.get('pin_token', '');
   if (pinToken) config.headers['X-Pin-Token'] = pinToken;
-  const res = await fetch(path, config);
+  let timer = null;
+  if (!config.signal && typeof AbortController !== 'undefined') {
+    const controller = new AbortController();
+    config.signal = controller.signal;
+    timer = setTimeout(() => controller.abort(), 15000);
+  }
+  let res;
+  try {
+    res = await fetch(path, config);
+  } catch (err) {
+    if (err && err.name === 'AbortError') throw new Error('Server tidak merespons (15 detik). Coba lagi atau cek apakah MyAct masih berjalan.');
+    throw new Error('Tidak dapat terhubung ke server MyAct. Pastikan aplikasi masih berjalan.');
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
   let data = null;
   try { data = await res.json(); } catch { data = null; }
   if (res.status === 401 && data && data.code === 'locked') {

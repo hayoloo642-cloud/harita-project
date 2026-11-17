@@ -176,6 +176,15 @@ function openSettingsModal() {
       </div>
 
       <div class="field full">
+        <label>Kontras tampilan</label>
+        <div class="segmented" role="radiogroup" aria-label="Kontras tampilan">
+          <label class="seg-option ${(!state.settings.contrast || state.settings.contrast === 'normal') ? 'active' : ''}"><input type="radio" name="contrast" value="normal" ${(!state.settings.contrast || state.settings.contrast === 'normal') ? 'checked' : ''} /> Normal</label>
+          <label class="seg-option ${state.settings.contrast === 'high' ? 'active' : ''}"><input type="radio" name="contrast" value="high" ${state.settings.contrast === 'high' ? 'checked' : ''} /> Tinggi</label>
+        </div>
+        <span class="help">Kontras tinggi mempertegas teks, garis, dan fokus keyboard.</span>
+      </div>
+
+      <div class="field full">
         <label>Halaman utama saat dibuka</label>
         <select name="default_view">${viewOptions}</select>
       </div>
@@ -219,6 +228,8 @@ function openSettingsModal() {
       <p class="eyebrow" style="margin:22px 0 12px">Data</p>
       <div class="field full" style="display:flex; gap:10px; flex-wrap:wrap">
         <a class="btn btn-ghost btn-sm" href="/api/export" download>${ico('download')} Unduh backup JSON</a>
+        <button type="button" class="btn btn-ghost btn-sm" id="demoDataBtn">${ico('sparkles')} Isi data contoh</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="swResetBtn">${ico('refresh')} Bersihkan cache file</button>
         <button type="button" class="btn btn-ghost btn-sm" id="resetDataBtn">${ico('trash')} Hapus semua data</button>
       </div>
 
@@ -253,6 +264,7 @@ function openSettingsModal() {
         notifications: notificationValue,
         theme: formValue(form, 'theme') || 'dark',
         font_size: formValue(form, 'font_size') || 'normal',
+        contrast: formValue(form, 'contrast') || 'normal',
         default_view: formValue(form, 'default_view') || 'beranda',
         accent: document.querySelector('.accent-swatch.active')?.dataset.accent || 'terracotta',
       };
@@ -270,6 +282,7 @@ function openSettingsModal() {
       document.documentElement.setAttribute('data-theme', state.settings.theme === 'system' ? resolveInitialTheme() : state.settings.theme);
       document.documentElement.setAttribute('data-accent', state.settings.accent);
       document.documentElement.setAttribute('data-font-size', state.settings.font_size);
+      document.documentElement.setAttribute('data-contrast', state.settings.contrast || 'normal');
       renderChrome();
       renderDashboard();
       toast(lockPin ? 'PIN kunci aplikasi diaktifkan' : lockDisable ? 'Kunci aplikasi dimatikan' : 'Pengaturan disimpan');
@@ -285,6 +298,36 @@ function openSettingsModal() {
         btn.classList.add('active');
         const accent = btn.dataset.accent;
         document.documentElement.setAttribute('data-accent', accent);
+      });
+    });
+    const swResetBtn = document.getElementById('swResetBtn');
+    if (swResetBtn) swResetBtn.addEventListener('click', async () => {
+      try {
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((r) => r.unregister()));
+        }
+        toast('Cache file dibersihkan. Memuat ulang…');
+        setTimeout(() => { window.location.href = `/?_=${Date.now()}`; }, 700);
+      } catch (err) {
+        toast('Gagal membersihkan cache: ' + err.message, 'error');
+      }
+    });
+    const demoBtn = document.getElementById('demoDataBtn');
+    if (demoBtn) demoBtn.addEventListener('click', () => {
+      confirmDialog({
+        title: 'Isi data contoh?',
+        message: 'Data contoh (tugas, catatan, jadwal, lomba, nilai, flashcard, kebiasaan) akan ditambahkan. Data yang sudah ada <strong>tidak dihapus</strong>.',
+        confirmLabel: 'Isi data contoh',
+        onConfirm: async () => {
+          await api('/api/demo', { method: 'POST', body: { force: true } });
+          toast('Data contoh ditambahkan');
+          setTimeout(() => window.location.reload(), 900);
+        },
       });
     });
     // reset data button
@@ -461,6 +504,18 @@ async function maybeShowOnboarding() {
   const overlay = $('#onboardOverlay');
   if (overlay) { overlay.hidden = false; overlay.setAttribute('aria-hidden', 'false'); }
 }
+async function seedDemoData() {
+  try {
+    await api('/api/demo', { method: 'POST', body: {} });
+    const overlay = $('#onboardOverlay');
+    if (overlay) { overlay.hidden = true; overlay.setAttribute('aria-hidden', 'true'); }
+    toast('Data contoh dimuat. Membersihkan…');
+    setTimeout(() => window.location.reload(), 900);
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
 function bindOnboarding() {
   const overlay = $('#onboardOverlay');
   if (!overlay) return;
@@ -472,6 +527,10 @@ function bindOnboarding() {
       const nextStep = overlay.querySelector(`.onboard-step[data-step="${n + 1}"]`);
       current.hidden = true;
       if (nextStep) nextStep.hidden = false;
+      return;
+    }
+    if (e.target.id === 'onboardDemo') {
+      seedDemoData();
       return;
     }
     if (e.target.id === 'onboardFinish') {
@@ -487,6 +546,22 @@ function bindGlobal() {
   $$('.nav-item').forEach((item) => item.addEventListener('click', () => setView(item.dataset.view)));
   const topHome = $('#topHome');
   if (topHome) topHome.addEventListener('click', () => setView('beranda'));
+  const sidebarToggle = $('#sidebarToggle');
+  if (sidebarToggle) {
+    const apply = (collapsed) => {
+      document.documentElement.setAttribute('data-sidebar', collapsed ? 'collapsed' : 'expanded');
+      sidebarToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      sidebarToggle.title = collapsed ? 'Lebarkan sidebar' : 'Ciutkan sidebar';
+      sidebarToggle.setAttribute('aria-label', sidebarToggle.title);
+    };
+    apply(state.settings.sidebar === 'collapsed');
+    sidebarToggle.addEventListener('click', async () => {
+      const collapsed = document.documentElement.getAttribute('data-sidebar') !== 'collapsed';
+      apply(collapsed);
+      state.settings.sidebar = collapsed ? 'collapsed' : 'expanded';
+      try { await api('/api/settings', { method: 'POST', body: { sidebar: state.settings.sidebar } }); } catch {}
+    });
+  }
   $('#topWeather').addEventListener('click', () => setView('cuaca'));
   const refreshAppBtn = $('#refreshApp');
   if (refreshAppBtn) refreshAppBtn.addEventListener('click', refreshApp);

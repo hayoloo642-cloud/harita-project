@@ -220,6 +220,8 @@ DEFAULT_SETTINGS = {
     "lock_pin_hash": "",
     "accent": "terracotta",
     "font_size": "normal",
+    "contrast": "normal",
+    "sidebar": "expanded",
     "default_view": "beranda",
 }
 
@@ -684,6 +686,101 @@ def api_task_carry(handler: BaseHTTPRequestHandler) -> None:
             )
         conn.commit()
         send_json(handler, 200, {"copied": len(rows), "from": from_day})
+    finally:
+        conn.close()
+
+
+def api_demo(handler: BaseHTTPRequestHandler) -> None:
+    """Seed a small, friendly sample dataset so new users can explore."""
+    body = parse_json_body(handler)
+    force = bool(body.get("force"))
+    conn = db_connect()
+    try:
+        existing = conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
+        if existing and not force:
+            send_json(handler, 200, {"ok": True, "seeded": False, "reason": "data sudah ada"})
+            return
+        now = now_local()
+        today = today_local()
+        def add_days(n: int) -> str:
+            from datetime import date, timedelta
+            return (date.fromisoformat(today) + timedelta(days=n)).isoformat()
+
+        tasks = [
+            ("Matematika: latihan 10 soal limit", 1, "16:00", 0),
+            ("Baca 20 halaman buku sejarah", 2, "20:00", 0),
+            ("Review catatan biologi", 2, None, 1),
+            ("Olahraga 20 menit", 3, "06:30", 1),
+        ]
+        for title, prio, start, done in tasks:
+            conn.execute(
+                "INSERT INTO tasks (date, title, priority, done, start_time, source, created_at, updated_at) VALUES (?,?,?,?,?,'manual',?,?)",
+                (today, title, prio, done, start, now, now),
+            )
+        conn.execute(
+            "INSERT INTO task_templates (title, priority, start_time, active, created_at) VALUES (?,?,?,1,?)",
+            ("Minum air 8 gelas", 3, None, now),
+        )
+        events = [
+            ("Belajar kelompok di rumah Rani", today, "15:00", "17:00", "sekolah", "Bawa buku catatan"),
+            ("Latihan presentasi", add_days(2), "09:00", "10:00", "pribadi", ""),
+        ]
+        for title, date, time, end, cat, notes in events:
+            conn.execute(
+                "INSERT INTO events (title, date, time, end_time, category, notes, created_at) VALUES (?,?,?,?,?,?,?)",
+                (title, date, time, end, cat, notes, now),
+            )
+        notes = [
+            ("Rangkuman limit fungsi", "Limit = nilai yang didekati. Cek dari kiri dan kanan.\nKalau beda → limit tidak ada.", 1, "teal"),
+            ("Ide proyek kelas", "Aplikasi absensi pakai QR — bagi tugas: UI, backend, dokumentasi.", 0, "amber"),
+        ]
+        for title, body_text, pinned, color in notes:
+            conn.execute(
+                "INSERT INTO notes (title, body, pinned, color, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+                (title, body_text, pinned, color, now, now),
+            )
+        for weekday in range(5):
+            rows = [("07:00", "07:45", "Matematika", "R.12"), ("08:00", "08:45", "Bahasa Indonesia", "R.07")]
+            for start, end, subject, room in rows:
+                conn.execute(
+                    "INSERT INTO schedule (weekday, start_time, end_time, subject, room, note) VALUES (?,?,?,?,?,'')",
+                    (weekday, start, end, subject, room),
+                )
+        cur = conn.execute(
+            "INSERT INTO competitions (title, category, deadline, location, notes, status, created_at) VALUES (?,?,?,?,?,?,?)",
+            ("Lomba Karya Tulis Ilmiah", "Lomba", add_days(21) + "T23:59", "Online", "Tema: teknologi hijau", "persiapan", now),
+        )
+        comp_id = cur.lastrowid
+        for i, (title, done) in enumerate([("Tentukan judul", 1), ("Kumpulkan referensi", 1), ("Tulis draf", 0), ("Revisi akhir", 0)]):
+            conn.execute(
+                "INSERT INTO competition_tasks (competition_id, title, done, position, created_at) VALUES (?,?,?,?,?)",
+                (comp_id, title, done, i, now),
+            )
+        for subject, label, score in [("Matematika", "Ulangan 1", 88), ("Matematika", "Tugas", 92), ("Biologi", "Ulangan 1", 76), ("Sejarah", "Tugas", 84)]:
+            conn.execute("INSERT INTO grades (subject, label, score, created_at) VALUES (?,?,?,?)", (subject, label, score, now))
+        for subject, front, back in [
+            ("Biologi", "Apa fungsi mitokondria?", "Menghasilkan energi (ATP) untuk sel."),
+            ("Matematika", "Rumus limit (x→0) sin x / x", "1"),
+        ]:
+            conn.execute(
+                "INSERT INTO flashcards (subject, front, back, ease, interval_days, repetitions, due, created_at) VALUES (?,?,?,2.5,0,0,?,?)",
+                (subject, front, back, today, now),
+            )
+        cur = conn.execute("INSERT INTO habits (name, icon, created_at) VALUES (?,?,?)", ("Belajar 30 menit", "book", now))
+        habit_id = cur.lastrowid
+        for offset, done in [(-5, 1), (-4, 1), (-3, 0), (-2, 1), (-1, 1), (0, 0)]:
+            conn.execute(
+                "INSERT OR REPLACE INTO habit_log (habit_id, date, completed, updated_at) VALUES (?,?,?,?)",
+                (habit_id, add_days(offset), done, now),
+            )
+        for offset, minutes, label in [(-2, 25, "Matematika"), (-1, 50, "Biologi"), (-1, 25, "Matematika")]:
+            conn.execute(
+                "INSERT INTO focus_sessions (date, minutes, label, created_at) VALUES (?,?,?,?)",
+                (add_days(offset), minutes, label, now),
+            )
+        conn.execute("INSERT INTO settings (key, value) VALUES ('onboarded','1') ON CONFLICT(key) DO UPDATE SET value='1'")
+        conn.commit()
+        send_json(handler, 200, {"ok": True, "seeded": True})
     finally:
         conn.close()
 
@@ -1626,6 +1723,10 @@ def _validate_setting(key: str, value) -> str:
         return s if s in allowed else "terracotta"
     if key == "font_size":
         return s if s in ("small", "normal", "large") else "normal"
+    if key == "contrast":
+        return s if s in ("normal", "high") else "normal"
+    if key == "sidebar":
+        return s if s in ("expanded", "collapsed") else "expanded"
     if key == "default_view":
         allowed = {"beranda", "tugas", "kalender", "fokus", "catatan", "jadwal", "nilai", "flashcard", "lomba", "streak", "cuaca", "music"}
         return s if s in allowed else "beranda"
@@ -2500,6 +2601,8 @@ class Handler(BaseHTTPRequestHandler):
                 api_task_reset(self)
             elif path == "/api/tasks/complete-all":
                 api_task_complete_all(self)
+            elif path == "/api/demo":
+                api_demo(self)
             elif path == "/api/events":
                 api_event_create(self)
             elif path == "/api/competitions":

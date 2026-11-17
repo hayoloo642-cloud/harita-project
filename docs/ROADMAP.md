@@ -1,29 +1,30 @@
 # Roadmap MyAct
 
-Status: **v1.1.0** — semua fitur inti sudah berjalan lokal. Berikut rencana berikutnya,
-diurutkan dari yang paling berdampak.
+Status: **v1.2.0** — fitur inti + kualitas rilis sudah berjalan lokal. Berikut rencana berikutnya.
 
 ## Sedang dikerjakan / berikutnya
 
-- [ ] **Mode bahasa Inggris** — lapisan i18n untuk chrome + semua view (UI saat ini 100% Indonesia)
-- [ ] **Urutkan tugas dengan drag & drop** — butuh kolom `position` + migrasi
-- [ ] **Agenda berulang** — mingguan/bulanan untuk Kalender (saat ini hanya tugas yang punya rutinitas)
-- [ ] **Sematkan halaman favorit** di sidebar
-- [ ] **Checklist sub-tugas** di dalam satu tugas
-- [ ] **Aksi massal** di daftar tugas (pilih beberapa → hapus/pindah tanggal)
+- [x] **Mode bahasa Inggris** — i18n chrome, navigasi, dan Pengaturan (isi view dinamis menyusul)
+- [x] **Urutkan tugas dengan drag & drop** — kolom `position` + migrasi
+- [x] **Agenda berulang** — mingguan/bulanan untuk Kalender
+- [x] **Sematkan halaman favorit** di sidebar + sembunyikan item jarang
+- [x] **Checklist sub-tugas** di dalam satu tugas
+- [x] **Aksi massal** di daftar tugas (selesaikan/pindah/hapus + Undo)
+- [ ] Terjemahan penuh untuk teks dinamis di semua view (toast, empty state, modal tugas)
+- [ ] Fuzz test import/export JSON dan `.ics`
 
 ## Kualitas & pengujian
 
 - [x] Smoke test API + stress test (`tests/smoke.py --stress`)
 - [x] Performance budget aset di CI (< 700 KB)
-- [ ] Uji end-to-end browser (Playwright) untuk alur CRUD utama
-- [ ] Uji visual lintas browser (Firefox/Safari) otomatis
+- [x] Uji end-to-end browser (Playwright) untuk alur CRUD utama
+- [ ] Uji visual lintas browser (Firefox/Safari) otomatis — Safari tidak tersedia di Linux
 - [ ] Fuzz test untuk import/export JSON dan `.ics`
 
 ## Distribusi
 
-- [ ] Paket siap pakai: `.AppImage` (Linux), `.exe` (Windows), `.dmg` (macOS)
-- [ ] Halaman landing sederhana + GIF demo
+- [x] Skrip paket PyInstaller + AppImage/Windows/macOS (`packaging/`) — belum ada binary rilis
+- [x] Halaman landing offline (`docs/landing/`)
 - [ ] Panduan upgrade antar versi (migrasi database otomatis sudah ada)
 
 ## Ide yang belum dijadwalkan

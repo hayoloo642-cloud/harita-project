@@ -5,6 +5,26 @@ Semua perubahan penting pada proyek ini didokumentasikan di sini.
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] — 2026-11-17
+
+### Ditambahkan
+- Antarmuka bilingual Indonesia/Inggris (chrome, navigasi, halaman, Pengaturan) — ganti di Pengaturan → Bahasa
+- Sub-tugas (checklist kecil) di dalam satu tugas + chip progres `2/3`
+- Aksi massal: pilih beberapa tugas → selesaikan, pindah tanggal, hapus (dengan Undo)
+- Drag & drop untuk mengurutkan tugas (kolom `position` + `/api/tasks/reorder`)
+- Agenda kalender berulang mingguan/bulanan, pencarian agenda
+- Pencarian di view Lomba, Nilai, dan Kalender
+- Sematkan halaman favorit + sembunyikan item sidebar yang jarang dipakai
+- Edit judul catatan inline (klik dua kali)
+- Pemulihan database korup: banner, unduh file rusak, restore backup JSON terbaru (pengaturan & PIN dipertahankan)
+- Shortcut `Ctrl/Cmd + Enter` (centang tugas fokus) dan `Ctrl/Cmd + D` (hapus tugas fokus)
+- Undo untuk centang satu tugas; hierarki warna CTA per view; tag prioritas ramah buta warna (ikon + bentuk); dukungan `prefers-reduced-transparency`
+- Playwright E2E (`tests/e2e/`), landing page offline (`docs/landing/`), skrip paket (`packaging/`)
+
+### Diperbaiki
+- Urutan tugas kini menghormati posisi manual sebelum jam mulai/prioritas
+- Import backup tidak menimpa pengaturan tema, bahasa, atau PIN
+
 ## [1.1.0] — 2026-11-17
 
 ### Ditambahkan

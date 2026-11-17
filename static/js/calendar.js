@@ -19,16 +19,28 @@ function renderCalendarView() {
     </button>`;
   }).join('');
 
+  const query = (state.eventQuery || '').trim().toLowerCase();
   const selectedDate = parseYMD(selected);
-  $('#calSideTitle').textContent = `${DAYS[selectedDate.getUTCDay()]}, ${selectedDate.getUTCDate()} ${MONTHS_SHORT[selectedDate.getUTCMonth()]}`;
-  const events = eventsForDay(selected);
+  let events;
+  if (query) {
+    const seen = new Set();
+    events = state.events
+      .filter((ev) => `${ev.title} ${ev.notes || ''} ${CATEGORY_LABEL[ev.category] || ''}`.toLowerCase().includes(query))
+      .filter((ev) => { const key = `${ev.title}|${ev.date}`; if (seen.has(key)) return false; seen.add(key); return true; })
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+      .slice(0, 40);
+    $('#calSideTitle').textContent = `Hasil pencarian · ${events.length}`;
+  } else {
+    $('#calSideTitle').textContent = `${DAYS[selectedDate.getUTCDay()]}, ${selectedDate.getUTCDate()} ${MONTHS_SHORT[selectedDate.getUTCMonth()]}`;
+    events = eventsForDay(selected);
+  }
   const sideList = $('#calSideList');
   sideList.innerHTML = events.length ? events.map((ev) => `
     <div class="side-ev cat-${esc(ev.category || 'lain')}">
       <div class="side-ev-top">
         <div>
           <strong>${esc(ev.title)}</strong>
-          <span class="sev-time">${iconSvg('clock')} ${ev.pseudo ? 'Deadline lomba' : (CATEGORY_LABEL[ev.category] || 'Agenda')}${ev.time ? ` · ${esc(String(ev.time).slice(0, 5))}` : ' · sepanjang hari'}${ev.end_time ? `–${esc(String(ev.end_time).slice(0, 5))}` : ''}</span>
+          <span class="sev-time">${iconSvg('clock')} ${query ? `${esc(fmtShort(ev.date))} · ` : ''}${ev.pseudo ? 'Deadline lomba' : (CATEGORY_LABEL[ev.category] || 'Agenda')}${ev.time ? ` · ${esc(String(ev.time).slice(0, 5))}` : ' · sepanjang hari'}${ev.end_time ? `–${esc(String(ev.end_time).slice(0, 5))}` : ''}</span>
         </div>
         ${ev.pseudo
           ? `<button class="icon-btn" data-goto="lomba" title="Buka lomba">${iconSvg('arrow-up-right')}</button>`
@@ -41,8 +53,8 @@ function renderCalendarView() {
       ${ev.pseudo ? '<p>Lihat detail persiapan di menu Lomba.</p>' : ''}
     </div>`).join('')
     : `<div class="side-empty">
-        <div class="empty-state-ico" style="margin:0 auto 10px"><span class="ico">${iconSvg('calendar')}</span></div>
-        <strong>Tidak ada agenda</strong>
+        <div class="empty-state-ico" style="margin:0 auto 10px"><span class="ico">${iconSvg('search')}</span></div>
+        <strong>${query ? 'Tidak ada yang cocok' : 'Tidak ada agenda'}</strong>
         <span style="font-size:10px;color:var(--faint)">Tambahkan agenda atau batas waktu lomba kamu.</span>
         <button class="btn btn-primary btn-sm" style="margin-top:10px" data-ev-add>${iconSvg('plus')} Agenda baru</button>
       </div>`;
@@ -78,6 +90,14 @@ function openEventModal(event = null, presetDate = null) {
         <label>Selesai (opsional)</label>
         <input type="time" name="end_time" value="${esc(event && event.end_time ? String(event.end_time).slice(0, 5) : '')}" />
       </div>
+      <div class="field">
+        <label>Ulangi</label>
+        <select name="repeat">
+          <option value="" ${!event || !event.repeat ? 'selected' : ''}>Tidak diulang</option>
+          <option value="weekly" ${event && event.repeat === 'weekly' ? 'selected' : ''}>Setiap minggu</option>
+          <option value="monthly" ${event && event.repeat === 'monthly' ? 'selected' : ''}>Setiap bulan</option>
+        </select>
+      </div>
       <div class="field full">
         <label>Catatan (opsional)</label>
         <textarea name="notes" placeholder="Lokasi, orang yang diajak, hal yang perlu dibawa…">${esc(event ? event.notes || '' : '')}</textarea>
@@ -112,6 +132,7 @@ function openEventModal(event = null, presetDate = null) {
         time: formValue(form, 'time'),
         end_time: formValue(form, 'end_time'),
         category: formValue(form, 'category') || 'pribadi',
+        repeat: formValue(form, 'repeat') || '',
         notes: formValue(form, 'notes'),
       };
       if (!payload.title) throw new Error('Nama agenda wajib diisi');

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="MyAct — dashboard harian lokal untuk tugas, fokus, kebiasaan, lomba, flashcard, dan cuaca. Konsisten &amp; rajin setiap hari. Tanpa akun, tanpa cloud.">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#201114">
+  <title>MyAct — Konsisten &amp; rajin setiap hari</title>
+  <link rel="stylesheet" href="landing.css">
+</head>
+<body>
+  <a class="skip-link" href="#konten">Lewati ke konten utama</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#atas" aria-label="MyAct — kembali ke atas">
+        <span class="brand-mark" aria-hidden="true">M</span>
+        <span class="brand-name">MyAct</span>
+      </a>
+      <nav class="site-nav" aria-label="Navigasi utama">
+        <a href="#fitur">Fitur</a>
+        <a href="#tangkapan">Tangkapan layar</a>
+        <a href="#privasi">Privasi</a>
+        <a href="#mulai">Mulai</a>
+      </nav>
+      <a class="button button--small button--primary" href="#mulai">Jalankan lokal</a>
+    </div>
+  </header>
+
+  <main id="konten">
+    <section class="hero" id="atas" aria-labelledby="hero-title">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="dot" aria-hidden="true"></span> Dashboard harian lokal</p>
+          <h1 id="hero-title">MyAct</h1>
+          <p class="tagline">Konsisten &amp; rajin setiap hari</p>
+          <p class="lede">
+            Satu tempat untuk tugas, fokus, kebiasaan, lomba, dan cuaca Indonesia.
+            Semua berjalan di laptopmu sendiri — tanpa akun, tanpa cloud, tanpa langganan.
+          </p>
+          <div class="hero-actions">
+            <a class="button button--primary" href="#mulai">Mulai dalam 3 langkah</a>
+            <a class="button button--ghost" href="#fitur">Lihat fitur</a>
+          </div>
+          <ul class="trust-list" aria-label="Keunggulan singkat">
+            <li>Offline-first</li>
+            <li>Data di SQLite lokal</li>
+            <li>Lisensi MIT</li>
+          </ul>
+        </div>
+
+        <div class="hero-visual">
+          <div class="shot shot--hero">
+            <img
+              src="../screenshots/beranda.png"
+              width="1440"
+              height="900"
+              alt="Tampilan Beranda MyAct: ringkasan cuaca, tugas hari ini, agenda, kalender mini, dan rekap mingguan."
+            >
+          </div>
+          <p class="shot-caption">Beranda MyAct — ringkasan hari dalam satu layar.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="fitur" aria-labelledby="fitur-title">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">Fitur</p>
+          <h2 id="fitur-title">Semua yang kamu butuhkan, tanpa ribet</h2>
+          <p class="section-lede">
+            Dirancang untuk dipakai setiap hari: cepat dibuka, jelas dibaca, dan tetap ringan
+            karena berjalan langsung di perangkatmu.
+          </p>
+        </div>
+
+        <div class="feature-grid">
+          <article class="card">
+            <span class="card-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="4"></rect>
+                <path d="m7.5 12 3 3 6-6"></path>
+              </svg>
+            </span>
+            <h3>Tugas harian</h3>
+            <p>Checklist yang otomatis reset tiap hari, membawa tugas belum selesai, lengkap dengan prioritas dan rutinitas.</p>
+          </article>
+
+          <article class="card">
+            <span class="card-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="13" r="8"></circle>
+                <path d="M12 9v4l2.5 2.5M9 2h6"></path>
+              </svg>
+            </span>
+            <h3>Fokus &amp; statistik</h3>
+            <p>Pomodoro 25/5 menit atau durasi kustom, dengan statistik sesi per mata pelajaran dan mode layar penuh.</p>
+          </article>
+
+          <article class="card">
+            <span class="card-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3c1.5 3.5 5 4.5 5 9a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5.5 2 1.5 2.5 2.5 2.5C11 7 11 5 12 3Z"></path>
+              </svg>
+            </span>
+            <h3>Streak &amp; kebiasaan</h3>
+            <p>Bangun kebiasaan dengan multi-habit streak dan heatmap 112 hari, supaya progres kecil tetap terlihat.</p>
+          </article>
+
+          <article class="card">
+            <span class="card-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Z"></path>
+                <path d="M17 5h2a2 2 0 0 1 0 4h-1M7 5H5a2 2 0 0 0 0 4h1"></path>
+              </svg>
+            </span>
+            <h3>Lomba &amp; deadline</h3>
+            <p>Countdown otomatis untuk lomba dan tenggat, plus checklist persiapan agar tidak ada yang terlewat.</p>
+          </article>
+
+          <article class="card">
+            <span class="card-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="5" width="13" height="14" rx="2.5"></rect>
+                <path d="M8 2v3M11 2v3M8 9h5M8 13h3M19 8h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-1"></path>
+              </svg>
+            </span>
+            <h3>Flashcard SM-2</h3>
+            <p>Spaced repetition klasik gaya Anki. Ulangi di waktu yang tepat dan ingat lebih lama dengan usaha lebih sedikit.</p>
+          </article>
+
+          <article class="card">
+            <span class="card-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 15a4 4 0 0 1 .8-7.9 5.5 5.5 0 0 1 10.6 1.4A3.5 3.5 0 0 1 17.5 15H6Z"></path>
+                <path d="M12 11v3M12 17.5v.5M15 21h.01M18 19h.01"></path>
+              </svg>
+            </span>
+            <h3>Cuaca realtime</h3>
+            <p>Cuaca 16 kota Indonesia lewat Open-Meteo, tanpa API key, dengan pembaruan otomatis sepanjang hari.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--alt" id="tangkapan" aria-labelledby="tangkapan-title">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">Tangkapan layar</p>
+          <h2 id="tangkapan-title">Tampilan yang tenang, informasi yang padat</h2>
+          <p class="section-lede">
+            Tema gelap terracotta yang nyaman untuk sesi panjang. Semua tangkapan layar di bawah
+            diambil langsung dari aplikasi.
+          </p>
+        </div>
+
+        <div class="gallery">
+          <figure class="shot-card">
+            <div class="shot">
+              <img src="../screenshots/beranda.png" width="1440" height="900" loading="lazy" decoding="async"
+                   alt="Beranda MyAct dengan kartu cuaca, daftar tugas harian, agenda, dan kalender mini.">
+            </div>
+            <figcaption><strong>Beranda</strong> — ringkasan hari dan rekap mingguan.</figcaption>
+          </figure>
+
+          <figure class="shot-card">
+            <div class="shot">
+              <img src="../screenshots/cuaca.png" width="1440" height="900" loading="lazy" decoding="async"
+                   alt="Halaman Cuaca MyAct menampilkan suhu, kondisi langit, dan prakiraan untuk kota di Indonesia.">
+            </div>
+            <figcaption><strong>Cuaca</strong> — realtime untuk 16 kota Indonesia.</figcaption>
+          </figure>
+
+          <figure class="shot-card">
+            <div class="shot">
+              <img src="../screenshots/fokus.png" width="1440" height="900" loading="lazy" decoding="async"
+                   alt="Halaman Fokus MyAct dengan timer Pomodoro dan statistik sesi per mata pelajaran.">
+            </div>
+            <figcaption><strong>Fokus</strong> — Pomodoro dan statistik belajar.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="privasi" aria-labelledby="privasi-title">
+      <div class="container privacy-panel">
+        <div class="privacy-copy">
+          <p class="eyebrow">Privasi</p>
+          <h2 id="privasi-title">Jalan lokal, tanpa akun</h2>
+          <p>
+            MyAct tidak mengirim datamu ke mana pun. Tugas, catatan, nilai, dan riwayat fokus
+            tersimpan di database SQLite di komputermu. Tidak ada login, tidak ada sinkronisasi
+            paksa, dan tidak ada pelacakan.
+          </p>
+          <ul class="privacy-list">
+            <li>Tanpa akun dan tanpa cloud</li>
+            <li>Tanpa telemetry atau iklan</li>
+            <li>Backup JSON kapan saja, sepenuhnya milikmu</li>
+            <li>Hanya cuaca yang memanggil API publik Open-Meteo</li>
+          </ul>
+        </div>
+        <div class="privacy-badge" aria-hidden="true">
+          <span class="badge-ring"></span>
+          <span class="badge-core">
+            <strong>100%</strong>
+            <span>lokal</span>
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--alt" id="mulai" aria-labelledby="mulai-title">
+      <div class="container quickstart">
+        <div class="quickstart-copy">
+          <p class="eyebrow">Mulai cepat</p>
+          <h2 id="mulai-title">Dari nol ke dashboard dalam satu menit</h2>
+          <p class="section-lede">
+            Butuh Python 3 dan Git. Tidak ada dependency pihak ketiga, tidak ada proses build.
+          </p>
+          <ol class="steps">
+            <li><span>Kloning repositori</span></li>
+            <li><span>Jalankan <code>./run.sh</code></span></li>
+            <li><span>Buka <code>http://127.0.0.1:8777</code></span></li>
+          </ol>
+          <p class="note">
+            Di Windows, jalankan <code>run.bat</code>. Port bisa diubah lewat
+            <code>MYACT_PORT</code>, misalnya <code>MYACT_PORT=8780 ./run.sh</code>.
+          </p>
+        </div>
+
+        <div class="code-card">
+          <div class="code-head">
+            <span class="code-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="code-title">terminal</span>
+          </div>
+          <pre tabindex="0" role="region" aria-label="Perintah untuk menjalankan MyAct"><code><span class="c-comment"># 1. Kloning repositori</span>
+git clone &lt;url-repo-ini&gt; myact
+cd myact
+
+<span class="c-comment"># 2. Jalankan server lokal</span>
+./run.sh
+
+<span class="c-comment"># 3. Buka di browser</span>
+http://127.0.0.1:8777</code></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-brand"><span aria-hidden="true">M</span> MyAct</p>
+      <p class="footer-copy">
+        © 2026 MyAct contributors · Dirilis di bawah
+        <a href="../../LICENSE">Lisensi MIT</a> · Dibuat untuk jalan lokal.
+      </p>
+      <a class="footer-top" href="#atas">Kembali ke atas</a>
+    </div>
+  </footer>
+</body>
+</html>

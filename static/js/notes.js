@@ -87,10 +87,51 @@ function openNoteModal(note = null) {
   });
 }
 
+let noteClickTimer = 0;
+
 function bindNoteActions() {
   $('#noteAdd').addEventListener('click', () => openNoteModal());
   $('#noteSearch').addEventListener('input', (e) => {
     state.noteQuery = e.target.value;
     renderNotesView();
   });
+  const grid = $('#notesGrid');
+  if (grid) {
+    grid.addEventListener('dblclick', (e) => {
+      const titleNode = e.target.closest('.note-card h4');
+      if (!titleNode || titleNode.querySelector('input')) return;
+      const card = titleNode.closest('[data-note-edit]');
+      const note = state.notes.find((n) => n.id === Number(card && card.dataset.noteEdit));
+      if (!note) return;
+      e.preventDefault();
+      e.stopPropagation();
+      clearTimeout(noteClickTimer);
+      const input = document.createElement('input');
+      input.className = 'inline-edit';
+      input.maxLength = 160;
+      input.value = note.title;
+      titleNode.textContent = '';
+      titleNode.appendChild(input);
+      input.focus();
+      input.select();
+      let finished = false;
+      const finish = async (save) => {
+        if (finished) return;
+        finished = true;
+        const value = input.value.trim();
+        if (save && value && value !== note.title) {
+          try {
+            await api(`/api/notes/${note.id}`, { method: 'PATCH', body: { title: value } });
+            toast('Judul catatan diperbarui');
+          } catch (err) { toast(err.message, 'error'); }
+        }
+        await loadNotes();
+      };
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); finish(true); }
+        if (ev.key === 'Escape') { ev.preventDefault(); finish(false); }
+      });
+      input.addEventListener('blur', () => finish(true));
+    });
+  }
 }

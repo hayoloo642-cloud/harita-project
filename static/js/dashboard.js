@@ -17,6 +17,57 @@ const PAGE_META = {
   streak: ['Streak konsistensi', 'Streak'],
 };
 
+function parseViewList(value) {
+  return String(value || '').split(',').map((v) => v.trim()).filter(Boolean);
+}
+
+let navBaseMarkup = null;
+
+function applyNavPrefs() {
+  const nav = document.querySelector('nav.nav');
+  if (!nav) return;
+  const sig = `${state.settings.pinned_views || ''}|${state.settings.hidden_views || ''}`;
+  if (navBaseMarkup === null) navBaseMarkup = nav.innerHTML;
+  if (nav.dataset.prefsSig !== sig) {
+    nav.innerHTML = navBaseMarkup;
+    nav.dataset.prefsSig = sig;
+  }
+  nav.querySelectorAll('[data-nav-pinned-label]').forEach((n) => n.remove());
+  const pinned = parseViewList(state.settings.pinned_views);
+  const hidden = parseViewList(state.settings.hidden_views);
+  const items = [...nav.querySelectorAll('.nav-item')];
+  items.forEach((el) => {
+    const view = el.dataset.view;
+    el.hidden = hidden.includes(view);
+    el.classList.toggle('pinned', pinned.includes(view));
+  });
+  if (pinned.length) {
+    const label = document.createElement('p');
+    label.className = 'nav-group-label';
+    label.dataset.navPinnedLabel = '1';
+    label.textContent = t('nav.group.pinned', 'Semat');
+    nav.prepend(label);
+    [...pinned].reverse().forEach((view) => {
+      const el = nav.querySelector(`.nav-item[data-view="${view}"]`);
+      if (el) nav.insertBefore(el, label.nextSibling);
+    });
+  }
+  // sembunyikan label grup yang semua itemnya tersembunyi
+  nav.querySelectorAll('.nav-group-label').forEach((label) => {
+    if (label.dataset.navPinnedLabel) return;
+    let node = label.nextElementSibling;
+    let anyVisible = false;
+    while (node && !node.classList.contains('nav-group-label')) {
+      if (node.classList.contains('nav-item') && !node.hidden) { anyVisible = true; break; }
+      node = node.nextElementSibling;
+    }
+    label.hidden = !anyVisible;
+  });
+  nav.querySelectorAll('.nav-item').forEach((el) => {
+    el.classList.toggle('active', el.dataset.view === state.view);
+  });
+}
+
 function renderChrome() {
   const theme = state.settings.theme || "dark";
   document.documentElement.setAttribute("data-theme", theme);
@@ -31,12 +82,14 @@ function renderChrome() {
   }
   $$('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.view === state.view));
   const meta = PAGE_META[state.view] || PAGE_META.beranda;
-  $('#pageEyebrow').textContent = meta[0];
-  $('#pageTitle').textContent = meta[1];
+  $('#pageEyebrow').textContent = t(`page.${state.view}.eyebrow`, meta[0]);
+  $('#pageTitle').textContent = t(`page.${state.view}.title`, meta[1]);
   const name = state.settings.name || 'Kamu';
   $('#greetName').textContent = name;
   const avatar = $('#topAvatar');
   if (avatar) avatar.textContent = name.trim().charAt(0).toUpperCase() || 'B';
+  applyNavPrefs();
+  if (typeof applyI18n === 'function') applyI18n(document);
   renderTopWeather();
   updateNavBadge();
 }

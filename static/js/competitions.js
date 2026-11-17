@@ -31,14 +31,19 @@ function renderCompetitionsView() {
     grid.innerHTML = `<div class="skeleton-grid">${skeletonRows(4, 'skeleton-card')}</div>`;
     return;
   }
-  const list = state.competitions.slice().sort((a, b) => {
+  const q = (state.compQuery || '').trim().toLowerCase();
+  const list = state.competitions
+    .filter((c) => !q || `${c.title} ${c.notes || ''} ${c.category || ''} ${c.location || ''}`.toLowerCase().includes(q))
+    .slice().sort((a, b) => {
     const aDone = a.status === 'selesai' ? 1 : 0;
     const bDone = b.status === 'selesai' ? 1 : 0;
     if (aDone !== bDone) return aDone - bDone;
     return parseLocalDT(a.deadline) - parseLocalDT(b.deadline);
   });
   if (!list.length) {
-    grid.innerHTML = `<div class="comp-empty">${iconSvg('trophy')}Belum ada lomba atau proyek yang dicatat.<br>Tambahkan lomba, deadline, dan checklist persiapan supaya tidak panik di akhir.</div>`;
+    grid.innerHTML = q
+      ? `<div class="comp-empty">${iconSvg('search')}Tidak ada lomba yang cocok dengan “${esc(state.compQuery)}”.</div>`
+      : `<div class="comp-empty">${iconSvg('trophy')}Belum ada lomba atau proyek yang dicatat.<br>Tambahkan lomba, deadline, dan checklist persiapan supaya tidak panik di akhir.</div>`;
     return;
   }
   grid.innerHTML = list.map((comp) => {

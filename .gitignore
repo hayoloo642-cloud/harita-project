@@ -26,3 +26,9 @@ build/
 
 # Screenshots (optional)
 # docs/screenshots/
+
+# E2E / Node
+node_modules/
+.e2e/
+test-results/
+playwright-report/

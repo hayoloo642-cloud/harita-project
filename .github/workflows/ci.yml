@@ -34,3 +34,27 @@ jobs:
           total=$(find static -type f \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.woff2' \) -printf '%s\n' | awk '{s+=$1} END {print s}')
           echo "static assets: $((total/1024)) KB"
           test "$total" -lt 716800
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Playwright
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+      - name: Run E2E (Chromium)
+        run: npm run test:e2e
+      - name: Upload traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          if-no-files-found: ignore

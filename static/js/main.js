@@ -1,4 +1,4 @@
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 /* ============================================================
    App bootstrap, navigation, realtime tick, settings
    ============================================================ */
@@ -34,6 +34,7 @@ function setView(view) {
   if (view === 'streak') safeViewRender(view, () => { loadStreak && loadStreak(); renderStreakView && renderStreakView(); });
   const mainScroller = document.querySelector('.main');
   if (mainScroller) mainScroller.scrollTo({ top: 0, behavior: 'auto' });
+  if (typeof localizeStatic === 'function') localizeStatic();
 }
 
 function renderAll() {
@@ -48,6 +49,7 @@ function renderAll() {
   renderFocusView();
   if (typeof loadGrades === 'function') loadGrades();
   if (typeof loadFlashcards === 'function') loadFlashcards();
+  if (typeof localizeStatic === 'function') localizeStatic();
 }
 
 async function changeWeatherLocation(key) {
@@ -121,12 +123,21 @@ function openSettingsModal() {
   const locOptions = Object.entries(state.locations).map(([key, locName]) =>
     `<option value="${key}" ${state.settings.location === key ? 'selected' : ''}>${esc(locName)}</option>`).join('');
 
-  const viewOptions = [
+  const navViews = [
     ['beranda', 'Beranda'], ['tugas', 'Tugas'], ['kalender', 'Kalender'],
     ['fokus', 'Fokus'], ['catatan', 'Catatan'], ['jadwal', 'Jadwal'],
     ['nilai', 'Nilai'], ['flashcard', 'Flashcard'], ['lomba', 'Lomba'],
     ['streak', 'Streak'], ['cuaca', 'Cuaca'], ['music', 'Musik'],
-  ].map(([v, l]) => `<option value="${v}" ${(state.settings.default_view || 'beranda') === v ? 'selected' : ''}>${esc(l)}</option>`).join('');
+  ];
+  const viewOptions = navViews.map(([v, l]) => `<option value="${v}" ${(state.settings.default_view || 'beranda') === v ? 'selected' : ''}>${esc(l)}</option>`).join('');
+  const pinnedSet = new Set(parseViewList(state.settings.pinned_views));
+  const hiddenSet = new Set(parseViewList(state.settings.hidden_views));
+  const navPrefsHtml = navViews.map(([v, l]) => `
+    <div class="nav-pref-row">
+      <span class="nav-pref-name">${esc(l)}</span>
+      <label class="check-line compact"><input type="checkbox" data-pin-view="${v}" ${pinnedSet.has(v) ? 'checked' : ''} /><span>${esc(t('settings.pin'))}</span></label>
+      <label class="check-line compact"><input type="checkbox" data-hide-view="${v}" ${hiddenSet.has(v) ? 'checked' : ''} /><span>${esc(t('settings.hide'))}</span></label>
+    </div>`).join('');
 
   const currentAccent = state.settings.accent || 'terracotta';
   const accentHtml = ACCENT_SWATCHES.map((s) => `
@@ -136,61 +147,78 @@ function openSettingsModal() {
   const body = `
     <div class="settings-scroll">
       <!-- Profil -->
-      <p class="eyebrow" style="margin:4px 0 12px">Profil</p>
+      <p class="eyebrow" style="margin:4px 0 12px">${esc(t('settings.profile'))}</p>
       <div class="form-grid">
         <div class="field">
-          <label>Nama kamu</label>
+          <label>${esc(t('settings.name'))}</label>
           <input name="name" maxlength="40" value="${name}" placeholder="Nama panggilan" />
         </div>
         <div class="field">
-          <label>Lokasi cuaca utama</label>
+          <label>${esc(t('settings.location'))}</label>
           <select name="location">${locOptions}</select>
         </div>
       </div>
 
       <!-- Tampilan -->
-      <p class="eyebrow" style="margin:22px 0 12px">Tampilan</p>
+      <p class="eyebrow" style="margin:22px 0 12px">${esc(t('settings.appearance'))}</p>
 
       <div class="field full">
-        <label>Tema</label>
+        <label>${esc(t('settings.theme'))}</label>
         <div class="segmented" role="radiogroup" aria-label="Tema">
-          <label class="seg-option ${state.settings.theme === 'dark' ? 'active' : ''}"><input type="radio" name="theme" value="dark" ${state.settings.theme === 'dark' ? 'checked' : ''} /> Gelap</label>
-          <label class="seg-option ${state.settings.theme === 'light' ? 'active' : ''}"><input type="radio" name="theme" value="light" ${state.settings.theme === 'light' ? 'checked' : ''} /> Terang</label>
-          <label class="seg-option ${(!state.settings.theme || state.settings.theme === 'system') ? 'active' : ''}"><input type="radio" name="theme" value="system" ${(!state.settings.theme || state.settings.theme === 'system') ? 'checked' : ''} /> Sistem</label>
+          <label class="seg-option ${state.settings.theme === 'dark' ? 'active' : ''}"><input type="radio" name="theme" value="dark" ${state.settings.theme === 'dark' ? 'checked' : ''} /> ${esc(t('settings.theme.dark'))}</label>
+          <label class="seg-option ${state.settings.theme === 'light' ? 'active' : ''}"><input type="radio" name="theme" value="light" ${state.settings.theme === 'light' ? 'checked' : ''} /> ${esc(t('settings.theme.light'))}</label>
+          <label class="seg-option ${(!state.settings.theme || state.settings.theme === 'system') ? 'active' : ''}"><input type="radio" name="theme" value="system" ${(!state.settings.theme || state.settings.theme === 'system') ? 'checked' : ''} /> ${esc(t('settings.theme.system'))}</label>
         </div>
       </div>
 
       <div class="field full">
-        <label>Aksen warna</label>
+        <label>${esc(t('settings.accent'))}</label>
         <div class="accent-grid" role="radiogroup" aria-label="Aksen warna">${accentHtml}</div>
         <span class="help">Tema tetap, aksen berubah untuk tombol, ring, dan highlight.</span>
       </div>
 
       <div class="field full">
-        <label>Ukuran teks</label>
+        <label>${esc(t('settings.fontSize'))}</label>
         <div class="segmented" role="radiogroup" aria-label="Ukuran teks">
-          <label class="seg-option ${(!state.settings.font_size || state.settings.font_size === 'small') ? 'active' : ''}"><input type="radio" name="font_size" value="small" ${(!state.settings.font_size || state.settings.font_size === 'small') ? 'checked' : ''} /> Kecil</label>
-          <label class="seg-option ${(!state.settings.font_size || state.settings.font_size === 'normal') ? 'active' : ''}"><input type="radio" name="font_size" value="normal" ${(!state.settings.font_size || state.settings.font_size === 'normal') ? 'checked' : ''} /> Normal</label>
-          <label class="seg-option ${state.settings.font_size === 'large' ? 'active' : ''}"><input type="radio" name="font_size" value="large" ${state.settings.font_size === 'large' ? 'checked' : ''} /> Besar</label>
+          <label class="seg-option ${(!state.settings.font_size || state.settings.font_size === 'small') ? 'active' : ''}"><input type="radio" name="font_size" value="small" ${(!state.settings.font_size || state.settings.font_size === 'small') ? 'checked' : ''} /> ${esc(t('settings.size.small'))}</label>
+          <label class="seg-option ${(!state.settings.font_size || state.settings.font_size === 'normal') ? 'active' : ''}"><input type="radio" name="font_size" value="normal" ${(!state.settings.font_size || state.settings.font_size === 'normal') ? 'checked' : ''} /> ${esc(t('settings.size.normal'))}</label>
+          <label class="seg-option ${state.settings.font_size === 'large' ? 'active' : ''}"><input type="radio" name="font_size" value="large" ${state.settings.font_size === 'large' ? 'checked' : ''} /> ${esc(t('settings.size.large'))}</label>
         </div>
       </div>
 
       <div class="field full">
-        <label>Kontras tampilan</label>
+        <label>${esc(t('settings.contrast'))}</label>
         <div class="segmented" role="radiogroup" aria-label="Kontras tampilan">
-          <label class="seg-option ${(!state.settings.contrast || state.settings.contrast === 'normal') ? 'active' : ''}"><input type="radio" name="contrast" value="normal" ${(!state.settings.contrast || state.settings.contrast === 'normal') ? 'checked' : ''} /> Normal</label>
-          <label class="seg-option ${state.settings.contrast === 'high' ? 'active' : ''}"><input type="radio" name="contrast" value="high" ${state.settings.contrast === 'high' ? 'checked' : ''} /> Tinggi</label>
+          <label class="seg-option ${(!state.settings.contrast || state.settings.contrast === 'normal') ? 'active' : ''}"><input type="radio" name="contrast" value="normal" ${(!state.settings.contrast || state.settings.contrast === 'normal') ? 'checked' : ''} /> ${esc(t('settings.contrast.normal'))}</label>
+          <label class="seg-option ${state.settings.contrast === 'high' ? 'active' : ''}"><input type="radio" name="contrast" value="high" ${state.settings.contrast === 'high' ? 'checked' : ''} /> ${esc(t('settings.contrast.high'))}</label>
         </div>
         <span class="help">Kontras tinggi mempertegas teks, garis, dan fokus keyboard.</span>
       </div>
 
       <div class="field full">
-        <label>Halaman utama saat dibuka</label>
+        <label>${esc(t('settings.defaultView'))}</label>
         <select name="default_view">${viewOptions}</select>
       </div>
 
+      <div class="field">
+        <label>${esc(t('settings.language'))}</label>
+        <select name="language">
+          <option value="id" ${(state.settings.language || 'id') === 'id' ? 'selected' : ''}>Bahasa Indonesia</option>
+          <option value="en" ${state.settings.language === 'en' ? 'selected' : ''}>English</option>
+        </select>
+        <span class="help">Chrome, navigation, and settings. Changes reload the app.</span>
+      </div>
+
+      <div class="field full">
+        <details class="nav-prefs">
+          <summary>${esc(t('settings.navManage'))}</summary>
+          <p class="help" style="margin:8px 0">Semat item yang sering dipakai ke atas, sembunyikan yang jarang. Item tersembunyi tetap bisa dibuka lewat pencarian (Ctrl+K).</p>
+          <div class="nav-pref-list">${navPrefsHtml}</div>
+        </details>
+      </div>
+
       <!-- Tugas -->
-      <p class="eyebrow" style="margin:22px 0 12px">Tugas</p>
+      <p class="eyebrow" style="margin:22px 0 12px">${esc(t('settings.tasks'))}</p>
 
       <div class="field full">
         <label class="check-line"><input type="checkbox" name="carry_over" ${state.settings.carry_over === '1' ? 'checked' : ''} />
@@ -199,29 +227,29 @@ function openSettingsModal() {
       </div>
 
       <!-- Notifikasi -->
-      <p class="eyebrow" style="margin:22px 0 12px">Notifikasi</p>
+      <p class="eyebrow" style="margin:22px 0 12px">${esc(t('settings.notifications'))}</p>
 
       <div class="field full">
         <label class="check-line"><input type="checkbox" name="sound" ${state.settings.sound === '1' ? 'checked' : ''} />
-          <span><strong>Suara timer</strong>Bunyi singkat saat sesi fokus selesai.</span>
+          <span><strong>${esc(t('settings.sound'))}</strong>Bunyi singkat saat sesi fokus selesai.</span>
         </label>
       </div>
       <div class="field full">
         <label class="check-line"><input type="checkbox" name="notifications" ${state.settings.notifications === '1' ? 'checked' : ''} />
-          <span><strong>Notifikasi browser</strong>Pengingat agenda/tugas sebelum dimulai, dan deadline lomba 24 jam sebelumnya.</span>
+          <span><strong>${esc(t('settings.notifyBrowser'))}</strong>Pengingat agenda/tugas sebelum dimulai, dan deadline lomba 24 jam sebelumnya.</span>
         </label>
       </div>
       <div class="field">
-        <label>Ingatkan berapa menit sebelumnya</label>
+        <label>${esc(t('settings.reminderLead'))}</label>
         <input name="reminder_lead" type="number" min="1" max="120" step="1" value="${Number(state.settings.reminder_lead) || 10}" />
         <span class="help">Berlaku untuk agenda dan tugas yang punya jam mulai (1–120 menit).</span>
       </div>
 
       <!-- Keamanan -->
-      <p class="eyebrow" style="margin:22px 0 12px">Keamanan</p>
+      <p class="eyebrow" style="margin:22px 0 12px">${esc(t('settings.security'))}</p>
 
       <div class="field full">
-        <label>Kunci aplikasi dengan PIN (opsional)</label>
+        <label>${esc(t('settings.pinLock'))}</label>
         <input name="lock_pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="Buat PIN 4+ digit — kosongkan untuk tetap terbuka" autocomplete="off" />
         <span class="help">Jika diisi, MyAct terkunci saat dibuka — masukkan PIN untuk membuka data.</span>
         <label class="check-line" style="margin-top:8px"><input type="checkbox" name="lock_disable" />
@@ -230,13 +258,16 @@ function openSettingsModal() {
       </div>
 
       <!-- Data -->
-      <p class="eyebrow" style="margin:22px 0 12px">Data</p>
+      <p class="eyebrow" style="margin:22px 0 12px">${esc(t('settings.data'))}</p>
       <div class="field full" style="display:flex; gap:10px; flex-wrap:wrap">
-        <a class="btn btn-ghost btn-sm" href="/api/export" download>${ico('download')} Unduh backup JSON</a>
-        <button type="button" class="btn btn-ghost btn-sm" id="demoDataBtn">${ico('sparkles')} Isi data contoh</button>
-        <button type="button" class="btn btn-ghost btn-sm" id="swResetBtn">${ico('refresh')} Bersihkan cache file</button>
-        <button type="button" class="btn btn-ghost btn-sm" id="diagCopyBtn">${ico('copy')} Salin info sistem</button>
-        <button type="button" class="btn btn-ghost btn-sm" id="resetDataBtn">${ico('trash')} Hapus semua data</button>
+        <a class="btn btn-ghost btn-sm" href="/api/export" download>${ico('download')} ${esc(t('settings.backup'))}</a>
+        <button type="button" class="btn btn-ghost btn-sm" id="demoDataBtn">${ico('sparkles')} ${esc(t('settings.demo'))}</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="swResetBtn">${ico('refresh')} ${esc(t('settings.clearCache'))}</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="diagCopyBtn">${ico('copy')} ${esc(t('settings.diagnostics'))}</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="resetDataBtn">${ico('trash')} ${esc(t('settings.reset'))}</button>
+      </div>
+      <div class="field full db-info" id="settingsDbInfo">
+        <span class="help">Memeriksa status database…</span>
       </div>
 
       <p style="font-size:9.5px;color:var(--faint);line-height:1.7;margin-top:16px">
@@ -246,11 +277,11 @@ function openSettingsModal() {
     </div>`;
 
   openModal({
-    title: 'Pengaturan',
+    title: t('settings.title'),
     eyebrow: 'MyAct',
     wide: true,
     hideSubmit: false,
-    submitLabel: 'Simpan pengaturan',
+    submitLabel: t('settings.save'),
     body,
     onSubmit: async (form) => {
       const wantsNotifications = formValue(form, 'notifications');
@@ -274,7 +305,11 @@ function openSettingsModal() {
         reminder_lead: formValue(form, 'reminder_lead') || '10',
         default_view: formValue(form, 'default_view') || 'beranda',
         accent: document.querySelector('.accent-swatch.active')?.dataset.accent || 'terracotta',
+        pinned_views: [...form.querySelectorAll('[data-pin-view]:checked')].map((el) => el.dataset.pinView).join(','),
+        hidden_views: [...form.querySelectorAll('[data-hide-view]:checked')].map((el) => el.dataset.hideView).join(','),
+        language: formValue(form, 'language') || 'id',
       };
+      const languageChanged = payload.language !== (state.settings.language || 'id');
       const lockPin = formValue(form, 'lock_pin');
       const lockDisable = formValue(form, 'lock_disable');
       if (lockPin) {
@@ -292,6 +327,11 @@ function openSettingsModal() {
       document.documentElement.setAttribute('data-contrast', state.settings.contrast || 'normal');
       renderChrome();
       renderDashboard();
+      if (languageChanged) {
+        toast('Language changed — reloading…');
+        setTimeout(() => window.location.reload(), 700);
+        return;
+      }
       toast(lockPin ? 'PIN kunci aplikasi diaktifkan' : lockDisable ? 'Kunci aplikasi dimatikan' : 'Pengaturan disimpan');
       if (payload.location !== state.weather.key) await changeWeatherLocation(payload.location);
     },
@@ -309,6 +349,33 @@ function openSettingsModal() {
     });
     const diagBtn = document.getElementById('diagCopyBtn');
     if (diagBtn) diagBtn.addEventListener('click', copyDiagnostics);
+    const dbInfo = document.getElementById('settingsDbInfo');
+    if (dbInfo) {
+      api('/api/db/status').then((data) => {
+        state.dbStatus = data;
+        const backups = data.backups || [];
+        const files = data.corrupt_files || [];
+        const last = backups[0];
+        dbInfo.innerHTML = `
+          <label>Backup & pemulihan</label>
+          <p class="help" style="margin:0 0 8px">
+            ${backups.length} backup JSON tersimpan${last ? ` — terbaru <strong>${esc(last.name)}</strong>` : ''}.
+            ${files.length ? ` <span style="color:var(--danger)">${files.length} file database rusak terdeteksi.</span>` : ''}
+          </p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn btn-ghost btn-sm" id="settingsDbRestore" ${backups.length ? '' : 'disabled'}>${ico('refresh')} Pulihkan backup terbaru</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="settingsDbCorrupt" ${files.length ? '' : 'disabled'}>${ico('download')} Unduh file rusak</button>
+          </div>`;
+        const restoreBtn = document.getElementById('settingsDbRestore');
+        if (restoreBtn) restoreBtn.addEventListener('click', () => restoreDbFromBackup(last ? last.name : ''));
+        const corruptBtn = document.getElementById('settingsDbCorrupt');
+        if (corruptBtn) corruptBtn.addEventListener('click', () => {
+          if (files.length) window.location.href = `/api/db/corrupt?name=${encodeURIComponent(files[0])}`;
+        });
+      }).catch(() => {
+        dbInfo.innerHTML = '<span class="help">Status database tidak tersedia di server ini.</span>';
+      });
+    }
     const swResetBtn = document.getElementById('swResetBtn');
     if (swResetBtn) swResetBtn.addEventListener('click', async () => {
       try {
@@ -329,7 +396,7 @@ function openSettingsModal() {
     const demoBtn = document.getElementById('demoDataBtn');
     if (demoBtn) demoBtn.addEventListener('click', () => {
       confirmDialog({
-        title: 'Isi data contoh?',
+        title: t('settings.demo') + '?',
         message: 'Data contoh (tugas, catatan, jadwal, lomba, nilai, flashcard, kebiasaan) akan ditambahkan. Data yang sudah ada <strong>tidak dihapus</strong>.',
         confirmLabel: 'Isi data contoh',
         onConfirm: async () => {
@@ -464,6 +531,8 @@ function openShortcutsHelp() {
   const rows = [
     ['Ctrl / ⌘ + K', 'Buka command palette (lompat ke halaman / aksi)'],
     ['Ctrl / ⌘ + N', 'Tugas baru — dari halaman mana pun'],
+    ['Ctrl / ⌘ + Enter', 'Centang tugas yang terakhir disentuh / difokuskan'],
+    ['Ctrl / ⌘ + D', 'Hapus tugas yang terakhir difokuskan'],
     ['Alt + H', 'Kembali ke Beranda'],
     ['Ctrl / ⌘ + /', 'Bantuan shortcut keyboard'],
     ['Esc', 'Tutup modal / command palette / mode fokus / pengunci'],
@@ -554,8 +623,65 @@ function bindOnboarding() {
   });
 }
 
+async function checkDbHealth() {
+  const banner = $('#dbRecovery');
+  if (!banner) return;
+  try {
+    const data = await api('/api/db/status');
+    state.dbStatus = data;
+    if (!data.corrupt_detected) { banner.hidden = true; return; }
+    banner.hidden = false;
+    const files = data.corrupt_files || [];
+    const backups = data.backups || [];
+    $('#dbRecoveryText').textContent = backups.length
+      ? `File rusak: ${files[0] || 'tidak diketahui'}. Backup terakhir: ${backups[0].name}. Pulihkan untuk memasukkan kembali data terakhir — pengaturan & PIN tidak diubah.`
+      : 'Tidak ada backup JSON terdeteksi. Unduh file rusak untuk inspeksi manual, lalu buat backup rutin ke depannya.';
+    const corruptBtn = $('#dbCorruptBtn');
+    if (corruptBtn) corruptBtn.disabled = !files.length;
+  } catch { /* status endpoint tidak tersedia — diabaikan */ }
+}
+
+function restoreDbFromBackup(name) {
+  confirmDialog({
+    title: 'Pulihkan dari backup?',
+    message: `Data saat ini akan disalin dulu ke folder backup, lalu isi database diganti dengan <strong>${esc(name || 'backup terbaru')}</strong>. Pengaturan, tema, dan PIN tetap dipertahankan.`,
+    confirmLabel: 'Pulihkan data',
+    onConfirm: async () => {
+      const res = await api('/api/db/restore', { method: 'POST', body: name ? { name } : {} });
+      toast(`Dipulihkan ${res.rows || 0} baris. Memuat ulang…`);
+      setTimeout(() => window.location.reload(), 1200);
+    },
+  });
+}
+
+function bindDbRecovery() {
+  const restore = $('#dbRestoreBtn');
+  if (restore) restore.addEventListener('click', () => {
+    const backups = (state.dbStatus && state.dbStatus.backups) || [];
+    if (!backups.length) { toast('Belum ada backup JSON untuk dipulihkan', 'error'); return; }
+    restoreDbFromBackup(backups[0].name);
+  });
+  const corrupt = $('#dbCorruptBtn');
+  if (corrupt) corrupt.addEventListener('click', () => {
+    const files = (state.dbStatus && state.dbStatus.corrupt_files) || [];
+    if (!files.length) { toast('File rusak tidak ditemukan', 'error'); return; }
+    window.location.href = `/api/db/corrupt?name=${encodeURIComponent(files[0])}`;
+  });
+  const dismiss = $('#dbDismissBtn');
+  if (dismiss) dismiss.addEventListener('click', async () => {
+    try { await api('/api/db/dismiss', { method: 'POST', body: {} }); } catch {}
+    const banner = $('#dbRecovery');
+    if (banner) banner.hidden = true;
+    toast('Peringatan ditutup. Backup tetap tersedia di Pengaturan → Data.');
+  });
+}
+
 function bindGlobal() {
-  $$('.nav-item').forEach((item) => item.addEventListener('click', () => setView(item.dataset.view)));
+  const navEl = document.querySelector('nav.nav');
+  if (navEl) navEl.addEventListener('click', (e) => {
+    const item = e.target.closest('.nav-item');
+    if (item && item.dataset.view) setView(item.dataset.view);
+  });
   const topHome = $('#topHome');
   if (topHome) topHome.addEventListener('click', () => setView('beranda'));
   const sidebarToggle = $('#sidebarToggle');
@@ -575,6 +701,19 @@ function bindGlobal() {
     });
   }
   $('#topWeather').addEventListener('click', () => setView('cuaca'));
+  bindDbRecovery();
+  const bindViewSearch = (id, key, render) => {
+    const el = $(id);
+    if (!el) return;
+    el.value = state[key] || '';
+    el.addEventListener('input', (e) => { state[key] = e.target.value; render(); });
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.target.value = ''; state[key] = ''; render(); }
+    });
+  };
+  bindViewSearch('#compSearch', 'compQuery', renderCompetitionsView);
+  bindViewSearch('#gradeSearch', 'gradeQuery', renderGradesView);
+  bindViewSearch('#calendarSearch', 'eventQuery', renderCalendarView);
   const refreshAppBtn = $('#refreshApp');
   if (refreshAppBtn) refreshAppBtn.addEventListener('click', refreshApp);
   $('#topAvatar').addEventListener('click', openSettingsModal);
@@ -583,9 +722,25 @@ function bindGlobal() {
   $('#refreshWeather').addEventListener('click', () => loadWeather(state.weather.key, true));
   $('#heroAddTask').addEventListener('click', () => openTaskModal(null, state.today));
 
+  let lastFocusedTaskId = 0;
+  document.addEventListener('focusin', (e) => {
+    const item = e.target.closest && e.target.closest('.task-item');
+    if (item && item.dataset.taskId) lastFocusedTaskId = Number(item.dataset.taskId);
+  });
   document.addEventListener('keydown', (e) => {
     const isMac = /Mac/i.test(navigator.platform || '');
     const mod = isMac ? e.metaKey : e.ctrlKey;
+    if (mod && e.key === 'Enter' && lastFocusedTaskId) {
+      const t = [...(state.tasks.tasks || []), ...(state.todayTasks.tasks || [])].find((x) => x.id === lastFocusedTaskId);
+      if (t && !t.done) { e.preventDefault(); toggleTask(t.id, true); return; }
+    }
+    if (mod && String(e.key).toLowerCase() === 'd' && lastFocusedTaskId) {
+      const tag = (document.activeElement && document.activeElement.tagName) || '';
+      if (!/^(INPUT|TEXTAREA|SELECT)$/.test(tag)) {
+        const t = [...(state.tasks.tasks || []), ...(state.todayTasks.tasks || [])].find((x) => x.id === lastFocusedTaskId);
+        if (t) { e.preventDefault(); const btn = document.querySelector(`[data-task-del="${t.id}"]`); if (btn) btn.click(); return; }
+      }
+    }
     if (mod && e.key === '/') { e.preventDefault(); openShortcutsHelp(); }
     if (mod && !e.shiftKey && !e.altKey && String(e.key).toLowerCase() === 'n') {
       const tag = (document.activeElement && document.activeElement.tagName) || '';
@@ -679,7 +834,10 @@ function bindGlobal() {
     const note = e.target.closest('[data-note-edit]');
     if (note) {
       const found = state.notes.find((n) => n.id === Number(note.dataset.noteEdit));
-      if (found) openNoteModal(found);
+      if (found) {
+        clearTimeout(noteClickTimer);
+        noteClickTimer = setTimeout(() => openNoteModal(found), 260);
+      }
       return;
     }
     if (e.target.closest('[data-note-new]')) { openNoteModal(); return; }
@@ -687,19 +845,25 @@ function bindGlobal() {
     const evEdit = e.target.closest('[data-ev-edit]');
     if (evEdit) {
       const found = state.events.find((ev) => ev.id === Number(evEdit.dataset.evEdit));
-      if (found) openEventModal(found);
+      if (!found) return;
+      const base = found.seriesId ? state.events.find((ev) => ev.id === Number(found.seriesId) && !ev.seriesId) : found;
+      if (base) openEventModal(base);
       return;
     }
     const evDel = e.target.closest('[data-ev-del]');
     if (evDel) {
       const found = state.events.find((ev) => ev.id === Number(evDel.dataset.evDel));
       if (!found) return;
+      const base = found.seriesId ? state.events.find((ev) => ev.id === Number(found.seriesId) && !ev.seriesId) : found;
+      if (!base) return;
       confirmDialog({
-        title: 'Hapus agenda?',
-        message: `<strong>${esc(found.title)}</strong> pada ${esc(fmtLong(found.date))} akan dihapus.`,
+        title: base.repeat ? 'Hapus seluruh rangkaian agenda?' : 'Hapus agenda?',
+        message: base.repeat
+          ? `<strong>${esc(base.title)}</strong> diulang ${base.repeat === 'weekly' ? 'setiap minggu' : 'setiap bulan'} mulai ${esc(fmtLong(base.date))}. Semua kemunculannya akan dihapus.`
+          : `<strong>${esc(base.title)}</strong> pada ${esc(fmtLong(base.date))} akan dihapus.`,
         confirmLabel: 'Hapus agenda',
         onConfirm: async () => {
-          await api(`/api/events/${found.id}`, { method: 'DELETE' });
+          await api(`/api/events/${base.id}`, { method: 'DELETE' });
           await loadEvents();
           renderCalendarView();
           toast('Agenda dihapus');
@@ -871,6 +1035,7 @@ async function init() {
     ]);
     state.booted = true;
     renderAll();
+    checkDbHealth();
     const vNode = $('#appVersion');
     if (vNode) vNode.textContent = `v${APP_VERSION}`;
 

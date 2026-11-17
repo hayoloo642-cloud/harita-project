@@ -1,6 +1,15 @@
 /* ============================================================
    Tasks view
    ============================================================ */
+function parseSubtasks(task) {
+  if (!task || !task.subtasks) return [];
+  if (Array.isArray(task.subtasks)) return task.subtasks;
+  try {
+    const parsed = JSON.parse(task.subtasks);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
 function renderTasksView() {
   const listNode = $('#taskList');
   if (!listNode) return;
@@ -41,8 +50,13 @@ function renderTasksView() {
     return;
   }
 
-  const taskItem = (t) => `
-    <div class="task-item ${t.done ? 'done' : ''}" data-task-id="${t.id}">
+  const taskItem = (t) => {
+    const subs = parseSubtasks(t);
+    const subsDone = subs.filter((x) => Number(x.done) === 1).length;
+    const selected = state.selectedTasks.has(t.id);
+    return `
+    <div class="task-item ${t.done ? 'done' : ''} ${state.bulkMode ? 'bulk-mode' : ''} ${selected ? 'selected' : ''}" data-task-id="${t.id}" draggable="${state.bulkMode ? 'false' : 'true'}">
+      ${state.bulkMode ? `<input type="checkbox" class="task-select" data-task-select="${t.id}" ${selected ? 'checked' : ''} aria-label="Pilih tugas" />` : '<span class="drag-handle" title="Geser untuk mengurutkan" aria-hidden="true">⋮⋮</span>'}
       <button class="task-check ${t.done ? 'on' : ''}" data-task-toggle="${t.id}" data-done="${t.done}" aria-label="${t.done ? 'Tandai belum selesai' : 'Tandai selesai'}">${iconSvg('check')}</button>
       <div class="task-body">
         <div class="task-title">${esc(t.title)}</div>
@@ -51,7 +65,8 @@ function renderTasksView() {
           ${t.start_time ? `<span class="task-time-chip">${iconSvg('clock')} ${esc(String(t.start_time).slice(0, 5))}</span>` : ''}
           ${t.source === 'lanjutan' ? '<span class="tag lanjutan">lanjutan</span>' : ''}
           ${t.source === 'rutin' ? '<span class="tag rutin">rutin</span>' : ''}
-          ${Number(t.priority) === 1 ? '<span class="tag p1">Penting</span>' : Number(t.priority) === 3 ? '<span class="tag p3">Santai</span>' : ''}
+          ${Number(t.priority) === 1 ? `<span class="tag p1">${iconSvg('alert')} Penting</span>` : Number(t.priority) === 3 ? `<span class="tag p3">${iconSvg('clock')} Santai</span>` : ''}
+          ${subs.length ? `<span class="tag subtask-chip" title="Sub-tugas">${iconSvg('list')} ${subsDone}/${subs.length}</span>` : ''}
         </div>
       </div>
       <div class="task-actions">
@@ -59,6 +74,7 @@ function renderTasksView() {
         <button class="icon-btn" data-task-del="${t.id}" title="Hapus tugas" aria-label="Hapus tugas">${iconSvg('trash')}</button>
       </div>
     </div>`;
+  };
 
   let html = '';
   if (state.taskFilter !== 'done' && open.length) {
@@ -90,6 +106,17 @@ function renderTasksView() {
     if (f === 'monthly') return `tgl ${tpl.day_of_month ?? 1}`;
     return f;
   };
+  const bulkBar = $('#taskBulkBar');
+  if (bulkBar) {
+    bulkBar.hidden = !state.bulkMode;
+    const bulkCount = $('#bulkCount');
+    if (bulkCount) bulkCount.textContent = `${state.selectedTasks.size} dipilih`;
+  }
+  const bulkBtn = $('#taskBulk');
+  if (bulkBtn) {
+    bulkBtn.classList.toggle('btn-primary', state.bulkMode);
+    bulkBtn.classList.toggle('btn-ghost', !state.bulkMode);
+  }
   routineNode.innerHTML = routines.length
     ? routines.map((tpl) => `
       <div class="routine-item" title="${esc(freqLabel(tpl))}">
@@ -120,7 +147,14 @@ async function toggleTask(id, done) {
   updateNavBadge();
   try {
     await api(`/api/tasks/${id}`, { method: 'PATCH', body: { done: task.done } });
-    if (done) beep(1);
+    if (done) {
+      beep(1);
+      toastUndo(`"${task.title}" selesai`, async () => {
+        await api(`/api/tasks/${id}`, { method: 'PATCH', body: { done: 0 } });
+        await loadTasks(state.taskDate);
+        toast('Tugas dikembalikan');
+      });
+    }
   } catch (err) {
     task.done = previous;
     syncTaskLocal({ id, done: previous });
@@ -170,6 +204,14 @@ function openTaskModal(task = null, presetDate = null) {
         <label>Catatan (opsional)</label>
         <textarea name="notes" placeholder="Detail kecil, link materi, atau langkah pertama…">${esc(task ? task.notes || '' : '')}</textarea>
       </div>
+      <div class="field full">
+        <label>Sub-tugas (opsional)</label>
+        <div class="subtask-editor" id="subtaskEditor">
+          ${parseSubtasks(task).map((sub) => `<div class="subtask-row"><input type="checkbox" class="subtask-done" ${Number(sub.done) === 1 ? 'checked' : ''} aria-label="Selesai" /><input type="text" class="subtask-title" maxlength="140" value="${esc(sub.title)}" placeholder="Langkah kecil…" /><button type="button" class="icon-btn subtask-remove" aria-label="Hapus sub-tugas">${iconSvg('x')}</button></div>`).join('')}
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm subtask-add" id="subtaskAdd">${iconSvg('plus')} Tambah sub-tugas</button>
+        <span class="help">Pecah tugas besar menjadi langkah kecil yang bisa dicentang.</span>
+      </div>
     </div>`;
   openModal({
     title: isEdit ? 'Edit tugas' : 'Tugas baru',
@@ -198,6 +240,10 @@ function openTaskModal(task = null, presetDate = null) {
         start_time: formValue(form, 'start_time'),
         priority: Number(formValue(form, 'priority')) || 2,
         notes: formValue(form, 'notes'),
+        subtasks: Array.from(form.querySelectorAll('#subtaskEditor .subtask-row')).map((row) => ({
+          title: row.querySelector('.subtask-title').value.trim(),
+          done: row.querySelector('.subtask-done').checked ? 1 : 0,
+        })).filter((x) => x.title),
       };
       if (!payload.title) throw new Error('Judul tugas wajib diisi');
       if (isEdit) {
@@ -293,8 +339,129 @@ function bindTaskQuickActions() {
     state.taskFilter = btn.dataset.filter;
     renderTasksView();
   });
+  const subtaskEditor = () => $('#subtaskEditor');
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#subtaskAdd')) {
+      const editor = subtaskEditor();
+      if (!editor) return;
+      const row = document.createElement('div');
+      row.className = 'subtask-row';
+      row.innerHTML = `<input type="checkbox" class="subtask-done" aria-label="Selesai" /><input type="text" class="subtask-title" maxlength="140" placeholder="Langkah kecil…" /><button type="button" class="icon-btn subtask-remove" aria-label="Hapus sub-tugas">${iconSvg('x')}</button>`;
+      editor.appendChild(row);
+      row.querySelector('.subtask-title').focus();
+      return;
+    }
+    const remove = e.target.closest('.subtask-remove');
+    if (remove) { remove.closest('.subtask-row').remove(); return; }
+
+    const bulkBtn = e.target.closest('#taskBulk');
+    if (bulkBtn) {
+      state.bulkMode = !state.bulkMode;
+      if (!state.bulkMode) state.selectedTasks.clear();
+      renderTasksView();
+      return;
+    }
+    if (e.target.closest('#bulkCancel')) {
+      state.bulkMode = false;
+      state.selectedTasks.clear();
+      renderTasksView();
+      return;
+    }
+    if (e.target.closest('#bulkDone')) {
+      const ids = Array.from(state.selectedTasks);
+      if (!ids.length) return;
+      Promise.all(ids.map((id) => api(`/api/tasks/${id}`, { method: 'PATCH', body: { done: 1 } })))
+        .then(() => { toastUndo(`${ids.length} tugas diselesaikan`, async () => {
+          await Promise.all(ids.map((id) => api(`/api/tasks/${id}`, { method: 'PATCH', body: { done: 0 } })));
+          await loadTasks(state.taskDate);
+        }); state.selectedTasks.clear(); state.bulkMode = false; return loadTasks(state.taskDate); })
+        .catch((err) => toast(err.message, 'error'));
+      return;
+    }
+    if (e.target.closest('#bulkDelete')) {
+      const ids = Array.from(state.selectedTasks);
+      if (!ids.length) return;
+      confirmDialog({
+        title: `Hapus ${ids.length} tugas?`,
+        message: 'Tugas yang dipilih akan dipindahkan ke sampah dan bisa dikembalikan lewat Undo.',
+        confirmLabel: 'Hapus terpilih',
+        danger: true,
+        onConfirm: async () => {
+          await Promise.all(ids.map((id) => api(`/api/tasks/${id}`, { method: 'DELETE' })));
+          toastUndo(`${ids.length} tugas dihapus`, async () => {
+            await Promise.all(ids.map((id) => api('/api/restore', { method: 'POST', body: { kind: 'task', id } })));
+            await loadTasks(state.taskDate);
+          });
+          state.selectedTasks.clear();
+          state.bulkMode = false;
+          await loadTasks(state.taskDate);
+        },
+      });
+      return;
+    }
+    if (e.target.closest('#bulkMove')) {
+      const ids = Array.from(state.selectedTasks);
+      if (!ids.length) return;
+      const value = window.prompt('Pindahkan ke tanggal (YYYY-MM-DD):', state.taskDate);
+      if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return;
+      Promise.all(ids.map((id) => api(`/api/tasks/${id}`, { method: 'PATCH', body: { date: value } })))
+        .then(async () => { toast(`${ids.length} tugas dipindah ke ${fmtShort(value)}`); state.selectedTasks.clear(); state.bulkMode = false; await loadTasks(state.taskDate); })
+        .catch((err) => toast(err.message, 'error'));
+      return;
+    }
+  });
+
+  document.addEventListener('change', (e) => {
+    const box = e.target.closest('[data-task-select]');
+    if (!box) return;
+    const id = Number(box.dataset.taskSelect);
+    if (box.checked) state.selectedTasks.add(id); else state.selectedTasks.delete(id);
+    const count = $('#bulkCount');
+    if (count) count.textContent = `${state.selectedTasks.size} dipilih`;
+  });
+
   const taskList = $('#taskList');
   if (taskList) {
+    let dragId = 0;
+    taskList.addEventListener('dragstart', (e) => {
+      const item = e.target.closest('.task-item');
+      if (!item || state.bulkMode) return;
+      dragId = Number(item.dataset.taskId);
+      item.classList.add('dragging');
+      try { e.dataTransfer.setData('text/plain', String(dragId)); e.dataTransfer.effectAllowed = 'move'; } catch {}
+    });
+    taskList.addEventListener('dragend', (e) => {
+      const item = e.target.closest('.task-item');
+      if (item) item.classList.remove('dragging');
+      taskList.querySelectorAll('.drop-target').forEach((n) => n.classList.remove('drop-target'));
+    });
+    taskList.addEventListener('dragover', (e) => {
+      if (!dragId) return;
+      const item = e.target.closest('.task-item');
+      if (!item || Number(item.dataset.taskId) === dragId) return;
+      e.preventDefault();
+      taskList.querySelectorAll('.drop-target').forEach((n) => n.classList.remove('drop-target'));
+      item.classList.add('drop-target');
+    });
+    taskList.addEventListener('drop', async (e) => {
+      if (!dragId) return;
+      e.preventDefault();
+      const item = e.target.closest('.task-item');
+      if (!item) return;
+      const targetId = Number(item.dataset.taskId);
+      if (!targetId || targetId === dragId) return;
+      const list = state.tasks.tasks || [];
+      const from = list.findIndex((t) => t.id === dragId);
+      const to = list.findIndex((t) => t.id === targetId);
+      if (from < 0 || to < 0) return;
+      const [moved] = list.splice(from, 1);
+      list.splice(to, 0, moved);
+      dragId = 0;
+      renderTasksView();
+      try {
+        await api('/api/tasks/reorder', { method: 'POST', body: { ids: list.map((t) => t.id) } });
+      } catch (err) { toast(err.message, 'error'); }
+    });
     taskList.addEventListener('dblclick', (e) => {
       const titleNode = e.target.closest('.task-title');
       if (!titleNode || titleNode.querySelector('input')) return;

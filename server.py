@@ -23,7 +23,7 @@ from datetime import datetime, date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from zoneinfo import ZoneInfo
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 try:
     import psutil
@@ -74,6 +74,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     start_time TEXT,
     source TEXT NOT NULL DEFAULT 'manual',
     template_id INTEGER,
+    position INTEGER NOT NULL DEFAULT 0,
+    subtasks TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -94,6 +96,7 @@ CREATE TABLE IF NOT EXISTS events (
     end_time TEXT,
     category TEXT NOT NULL DEFAULT 'pribadi',
     notes TEXT DEFAULT '',
+    repeat TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_events_date ON events(date);
@@ -224,11 +227,38 @@ DEFAULT_SETTINGS = {
     "sidebar": "expanded",
     "reminder_lead": "10",
     "default_view": "beranda",
+    "pinned_views": "",
+    "hidden_views": "",
+    "language": "id",
 }
 
 
 def clip(value, limit: int = 5000) -> str:
     return str(value or "")[:limit].strip()
+
+
+def clean_subtasks(value) -> str:
+    """Normalise a subtask list to a compact JSON string."""
+    items = []
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except (ValueError, TypeError):
+            value = []
+    if isinstance(value, list):
+        for i, item in enumerate(value[:40]):
+            if isinstance(item, str):
+                title = clip(item, 140)
+                done = 0
+            elif isinstance(item, dict):
+                title = clip(item.get("title"), 140)
+                done = 1 if item.get("done") in (1, "1", True) else 0
+            else:
+                continue
+            if not title:
+                continue
+            items.append({"id": i + 1, "title": title, "done": done})
+    return json.dumps(items, ensure_ascii=False)
 
 def log(msg: str) -> None:
     try:
@@ -266,6 +296,12 @@ def init_db() -> None:
                 stamp = datetime.now(TZ).strftime("%Y%m%d-%H%M%S")
                 corrupt = DB_PATH + f".corrupt-{stamp}.bak"
                 os.replace(DB_PATH, corrupt)
+                try:
+                    os.makedirs(DATA_DIR, exist_ok=True)
+                    with open(os.path.join(DATA_DIR, ".corrupt-detected"), "w", encoding="utf-8") as fh:
+                        fh.write(os.path.basename(corrupt))
+                except OSError:
+                    pass
                 print(f"PERINGATAN: database korup — dipindahkan ke {corrupt}. Memulai DB baru.")
         except Exception as exc:
             print(f"PERINGATAN: gagal cek integritas DB ({exc}) — mencoba pulih.")
@@ -293,6 +329,15 @@ def init_db() -> None:
             cols = [r[1] for r in conn.execute(f"PRAGMA table_info({_t})").fetchall()]
             if "deleted_at" not in cols:
                 conn.execute(f"ALTER TABLE {_t} ADD COLUMN deleted_at TEXT")
+        # ---- migrations: task ordering + subtasks + recurring events ----
+        for _t, _cols in (
+            ("tasks", [("position", "INTEGER NOT NULL DEFAULT 0"), ("subtasks", "TEXT NOT NULL DEFAULT '[]'")]),
+            ("events", [("repeat", "TEXT NOT NULL DEFAULT ''")]),
+        ):
+            existing = [r[1] for r in conn.execute(f"PRAGMA table_info({_t})").fetchall()]
+            for _col, _ddl in _cols:
+                if _col not in existing:
+                    conn.execute(f"ALTER TABLE {_t} ADD COLUMN {_col} {_ddl}")
         # ---- migrations: soft delete ----
         for _t in ("tasks", "events", "competitions", "notes"):
             cols = [r[1] for r in conn.execute(f"PRAGMA table_info({_t})").fetchall()]
@@ -548,7 +593,8 @@ def api_tasks(handler: BaseHTTPRequestHandler, query: dict) -> None:
         meta = ensure_day(conn, day)
         rows = conn.execute(
             "SELECT * FROM tasks WHERE deleted_at IS NULL AND date = ? "
-            "ORDER BY done ASC, CASE WHEN start_time IS NULL OR start_time = '' THEN 1 ELSE 0 END, "
+            "ORDER BY done ASC, CASE WHEN position = 0 THEN 1 ELSE 0 END, position ASC, "
+            "CASE WHEN start_time IS NULL OR start_time = '' THEN 1 ELSE 0 END, "
             "start_time ASC, priority ASC, id ASC",
             (day,),
         ).fetchall()
@@ -578,10 +624,15 @@ def api_task_create(handler: BaseHTTPRequestHandler) -> None:
     priority = int(body.get("priority") or 2)
     start_time = (body.get("start_time") or "").strip() or None
     notes = clip(body.get("notes"), 5000)
+    subtasks = clean_subtasks(body.get("subtasks"))
     repeat = bool(body.get("repeat"))
     conn = db_connect()
     try:
         now = now_local()
+        next_pos = conn.execute(
+            "SELECT COALESCE(MAX(position), 0) + 1 FROM tasks WHERE date = ? AND deleted_at IS NULL",
+            (day,),
+        ).fetchone()[0]
         template_id = None
         if repeat:
             cur = conn.execute(
@@ -590,8 +641,8 @@ def api_task_create(handler: BaseHTTPRequestHandler) -> None:
             )
             template_id = cur.lastrowid
         cur = conn.execute(
-            "INSERT INTO tasks(date, title, notes, priority, start_time, source, template_id, created_at, updated_at) "
-            "VALUES(?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO tasks(date, title, notes, priority, start_time, source, template_id, position, subtasks, created_at, updated_at) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
             (
                 day,
                 title,
@@ -600,6 +651,8 @@ def api_task_create(handler: BaseHTTPRequestHandler) -> None:
                 start_time,
                 "rutin" if repeat else "manual",
                 template_id,
+                next_pos,
+                subtasks,
                 now,
                 now,
             ),
@@ -620,11 +673,16 @@ def api_task_update(handler: BaseHTTPRequestHandler, task_id: int) -> None:
         "priority": int,
         "done": int,
         "start_time": str,
+        "date": str,
+        "position": int,
     }
     for key, caster in allowed.items():
         if key in body:
             fields.append(f"{key} = ?")
             values.append(caster(body[key]))
+    if "subtasks" in body:
+        fields.append("subtasks = ?")
+        values.append(clean_subtasks(body.get("subtasks")))
     if not fields:
         send_json(handler, 400, {"error": "Tidak ada perubahan"})
         return
@@ -786,6 +844,26 @@ def api_demo(handler: BaseHTTPRequestHandler) -> None:
         conn.close()
 
 
+def api_task_reorder(handler: BaseHTTPRequestHandler) -> None:
+    body = parse_json_body(handler)
+    ids = body.get("ids") or []
+    if not isinstance(ids, list):
+        raise ValueError("ids harus berupa daftar")
+    conn = db_connect()
+    try:
+        now = now_local()
+        for index, task_id in enumerate(ids[:500], start=1):
+            try:
+                tid = int(task_id)
+            except (TypeError, ValueError):
+                continue
+            conn.execute("UPDATE tasks SET position = ?, updated_at = ? WHERE id = ?", (index, now, tid))
+        conn.commit()
+        send_json(handler, 200, {"ok": True, "count": len(ids)})
+    finally:
+        conn.close()
+
+
 def api_task_complete_all(handler: BaseHTTPRequestHandler) -> None:
     body = parse_json_body(handler)
     day = body.get("date") or today_local()
@@ -907,11 +985,14 @@ def api_event_create(handler: BaseHTTPRequestHandler) -> None:
     day = (body.get("date") or "").strip()
     if not title or not day:
         raise ValueError("Judul dan tanggal agenda wajib diisi")
+    repeat = clip(body.get("repeat"), 20)
+    if repeat not in ("", "weekly", "monthly"):
+        repeat = ""
     conn = db_connect()
     try:
         cur = conn.execute(
-            "INSERT INTO events(title, date, time, end_time, category, notes, created_at) "
-            "VALUES(?,?,?,?,?,?,?)",
+            "INSERT INTO events(title, date, time, end_time, category, notes, repeat, created_at) "
+            "VALUES(?,?,?,?,?,?,?,?)",
             (
                 title,
                 day,
@@ -919,6 +1000,7 @@ def api_event_create(handler: BaseHTTPRequestHandler) -> None:
                 (body.get("end_time") or "").strip() or None,
                 (body.get("category") or "pribadi").strip(),
                 clip(body.get("notes"), 5000),
+                repeat,
                 now_local(),
             ),
         )
@@ -932,7 +1014,9 @@ def api_event_create(handler: BaseHTTPRequestHandler) -> None:
 def api_event_update(handler: BaseHTTPRequestHandler, event_id: int) -> None:
     body = parse_json_body(handler)
     fields, values = [], []
-    for key in ("title", "date", "time", "end_time", "category", "notes"):
+    if "repeat" in body:
+        body["repeat"] = body.get("repeat") if body.get("repeat") in ("", "weekly", "monthly") else ""
+    for key in ("title", "date", "time", "end_time", "category", "notes", "repeat"):
         if key in body:
             fields.append(f"{key} = ?")
             val = body[key]
@@ -1737,9 +1821,15 @@ def _validate_setting(key: str, value) -> str:
             return "10"
     if key == "sidebar":
         return s if s in ("expanded", "collapsed") else "expanded"
+    if key == "language":
+        return s if s in ("id", "en") else "id"
     if key == "default_view":
         allowed = {"beranda", "tugas", "kalender", "fokus", "catatan", "jadwal", "nilai", "flashcard", "lomba", "streak", "cuaca", "music"}
         return s if s in allowed else "beranda"
+    if key in ("pinned_views", "hidden_views"):
+        allowed = ["beranda", "tugas", "kalender", "fokus", "catatan", "jadwal", "nilai", "flashcard", "lomba", "streak", "cuaca", "music"]
+        picked = [v.strip() for v in s.split(",") if v.strip() in allowed]
+        return ",".join(dict.fromkeys(picked))[:200]
     if key == "music_volume":
         try:
             return str(max(0, min(100, int(float(s)))))
@@ -1832,6 +1922,7 @@ EXPORT_TABLES = (
     "habits",
     "habit_log",
     "grades",
+    "flashcards",
     "reminder",
 )
 
@@ -1896,6 +1987,138 @@ def api_reset(handler: BaseHTTPRequestHandler) -> None:
         send_json(handler, 200, {"ok": True})
     finally:
         conn.close()
+
+
+def _backup_dir() -> str:
+    return os.path.join(DATA_DIR, "backups")
+
+
+def _list_json_backups() -> list[dict]:
+    folder = _backup_dir()
+    out = []
+    try:
+        for name in sorted(os.listdir(folder), reverse=True):
+            if not (name.startswith("export-") and name.endswith(".json")):
+                continue
+            path = os.path.join(folder, name)
+            try:
+                stat = os.stat(path)
+            except OSError:
+                continue
+            out.append({"name": name, "size": stat.st_size, "modified": datetime.fromtimestamp(stat.st_mtime, TZ).isoformat()})
+    except OSError:
+        pass
+    return out
+
+
+def _list_corrupt_files() -> list[str]:
+    import glob as _glob
+    try:
+        paths = _glob.glob(os.path.join(DATA_DIR, "*.corrupt-*.bak"))
+    except OSError:
+        return []
+    return sorted(os.path.basename(p) for p in paths)
+
+
+def api_db_status(handler: BaseHTTPRequestHandler) -> None:
+    marker = os.path.join(DATA_DIR, ".corrupt-detected")
+    detected = ""
+    if os.path.exists(marker):
+        try:
+            with open(marker, encoding="utf-8") as fh:
+                detected = fh.read().strip()
+        except OSError:
+            detected = "unknown"
+    send_json(handler, 200, {
+        "ok": True,
+        "corrupt_detected": detected,
+        "corrupt_files": _list_corrupt_files(),
+        "backups": _list_json_backups(),
+        "db_path": DB_PATH,
+    })
+
+
+def api_db_restore(handler: BaseHTTPRequestHandler) -> None:
+    body = parse_json_body(handler)
+    name = clip(body.get("name"), 200)
+    folder = _backup_dir()
+    if not name:
+        backups = _list_json_backups()
+        if not backups:
+            raise ValueError("Belum ada file backup JSON")
+        name = backups[0]["name"]
+    if os.path.basename(name) != name or not name.endswith(".json"):
+        raise ValueError("Nama backup tidak valid")
+    path = os.path.join(folder, name)
+    if not os.path.exists(path):
+        raise ValueError("File backup tidak ditemukan")
+    with open(path, encoding="utf-8") as fh:
+        payload = json.load(fh)
+    tables = payload.get("tables") or {}
+    if not isinstance(tables, dict):
+        raise ValueError("Format backup tidak dikenali")
+    backup_now()  # snapshot current state first
+    conn = db_connect()
+    try:
+        restored = 0
+        for table in EXPORT_TABLES:
+            if table == "settings":
+                continue  # keep current prefs / PIN
+            rows = tables.get(table)
+            if rows is None:
+                continue
+            cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+            if not cols:
+                continue
+            conn.execute(f"DELETE FROM {table}")
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                keys = [k for k in row.keys() if k in cols]
+                if not keys:
+                    continue
+                placeholders = ",".join("?" for _ in keys)
+                conn.execute(
+                    f"INSERT INTO {table} ({','.join(keys)}) VALUES ({placeholders})",
+                    [row[k] for k in keys],
+                )
+                restored += 1
+        conn.commit()
+        try:
+            os.remove(os.path.join(DATA_DIR, ".corrupt-detected"))
+        except OSError:
+            pass
+        send_json(handler, 200, {"ok": True, "rows": restored, "backup": name})
+    finally:
+        conn.close()
+
+
+def api_db_corrupt_download(handler: BaseHTTPRequestHandler, query: dict) -> None:
+    name = (query.get("name") or [""])[0] if isinstance(query.get("name"), list) else query.get("name", "")
+    name = os.path.basename(str(name))
+    if not name or not name.endswith(".bak"):
+        raise ValueError("Nama file tidak valid")
+    path = os.path.join(DATA_DIR, name)
+    if not os.path.exists(path):
+        raise ValueError("File tidak ditemukan")
+    with open(path, "rb") as fh:
+        data = fh.read()
+    handler.send_response(200)
+    handler.send_header("Content-Type", "application/octet-stream")
+    handler.send_header("Content-Length", str(len(data)))
+    handler.send_header("Content-Disposition", f'attachment; filename="{name}"')
+    handler.send_header("Cache-Control", "no-store")
+    handler.end_headers()
+    handler.wfile.write(data)
+
+
+def api_db_dismiss(handler: BaseHTTPRequestHandler) -> None:
+    parse_json_body(handler)
+    try:
+        os.remove(os.path.join(DATA_DIR, ".corrupt-detected"))
+    except OSError:
+        pass
+    send_json(handler, 200, {"ok": True})
 
 
 def api_export(handler: BaseHTTPRequestHandler) -> None:
@@ -2557,6 +2780,10 @@ class Handler(BaseHTTPRequestHandler):
                 api_weekly_review(self)
             elif path == "/api/focus/history":
                 api_focus_history(self, query)
+            elif path == "/api/db/status":
+                api_db_status(self)
+            elif path == "/api/db/corrupt":
+                api_db_corrupt_download(self, query)
             elif path == "/api/calendar.ics":
                 api_calendar_ics(self)
             elif path == "/api/activity":
@@ -2626,10 +2853,16 @@ class Handler(BaseHTTPRequestHandler):
                 api_task_reset(self)
             elif path == "/api/tasks/complete-all":
                 api_task_complete_all(self)
+            elif path == "/api/tasks/reorder":
+                api_task_reorder(self)
             elif path == "/api/demo":
                 api_demo(self)
             elif path == "/api/reset":
                 api_reset(self)
+            elif path == "/api/db/restore":
+                api_db_restore(self)
+            elif path == "/api/db/dismiss":
+                api_db_dismiss(self)
             elif path == "/api/events":
                 api_event_create(self)
             elif path == "/api/competitions":

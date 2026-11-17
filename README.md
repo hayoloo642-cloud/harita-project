@@ -19,11 +19,15 @@
 - **Streak & kebiasaan** — multi-habit streak dengan heatmap 112 hari
 - **Music player lokal** — putar file audio di laptop, progress, volume, now-playing bar
 - **Device monitor** — CPU, RAM, disk, baterai, suhu, jaringan realtime
-- **Tema & tampilan** — gelap/terang/ikuti sistem, 8 aksen warna, ukuran teks, kontras tinggi, sidebar bisa diciutkan
-- **Keyboard first** — `Ctrl/Cmd + K` command palette, `Ctrl/Cmd + N` tugas baru, `Alt + H` beranda, `Ctrl/Cmd + /` bantuan shortcut
+- **Tema & tampilan** — gelap/terang/ikuti sistem, 8 aksen warna, ukuran teks, kontras tinggi, sidebar bisa diciutkan, hormati `prefers-reduced-transparency`
+- **Bahasa** — antarmuka Indonesia & Inggris (chrome, navigasi, Pengaturan); ganti di Pengaturan → Bahasa
+- **Keyboard first** — `Ctrl/Cmd + K` command palette, `Ctrl/Cmd + N` tugas baru, `Ctrl/Cmd + Enter` centang, `Ctrl/Cmd + D` hapus, `Alt + H` beranda, `Ctrl/Cmd + /` bantuan shortcut
 - **Data contoh** — tombol "Isi data contoh" untuk melihat semua fitur tanpa mengotori data asli
-- **Tugas lebih cepat** — pencarian dalam daftar, selesaikan semua + undo, edit judul langsung (klik dua kali)
-- **Arsip & pemulihan** — soft-delete + Undo, backup JSON otomatis, bersihkan cache file dari Pengaturan
+- **Tugas lebih cepat** — pencarian per view, selesaikan semua + undo, edit judul inline (tugas & catatan), checklist sub-tugas, aksi massal, drag & drop urutan
+- **Kalender fleksibel** — agenda berulang mingguan/bulanan, pencarian agenda, unduh `.ics`
+- **Sidebar adaptif** — sematkan halaman favorit, sembunyikan item yang jarang dipakai
+- **Arsip & pemulihan** — soft-delete + Undo, backup JSON otomatis, restore database dari backup, deteksi database korup, bersihkan cache file dari Pengaturan
+- **Uji & distribusi** — smoke/stress test, Playwright E2E, skrip paket PyInstaller/AppImage/Windows/macOS, landing page offline di `docs/landing/`
 - **Privasi penuh** — semua data tersimpan lokal di SQLite; tidak ada akun atau cloud
 
 ---

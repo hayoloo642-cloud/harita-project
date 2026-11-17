@@ -49,7 +49,8 @@ function renderGradesView() {
     : 'Belum ada nilai tercatat. Tambah nilai pertama di bawah.';
 
   // per subject
-  const g = state.grades.grades || [];
+  const q = (state.gradeQuery || '').trim().toLowerCase();
+  const g = (state.grades.grades || []).filter((it) => !q || `${it.subject} ${it.label}`.toLowerCase().includes(q));
   const bySubject = {};
   for (const it of g) (bySubject[it.subject] = bySubject[it.subject] || []).push(Number(it.score));
   const subjectRows = Object.entries(bySubject)

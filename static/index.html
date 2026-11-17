@@ -80,44 +80,44 @@
     </div>
 
     <nav class="nav" aria-label="Navigasi utama">
-      <p class="nav-group-label">Harian</p>
+      <p class="nav-group-label" data-i18n="nav.group.daily">Harian</p>
       <button class="nav-item active" data-view="beranda">
-        <span class="nav-ico" data-icon="home"></span><span>Beranda</span>
+        <span class="nav-ico" data-icon="home"></span><span data-i18n="nav.home">Beranda</span>
       </button>
       <button class="nav-item" data-view="tugas">
-        <span class="nav-ico" data-icon="check-square"></span><span>Tugas</span>
+        <span class="nav-ico" data-icon="check-square"></span><span data-i18n="nav.tasks">Tugas</span>
         <span class="nav-badge" id="navTaskBadge" hidden></span>
       </button>
       <button class="nav-item" data-view="kalender">
-        <span class="nav-ico" data-icon="calendar"></span><span>Kalender</span>
+        <span class="nav-ico" data-icon="calendar"></span><span data-i18n="nav.calendar">Kalender</span>
       </button>
       <button class="nav-item" data-view="fokus">
-        <span class="nav-ico" data-icon="timer"></span><span>Fokus</span>
+        <span class="nav-ico" data-icon="timer"></span><span data-i18n="nav.focus">Fokus</span>
       </button>
 
-      <p class="nav-group-label">Belajar</p>
+      <p class="nav-group-label" data-i18n="nav.group.study">Belajar</p>
       <button class="nav-item" data-view="lomba">
-        <span class="nav-ico" data-icon="trophy"></span><span>Lomba</span>
+        <span class="nav-ico" data-icon="trophy"></span><span data-i18n="nav.competitions">Lomba</span>
       </button>
       <button class="nav-item" data-view="jadwal">
-        <span class="nav-ico" data-icon="book"></span><span>Jadwal</span>
+        <span class="nav-ico" data-icon="book"></span><span data-i18n="nav.schedule">Jadwal</span>
       </button>
       <button class="nav-item" data-view="nilai">
-        <span class="nav-ico" data-icon="star"></span><span>Nilai</span>
+        <span class="nav-ico" data-icon="star"></span><span data-i18n="nav.grades">Nilai</span>
       </button>
       <button class="nav-item" data-view="flashcard">
-        <span class="nav-ico" data-icon="list"></span><span>Flashcard</span>
+        <span class="nav-ico" data-icon="list"></span><span data-i18n="nav.flashcards">Flashcard</span>
       </button>
       <button class="nav-item" data-view="catatan">
-        <span class="nav-ico" data-icon="note"></span><span>Catatan</span>
+        <span class="nav-ico" data-icon="note"></span><span data-i18n="nav.notes">Catatan</span>
       </button>
 
-      <p class="nav-group-label">Lainnya</p>
+      <p class="nav-group-label" data-i18n="nav.group.other">Lainnya</p>
       <button class="nav-item" data-view="streak">
-        <span class="nav-ico" data-icon="flame"></span><span>Streak</span>
+        <span class="nav-ico" data-icon="flame"></span><span data-i18n="nav.streak">Streak</span>
       </button>
       <button class="nav-item" data-view="music">
-        <span class="nav-ico" data-icon="play"></span><span>Musik</span>
+        <span class="nav-ico" data-icon="play"></span><span data-i18n="nav.music">Musik</span>
       </button>
     </nav>
 
@@ -130,7 +130,7 @@
         </div>
       </div>
       <button class="btn btn-ghost btn-sm full" id="openSettings">
-        <span class="ico" data-icon="settings"></span> Pengaturan
+        <span class="ico" data-icon="settings"></span> <span data-i18n="top.settings">Pengaturan</span>
       </button>
       <p style="font-size:9px;color:var(--faint);text-align:center;margin:4px 0 0">MyAct <span id="appVersion">v1.0.0</span></p>
     </div>
@@ -155,7 +155,7 @@
           </span>
         </button>
         <button class="btn btn-ghost btn-sm refresh-app-btn" id="refreshApp" title="Segarkan aplikasi — muat file terbaru" aria-label="Segarkan aplikasi">
-          <span class="ico" data-icon="refresh"></span><span class="refresh-app-text">Segarkan</span>
+          <span class="ico" data-icon="refresh"></span><span class="refresh-app-text" data-i18n="top.refresh">Segarkan</span>
         </button>
         <button class="icon-btn" id="shortcutsHelp" title="Shortcut keyboard (Ctrl+/)" aria-label="Shortcut keyboard"><span class="ico" data-icon="keyboard"></span></button>
         <button class="avatar" id="topAvatar" title="Pengaturan">D</button>
@@ -163,6 +163,18 @@
     </header>
 
     <div class="content">
+      <div class="recovery-banner card" id="dbRecovery" hidden role="alert">
+        <div class="recovery-copy">
+          <strong>Database lama terdeteksi rusak</strong>
+          <p class="hint" id="dbRecoveryText">MyAct sudah memulai database baru supaya aplikasi tetap jalan. Kamu bisa memulihkan data dari backup JSON terakhir.</p>
+        </div>
+        <div class="recovery-actions">
+          <button class="btn btn-primary btn-sm" id="dbRestoreBtn"><span class="ico" data-icon="refresh"></span> Pulihkan dari backup</button>
+          <button class="btn btn-ghost btn-sm" id="dbCorruptBtn"><span class="ico" data-icon="download"></span> Unduh file rusak</button>
+          <button class="btn btn-ghost btn-sm" id="dbDismissBtn">Abaikan</button>
+        </div>
+      </div>
+
       <!-- ============ BERANDA ============ -->
       <section class="view active" id="view-beranda">
         <div class="dash-grid">
@@ -356,6 +368,7 @@
             <p id="taskHeadSub">Checklist otomatis direset setiap hari — yang belum selesai bisa dibawa.</p>
           </div>
           <div class="view-actions">
+            <button class="btn btn-ghost btn-sm" id="taskBulk"><span class="ico" data-icon="check-square"></span> Pilih</button>
             <button class="btn btn-ghost btn-sm" id="taskCarry"><span class="ico" data-icon="copy"></span> Bawa dari kemarin</button>
             <button class="btn btn-primary btn-sm" id="taskAdd"><span class="ico" data-icon="plus"></span> Tugas baru</button>
           </div>
@@ -387,6 +400,16 @@
           </select>
           <button type="button" class="btn btn-ghost btn-sm" id="quickAddMore">Detail</button>
         </form>
+
+        <div class="bulkbar card" id="taskBulkBar" hidden>
+          <strong id="bulkCount">0 dipilih</strong>
+          <div class="bulkbar-actions">
+            <button class="btn btn-ghost btn-sm" id="bulkDone"><span class="ico" data-icon="check"></span> Selesai</button>
+            <button class="btn btn-ghost btn-sm" id="bulkMove"><span class="ico" data-icon="calendar"></span> Pindah tanggal</button>
+            <button class="btn btn-ghost btn-sm" id="bulkDelete"><span class="ico" data-icon="trash"></span> Hapus</button>
+            <button class="btn btn-ghost btn-sm" id="bulkCancel">Batal</button>
+          </div>
+        </div>
 
         <div class="task-layout">
           <div class="card span-8 task-main">
@@ -429,6 +452,7 @@
             <p>Agenda sekolah, lomba, tugas, dan kegiatan pribadi dalam satu tempat.</p>
           </div>
           <div class="view-actions">
+            <input class="task-search" id="calendarSearch" type="search" placeholder="Cari agenda…" maxlength="60" autocomplete="off" aria-label="Cari agenda" />
             <div class="cal-nav">
               <button class="icon-btn" id="calPrev" aria-label="Bulan sebelumnya"><span class="ico" data-icon="chevron-left"></span></button>
               <button class="icon-btn" id="calNext" aria-label="Bulan berikutnya"><span class="ico" data-icon="chevron-right"></span></button>
@@ -473,7 +497,10 @@
             <h2>Lomba & proyek</h2>
             <p>Pantau deadline, progres persiapan, dan checklist kebutuhanmu.</p>
           </div>
-          <button class="btn btn-primary btn-sm" id="compAdd"><span class="ico" data-icon="plus"></span> Tambah lomba</button>
+          <div class="view-actions">
+            <input class="task-search" id="compSearch" type="search" placeholder="Cari lomba…" maxlength="60" autocomplete="off" aria-label="Cari lomba" />
+            <button class="btn btn-primary btn-sm" id="compAdd"><span class="ico" data-icon="plus"></span> Tambah lomba</button>
+          </div>
         </div>
         <div class="comp-stats" id="compStats"></div>
         <div class="comp-grid" id="compGrid"></div>
@@ -724,6 +751,7 @@
             <p>Catat nilai tiap mapel — lihat posisimu terhadap KKM dan cetak laporan.</p>
           </div>
           <div class="view-actions">
+            <input class="task-search" id="gradeSearch" type="search" placeholder="Cari mapel / jenis…" maxlength="60" autocomplete="off" aria-label="Cari nilai" />
             <button class="btn btn-ghost btn-sm" id="gradeCsvExport" title="Unduh nilai sebagai CSV"><span class="ico" data-icon="download"></span> CSV</button>
             <button class="btn btn-ghost btn-sm" id="gradePrint"><span class="ico" data-icon="printer"></span> Cetak / PDF</button>
           </div>
@@ -936,6 +964,7 @@
 
 <div class="toast-wrap" id="toastWrap"></div>
 
+<script src="/js/i18n.js"></script>
 <script src="/js/icons.js"></script>
 <script src="/js/core.js"></script>
 <script src="/js/data.js"></script>

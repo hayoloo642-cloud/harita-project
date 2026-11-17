@@ -48,10 +48,39 @@ async function loadTasks(day = state.taskDate, { silent = false } = {}) {
   }
 }
 
+function addMonthsClamped(ymd, n) {
+  const [y, m, d] = String(ymd).slice(0, 10).split('-').map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + n, 1));
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  const day = Math.min(d, lastDay);
+  return `${target.getUTCFullYear()}-${pad2(target.getUTCMonth() + 1)}-${pad2(day)}`;
+}
+
+function expandRecurringEvents(list) {
+  const out = [];
+  const horizon = addDays(todayStr(), 365);
+  const past = addDays(todayStr(), -120);
+  (list || []).forEach((ev) => {
+    out.push(ev);
+    if (!ev.repeat) return;
+    let date = ev.date;
+    let index = 0;
+    for (let guard = 0; guard < 400; guard += 1) {
+      date = ev.repeat === 'weekly' ? addDays(date, 7) : addMonthsClamped(date, 1);
+      if (date > horizon) break;
+      index += 1;
+      if (date >= past) {
+        out.push({ ...ev, id: -(Number(ev.id) * 1000 + index), seriesId: ev.id, date, virtual: true });
+      }
+    }
+  });
+  return out;
+}
+
 async function loadEvents() {
   try {
     const data = await api('/api/events');
-    state.events = data.events || [];
+    state.events = expandRecurringEvents(data.events || []);
     if (state.view === 'kalender') renderCalendarView();
     if (state.view === 'beranda') renderDashboard();
   } catch (err) { toast(err.message, 'error'); }

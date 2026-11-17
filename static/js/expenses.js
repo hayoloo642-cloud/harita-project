@@ -70,6 +70,8 @@ function renderExpensesView() {
     return `${item.note || ''} ${cat} ${method} ${item.amount}`.toLowerCase().includes(q);
   });
 
+  const limit = Number(state.expenseLimit) || 100;
+  const visibleFiltered = filtered.slice(0, limit);
   const container = $('#expenseList');
   if (state.loading.expenses && !list.length) {
     container.innerHTML = `<div class="skeleton-stack">${skeletonRows(5, 'skeleton-row')}</div>`;
@@ -87,7 +89,7 @@ function renderExpensesView() {
   }
 
   const groups = {};
-  for (const item of filtered) {
+  for (const item of visibleFiltered) {
     const key = String(item.date || '').slice(0, 10);
     (groups[key] = groups[key] || []).push(item);
   }
@@ -115,6 +117,12 @@ function renderExpensesView() {
       }).join('')}
     </div>`;
   }).join('');
+
+  if (filtered.length > visibleFiltered.length) {
+    container.innerHTML += `<div style="padding:14px;text-align:center"><button class="btn btn-ghost btn-sm" id="expenseLoadMore">Muat ${Math.min(100, filtered.length - visibleFiltered.length)} lainnya (${filtered.length - visibleFiltered.length} tersisa)</button></div>`;
+    const btn = $('#expenseLoadMore');
+    if (btn) btn.addEventListener('click', () => { state.expenseLimit = limit + 100; renderExpensesView(); });
+  }
 
   renderExpenseBreakdown(filtered, total);
 }
@@ -218,6 +226,26 @@ function confirmExpenseDelete(expense) {
 }
 
 function bindExpenseActions() {
+  const csvBtn = $('#expenseCsvExport');
+  if (csvBtn) csvBtn.addEventListener('click', () => {
+    const rows = state.expenses || [];
+    if (!rows.length) { toast('Belum ada transaksi untuk diekspor', 'error'); return; }
+    const csv = ['Tanggal,Catatan,Kategori,Metode,Jumlah'];
+    for (const it of rows) csv.push([
+      String(it.date || '').slice(0, 10),
+      `"${String(it.note || '').replace(/"/g, '""')}"`,
+      expenseCategory(it.category).label,
+      EXPENSE_METHODS[it.method] || it.method || '',
+      Number(it.amount) || 0,
+    ].join(','));
+    const blob = new Blob([csv.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `harita-pengeluaran-${state.expenseMonth || 'semua'}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('Pengeluaran diunduh sebagai CSV');
+  });
   const add = $('#expenseAdd');
   if (add) add.addEventListener('click', () => openExpenseModal());
   const month = $('#expenseMonth');

@@ -154,3 +154,31 @@ function bindFlashcardActions() {
     loadFlashcards();
   });
 }
+
+/* ---------- import Anki .apkg ---------- */
+const ankiImportBtn = document.getElementById('ankiImportBtn');
+const ankiImportInput = document.getElementById('ankiImportInput');
+if (ankiImportInput) {
+  ankiImportBtn?.addEventListener('click', () => ankiImportInput.click());
+  ankiImportInput.addEventListener('change', async () => {
+    const file = ankiImportInput.files && ankiImportInput.files[0];
+    if (!file) return;
+    ankiImportBtn.disabled = true;
+    try {
+      const res = await fetch('/api/flashcards/import-anki', {
+        method: 'POST',
+        body: file,
+        headers: { 'X-Filename': file.name },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Impor gagal (${res.status})`);
+      toast(`${data.imported || 0} kartu diimpor dari "${file.name}"`, 'ok', 6000);
+      await loadFlashcards();
+    } catch (err) {
+      toast(err.message, 'error', 7000);
+    } finally {
+      ankiImportBtn.disabled = false;
+      ankiImportInput.value = '';
+    }
+  });
+}

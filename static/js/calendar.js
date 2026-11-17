@@ -8,6 +8,7 @@ function renderCalendarView() {
   $('#calTitle').textContent = fmtMonth(year, month);
 
   const cells = buildCalendarCells(year, month);
+  renderAcademicCalendar();
   grid.innerHTML = cells.map((cell) => {
     const evs = eventsForDay(cell.key);
     const chips = evs.slice(0, 3).map((ev) => `
@@ -59,6 +60,8 @@ function renderCalendarView() {
         <button class="btn btn-primary btn-sm" style="margin-top:10px" data-ev-add>${iconSvg('plus')} Agenda baru</button>
       </div>`;
 
+  markHolidayCells();
+  updateHolidayHint(selected);
   const addBtn = $('#calSideAdd');
   addBtn.onclick = () => openEventModal(null, selected);
 }

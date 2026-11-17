@@ -139,6 +139,72 @@ function bindGradesActions() {
     buildGradePrintBlock();
     window.print();
   });
+
+  const semesterBtn = $('#semesterReportBtn');
+  if (semesterBtn) {
+    semesterBtn.addEventListener('click', async () => {
+      try {
+        semesterBtn.disabled = true;
+        await buildSemesterPrintBlock();
+        window.print();
+      } catch (err) {
+        toast(err.message, 'error');
+      } finally {
+        semesterBtn.disabled = false;
+      }
+    });
+  }
+}
+
+async function buildSemesterPrintBlock() {
+  const block = $('#semesterPrintBlock');
+  const g = state.grades.grades || [];
+  const kkm = Number(state.grades.kkm) || 75;
+  const bySubject = {};
+  for (const it of g) {
+    (bySubject[it.subject] = bySubject[it.subject] || []).push(Number(it.score) || 0);
+  }
+  const subjectRows = Object.entries(bySubject)
+    .sort(([a], [b]) => String(a).localeCompare(String(b)))
+    .map(([subject, scores]) => {
+      const avgS = scores.reduce((a, b) => a + b, 0) / scores.length;
+      const ok = avgS >= kkm;
+      return `<tr><td>${esc(subject)}</td><td>${scores.length}</td><td>${avgS.toFixed(1)}</td><td>${ok ? '✔ KKM' : '✗ di bawah KKM'}</td></tr>`;
+    }).join('');
+  const avg = g.length ? g.reduce((a, it) => a + (Number(it.score) || 0), 0) / g.length : 0;
+
+  let focus90 = { total: 0, days: [] };
+  try {
+    focus90 = await api('/api/focus/history?days=90');
+  } catch (_) {}
+  const focusTotal = (focus90.days || []).reduce((a, d) => a + (Number(d.minutes) || 0), 0);
+  const focusDays = (focus90.days || []).length;
+
+  let weekly = { tasks_done: 0, tasks_total: 0 };
+  try {
+    weekly = await api('/api/weekly-review');
+  } catch (_) {}
+
+  block.innerHTML = `
+    <h1>Harita — Laporan Semester</h1>
+    <p class="meta">Dicetak: ${esc(fmtLong(todayStr()))} · Tahun ajaran 2026/2027 · Periode: 90 hari terakhir</p>
+    <h2>Nilai per mata pelajaran</h2>
+    <table>
+      <thead><tr><th>Mata pelajaran</th><th>Jumlah nilai</th><th>Rata-rata</th><th>Status</th></tr></thead>
+      <tbody>${subjectRows || '<tr><td colspan="4">Belum ada nilai.</td></tr>'}</tbody>
+    </table>
+    <p class="meta">Rata-rata keseluruhan: <strong>${avg.toFixed(1)}</strong> · KKM: <strong>${kkm}</strong> · Total nilai tercatat: ${g.length}</p>
+    <h2>Fokus &amp; belajar</h2>
+    <table>
+      <thead><tr><th>Metrik</th><th>Nilai</th></tr></thead>
+      <tbody>
+        <tr><td>Total menit fokus (90 hari)</td><td>${focusTotal} menit (~${Math.round(focusTotal / 60)} jam)</td></tr>
+        <tr><td>Hari aktif (dengan sesi fokus)</td><td>${focusDays} hari</td></tr>
+        <tr><td>Tugas selesai (minggu ini)</td><td>${weekly.tasks_done} / ${weekly.tasks_total}</td></tr>
+      </tbody>
+    </table>
+    <p class="meta">Laporan otomatis oleh Harita — disimpan lokal, bisa dicetak atau disimpan sebagai PDF oleh browser.</p>
+  `;
 }
 
 function buildGradePrintBlock() {

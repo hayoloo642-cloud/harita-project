@@ -72,7 +72,8 @@ function applyNavPrefs() {
 function renderChrome() {
   const theme = state.settings.theme || "dark";
   document.documentElement.setAttribute("data-theme", theme);
-  document.documentElement.setAttribute("data-accent", state.settings.accent || "terracotta");
+  if (typeof applyAccent === "function") applyAccent(state.settings);
+  else document.documentElement.setAttribute("data-accent", state.settings.accent || "terracotta");
   document.documentElement.setAttribute("data-font-size", state.settings.font_size || "normal");
   document.documentElement.setAttribute("data-contrast", state.settings.contrast || "normal");
   document.documentElement.setAttribute("data-sidebar", state.settings.sidebar === "collapsed" ? "collapsed" : "expanded");
@@ -88,7 +89,10 @@ function renderChrome() {
   const name = state.settings.name || 'Kamu';
   $('#greetName').textContent = name;
   const avatar = $('#topAvatar');
-  if (avatar) avatar.textContent = name.trim().charAt(0).toUpperCase() || 'B';
+  if (avatar) {
+    avatar.textContent = name.trim().charAt(0).toUpperCase() || 'B';
+    if (typeof applyAvatarColor === 'function') applyAvatarColor(state.settings);
+  }
   applyNavPrefs();
   if (typeof applyI18n === 'function') applyI18n(document);
   renderTopWeather();
@@ -121,6 +125,8 @@ function renderHeroWeather() {
       : `<div class="skeleton-wx"></div>`;
     return;
   }
+  const tzLabel = $('#wxTimezoneLabel');
+  if (tzLabel && data.timezone) tzLabel.textContent = data.timezone.replace(/^Asia\//, '');
   const cur = data.current;
   const locName = state.locations[state.weather.key] || data.location_name || 'Lokal';
   const options = Object.entries(state.locations)

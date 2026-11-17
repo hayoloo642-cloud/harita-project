@@ -31,15 +31,23 @@ def free_port() -> int:
         return s.getsockname()[1]
 
 
+SESSION_COOKIE = {"value": None}
+
+
 def request(base: str, path: str, method: str = "GET", body: dict | None = None):
     data = None
     headers = {"Origin": base}
+    if SESSION_COOKIE["value"]:
+        headers["Cookie"] = SESSION_COOKIE["value"]
     if body is not None:
         data = json.dumps(body).encode()
         headers["Content-Type"] = "application/json"
     req = urllib.request.Request(base + path, data=data, headers=headers, method=method)
     try:
         with urllib.request.urlopen(req, timeout=20) as res:
+            set_cookie = res.headers.get("Set-Cookie")
+            if set_cookie:
+                SESSION_COOKIE["value"] = set_cookie.split(";", 1)[0]
             raw = res.read()
             try:
                 payload = json.loads(raw)
@@ -124,8 +132,20 @@ def main() -> int:
             except urllib.error.HTTPError as err:
                 bad_status = err.code
             check(f"static traversal rejected ({bad_path})", bad_status in (400, 404), str(bad_status))
+        status, _ = request(base, "/api/bootstrap")
+        check("API terkunci sebelum daftar (401)", status == 401, f"got {status}")
+        status, _ = request(base, "/api/update/status")
+        check("update status terkunci sebelum daftar (401)", status == 401, f"got {status}")
+        status, reg = request(base, "/api/auth/register", "POST", {"name": "Smoke", "password": "smoke-test-password", "confirm": "smoke-test-password"})
+        check("daftar akun pertama", status == 200 and reg.get("ok") is True, str(reg)[:120])
+        status, upd = request(base, "/api/update/status")
+        check(
+            "update status 200 dengan field yang benar",
+            status == 200 and {"supported", "behind", "available", "current_version"} <= set(upd),
+            str(upd)[:160],
+        )
         status, data = request(base, "/api/bootstrap")
-        check("bootstrap 200", status == 200 and "settings" in data, str(data)[:120])
+        check("bootstrap 200 setelah daftar", status == 200 and "settings" in data, str(data)[:120])
         check("fresh install has no tasks", not data["settings"].get("name") == "" and True)
 
         print("tasks")
@@ -261,6 +281,27 @@ def main() -> int:
         check("demo tasks present", len(listing.get("tasks", [])) >= 3)
         status, listing = request(base, "/api/expenses")
         check("demo expenses present", len(listing.get("expenses", [])) >= 3, str(listing)[:160])
+
+        print("fuzz import (garbage payloads harus ditolak, bukan 500)")
+        garbage_cases = [
+            {"tables": "bukan-dict"},
+            {"tables": {"tasks": "bukan-list"}},
+            {"tables": {"tasks": [1, 2, 3]}},
+            {"tables": {"tasks": [{"id": "x" * 5000}]}},
+            {"tables": {"tak_terdaftar": [{"a": 1}]}},
+            {"tables": {"events": [{"date": "ini-bukan-tanggal"}]}},
+            {"tables": None, "data": "bukan-objek"},
+            "bukan-json",
+        ]
+        for i, payload in enumerate(garbage_cases):
+            if isinstance(payload, dict):
+                status, _ = request(base, "/api/db/import", "POST", payload)
+            else:
+                status, _ = request(base, "/api/db/import", "POST", {"raw": payload})
+            check(f"garbage import {i} ditolak (bukan 500)", status >= 400, f"got {status}")
+        # payload dengan datetime liar tidak memicu 500
+        status, _ = request(base, "/api/db/import", "POST", {"tables": {"events": [{"id": 1, "date": "bukan-tanggal", "title": "x"}]}})
+        check("events tanggal liar ditolak rapih", status in (200, 400, 422), f"got {status}")
 
         if stress:
             print("stress (300 tasks, 200 flashcards)")

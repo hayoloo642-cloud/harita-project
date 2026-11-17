@@ -18,6 +18,11 @@ jobs:
           for f in static/js/*.js; do
             node --check "$f" || exit 1
           done
+      - name: Python lint (ruff)
+        run: |
+          pipx run ruff check server.py tests/
+      - name: Python unit tests
+        run: python3 tests/test_unit.py
       - name: Date/recurrence unit tests
         run: node tests/js/recurrence.test.js
 

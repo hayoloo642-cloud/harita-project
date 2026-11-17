@@ -200,7 +200,7 @@
             <div class="hero-glow"></div>
             <div class="hero-main">
               <div class="hero-left">
-                <div class="eyebrow live"><span class="live-dot"></span> Realtime · Asia/Makassar</div>
+                <div class="eyebrow live"><span class="live-dot"></span> Realtime · <span id="wxTimezoneLabel">lokal</span></div>
                 <h2 class="greeting">Selamat pagi, <span id="greetName">Kamu</span></h2>
                 <div class="clock-wrap">
                   <div class="clock" id="heroClock">--:--<span class="clock-sec">:--</span></div>
@@ -520,8 +520,20 @@
               <button class="icon-btn xs" id="calSideAdd" aria-label="Tambah agenda"><span class="ico" data-icon="plus"></span></button>
             </div>
             <div id="calSideList" class="cal-side-list"></div>
+            <div class="cal-holiday-hint" id="calHolidayHint" hidden>
+              <strong id="calHolidayTitle">Hari libur</strong>
+              <span id="calHolidayDesc"></span>
+            </div>
           </aside>
         </div>
+        <article class="card academic-card span-12" id="academicCard">
+          <div class="card-head">
+            <div><p class="eyebrow">Tahun ajaran</p><h3 id="academicYearTitle">2026/2027</h3></div>
+            <span class="updated-tag" id="academicSourceTag">perkiraan</span>
+          </div>
+          <ul class="academic-list" id="academicList"></ul>
+          <p class="hint academic-foot">Berdasarkan kalender resmi Kemendikbud (perkiraan, dapat berubah). Untuk jadwal nasional, cek <code>kemdikbud.go.id</code>.</p>
+        </article>
       </section>
 
       <!-- ============ LOMBA ============ -->
@@ -550,6 +562,7 @@
           <div class="view-actions">
             <span class="updated-tag" id="focusTodayTag">0 menit hari ini</span>
             <button class="btn btn-ghost btn-sm" id="focusModeOpen"><span class="ico" data-icon="timer"></span> Mode fokus</button>
+            <button class="btn btn-ghost btn-sm" id="clockModeOpen"><span class="ico" data-icon="clock"></span> Mode jam</button>
           </div>
         </div>
         <div class="focus-layout">
@@ -561,9 +574,33 @@
               <button class="mode-tab" data-mode="custom" id="focusCustomTab">Kustom · 45</button>
             </div>
             <div class="focus-custom-row" id="focusCustomRow" hidden>
-              <label for="focusCustomMinutes">Waktu kustom</label>
-              <input type="number" id="focusCustomMinutes" min="1" max="240" step="1" value="45" inputmode="numeric" aria-label="Menit kustom" />
-              <span>menit</span>
+              <div class="custom-time-head">
+                <label for="focusCustomMinutes">Waktu kustom</label>
+                <span class="ctg-summary" id="customTimeSummary">45 menit</span>
+              </div>
+              <div class="ctg-track" role="group" aria-label="Atur durasi kustom">
+                <div class="ctg-field">
+                  <input type="number" id="focusCustomHours" min="0" max="23" step="1" value="0" inputmode="numeric" aria-label="Jam" />
+                  <span class="ctg-unit">jam</span>
+                </div>
+                <span class="ctg-sep">:</span>
+                <div class="ctg-field">
+                  <input type="number" id="focusCustomMinutes" min="0" max="59" step="1" value="45" inputmode="numeric" aria-label="Menit" />
+                  <span class="ctg-unit">menit</span>
+                </div>
+                <span class="ctg-sep">:</span>
+                <div class="ctg-field">
+                  <input type="number" id="focusCustomSeconds" min="0" max="59" step="1" value="0" inputmode="numeric" aria-label="Detik" />
+                  <span class="ctg-unit">detik</span>
+                </div>
+              </div>
+              <div class="ctg-quick">
+                <button class="ctg-chip" type="button" data-h="0" data-m="25" data-s="0">25m</button>
+                <button class="ctg-chip" type="button" data-h="0" data-m="45" data-s="0">45m</button>
+                <button class="ctg-chip" type="button" data-h="1" data-m="0" data-s="0">1j</button>
+                <button class="ctg-chip" type="button" data-h="1" data-m="30" data-s="0">1j 30m</button>
+                <button class="ctg-chip" type="button" data-h="2" data-m="0" data-s="0">2j</button>
+              </div>
             </div>
             <div class="timer-visual">
               <svg viewBox="0 0 300 300" class="timer-ring">
@@ -658,6 +695,7 @@
               <input type="search" id="expenseSearch" placeholder="Cari catatan / kategori…" aria-label="Cari pengeluaran" />
             </div>
             <input type="month" id="expenseMonth" class="month-input" aria-label="Pilih bulan" />
+            <button class="btn btn-ghost btn-sm" id="expenseCsvExport" title="Unduh transaksi bulan ini sebagai CSV"><span class="ico" data-icon="download"></span> CSV</button>
             <button class="btn btn-primary btn-sm" id="expenseAdd"><span class="ico" data-icon="plus"></span> Catat</button>
           </div>
         </div>
@@ -717,7 +755,7 @@
         <div class="view-head">
           <div>
             <h2>Music Player</h2>
-            <p>Putar musik lokal di laptop. Taruh file audio di folder <code>music/</code> di dalam folder Harita.</p>
+            <p>Putar musik lokal dari folder <code>music/</code>, atau jelajahi semua lagu yang ada di dunia di tab <strong>Jelajah</strong> — Audius (stream penuh gratis), YouTube (hampir semua lagu), dan Spotify (perlu kredensial gratis).</p>
           </div>
           <div class="view-actions">
             <button class="btn btn-ghost btn-sm" id="musicRescan"><span class="ico" data-icon="refresh"></span> Rescan</button>
@@ -725,16 +763,97 @@
         </div>
         <div class="music-layout">
           <aside class="music-sidebar">
-            <div class="music-search">
-              <span class="ico" data-icon="search"></span>
-              <input type="search" id="musicSearch" placeholder="Cari lagu…" aria-label="Cari lagu" />
+            <div class="music-tabs" role="tablist" aria-label="Sumber musik">
+              <button class="music-tab active" id="musicTabLocal" data-music-tab="local" role="tab" aria-selected="true">Koleksi Saya</button>
+              <button class="music-tab" id="musicTabOnline" data-music-tab="online" role="tab" aria-selected="false">Jelajah</button>
             </div>
-            <div class="music-library">
-              <div class="music-library-head">
-                <h4>Library</h4>
-                <span id="musicCount">0 lagu</span>
+            <div id="musicPanelLocal" role="tabpanel" aria-labelledby="musicTabLocal">
+              <div class="music-search">
+                <span class="ico" data-icon="search"></span>
+                <input type="search" id="musicSearch" placeholder="Cari lagu…" aria-label="Cari lagu" />
               </div>
-              <div class="music-track-list" id="musicTrackList"></div>
+              <div class="music-library">
+                <div class="music-library-head">
+                  <h4>Library</h4>
+                  <span id="musicCount">0 lagu</span>
+                </div>
+                <div class="music-track-list" id="musicTrackList"></div>
+              </div>
+            </div>
+            <div id="musicPanelOnline" role="tabpanel" aria-labelledby="musicTabOnline" hidden>
+              <div class="source-tabs" role="tablist" aria-label="Sumber musik online">
+                <button class="source-tab active" id="sourceTabAudius" data-source="audius" role="tab" aria-selected="true">Audius</button>
+                <button class="source-tab" id="sourceTabYoutube" data-source="youtube" role="tab" aria-selected="false">YouTube</button>
+                <button class="source-tab" id="sourceTabSpotify" data-source="spotify" role="tab" aria-selected="false">Spotify</button>
+              </div>
+
+              <div class="online-player" id="onlinePlayer" hidden>
+                <iframe id="onlinePlayerFrame" title="Pemutar online" width="100%" height="96" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe>
+                <div class="online-player-foot">
+                  <span class="online-player-title" id="onlinePlayerTitle">—</span>
+                  <span class="online-player-controls">
+                    <button class="btn btn-ghost btn-sm" id="onlinePlayerPrev" type="button" aria-label="Sebelumnya">‹</button>
+                    <button class="btn btn-ghost btn-sm" id="onlinePlayerNext" type="button" aria-label="Berikutnya">›</button>
+                    <a class="btn btn-ghost btn-sm" id="onlinePlayerOpen" href="#" target="_blank" rel="noreferrer">Buka ↗</a>
+                  </span>
+                </div>
+              </div>
+
+              <div id="sourceAudius" role="tabpanel" aria-labelledby="sourceTabAudius">
+                <div class="music-search">
+                  <span class="ico" data-icon="search"></span>
+                  <input type="search" id="onlineMusicSearch" placeholder="Cari lagu, artis, atau genre…" aria-label="Cari musik online" autocomplete="off" />
+                </div>
+                <div class="music-library">
+                  <div class="music-library-head">
+                    <h4>Audius</h4>
+                    <span id="onlineMusicCount"></span>
+                  </div>
+                  <div class="online-music-status hint" id="onlineMusicStatus">Ketik kata kunci lalu tekan Enter — misalnya “nadin amizah”, “tulus”, “lofi”.</div>
+                  <div class="music-track-list" id="onlineMusicTrackList"></div>
+                  <p class="online-music-foot">Ditenagai <a href="https://audius.co" target="_blank" rel="noreferrer">Audius</a> — musik bebas yang diunggah artis. Gratis, tanpa langganan.</p>
+                </div>
+              </div>
+
+              <div id="sourceYoutube" role="tabpanel" aria-labelledby="sourceTabYoutube" hidden>
+                <div class="music-search">
+                  <span class="ico" data-icon="search"></span>
+                  <input type="search" id="youtubeMusicSearch" placeholder="Cari lagu atau video musik di YouTube…" aria-label="Cari musik YouTube" autocomplete="off" />
+                </div>
+                <div class="music-library">
+                  <div class="music-library-head">
+                    <h4>YouTube</h4>
+                    <span id="youtubeMusicCount"></span>
+                  </div>
+                  <div class="online-music-status hint" id="youtubeMusicStatus">Hampir semua lagu yang ada di dunia ada di sini — ketik judul/artis, lalu klik untuk memutar.</div>
+                  <div class="music-track-list" id="youtubeMusicTrackList"></div>
+                  <p class="online-music-foot">Dicari langsung dari YouTube — pemutaran via pemutar resmi YouTube.</p>
+                </div>
+              </div>
+
+              <div id="sourceSpotify" role="tabpanel" aria-labelledby="sourceTabSpotify" hidden>
+                <div class="spotify-setup" id="spotifySetupHint" hidden>
+                  <p><strong>Aktifkan Spotify di Harita</strong> (gratis, sekali isi seumur hidup):</p>
+                  <ol>
+                    <li>Buka <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer">developer.spotify.com/dashboard</a> → <strong>Create App</strong></li>
+                    <li>Salin <strong>Client ID</strong> dan <strong>Client Secret</strong>-nya</li>
+                    <li>Tempel di <strong>Pengaturan → Spotify</strong> (paling bawah)</li>
+                  </ol>
+                  <p class="hint">Pemutaran via embed resmi Spotify — gratis dengan iklan; premium tanpa iklan.</p>
+                </div>
+                <div class="music-search" id="spotifySearchWrap" hidden>
+                  <span class="ico" data-icon="search"></span>
+                  <input type="search" id="spotifyMusicSearch" placeholder="Cari lagu atau artis di Spotify…" aria-label="Cari musik Spotify" autocomplete="off" />
+                </div>
+                <div class="music-library" id="spotifyLibraryWrap" hidden>
+                  <div class="music-library-head">
+                    <h4>Spotify</h4>
+                    <span id="spotifyMusicCount"></span>
+                  </div>
+                  <div class="music-track-list" id="spotifyMusicTrackList"></div>
+                </div>
+                <p class="online-music-foot">Ditenagai katalog resmi Spotify — perlu kredensial API gratis Anda.</p>
+              </div>
             </div>
           </aside>
           <div class="music-player now" id="musicPlayerNow">
@@ -744,14 +863,20 @@
             <div class="mp-info">
               <div class="mp-title" id="mpTitle">—</div>
               <div class="mp-artist" id="mpArtist">Tidak ada yang diputar</div>
+              <div class="mp-time"><span id="mpCur">0:00</span><span id="mpDur">0:00</span></div>
+              <div class="mp-seek" id="mpSeekRail" role="slider" tabindex="0" aria-label="Posisi lagu" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <div class="mp-seek-fill" id="mpSeekFill"></div>
+                <div class="mp-seek-knob" id="mpSeekKnob" aria-hidden="true"></div>
+              </div>
             </div>
-            <div class="mp-time"><span id="mpCur">0:00</span><span id="mpDur">0:00</span></div>
-            <div class="mp-progress" id="mpProgress"></div>
             <div class="mp-controls">
               <button class="mp-btn" id="musicPrev" title="Sebelumnya"><span class="ico" data-icon="chevron-left"></span></button>
               <button class="mp-btn play" id="musicPlayPause" title="Putar/Jeda"><span class="ico" data-icon="play"></span></button>
               <button class="mp-btn" id="musicNext" title="Berikutnya"><span class="ico" data-icon="chevron-right"></span></button>
-              <div class="mp-volume" id="mpVolume"></div>
+              <div class="mp-volume" id="mpVolumeRail" role="slider" tabindex="0" aria-label="Volume musik" aria-valuemin="0" aria-valuemax="100" aria-valuenow="70">
+                <div class="mp-volume-fill" id="mpVolumeFill"></div>
+                <div class="mp-volume-knob" id="mpVolumeKnob" aria-hidden="true"></div>
+              </div>
             </div>
           </div>
           <div class="music-player empty" id="musicPlayerEmpty">
@@ -819,6 +944,7 @@
           <div class="view-actions">
             <input class="task-search" id="gradeSearch" type="search" placeholder="Cari mapel / jenis…" maxlength="60" autocomplete="off" aria-label="Cari nilai" />
             <button class="btn btn-ghost btn-sm" id="gradeCsvExport" title="Unduh nilai sebagai CSV"><span class="ico" data-icon="download"></span> CSV</button>
+            <button class="btn btn-ghost btn-sm" id="semesterReportBtn" title="Cetak laporan semester (nilai + fokus + kebiasaan)"><span class="ico" data-icon="printer"></span> Laporan semester</button>
             <button class="btn btn-ghost btn-sm" id="gradePrint"><span class="ico" data-icon="printer"></span> Cetak / PDF</button>
           </div>
         </div>
@@ -853,6 +979,7 @@
         </div>
 
         <div class="grade-print-only" id="gradePrintBlock"></div>
+        <div class="grade-print-only" id="semesterPrintBlock"></div>
       </section>
 
       <!-- ============ FLASHCARD ============ -->
@@ -862,7 +989,11 @@
             <h2>Flashcard</h2>
             <p>Kartu pintar dengan SM-2 spaced repetition — ulangi tepat waktu sebelum kamu lupa.</p>
           </div>
-          <span class="updated-tag" id="flashcardCount">0 kartu</span>
+          <div style="display:flex;gap:10px;align-items:center">
+            <input type="file" id="ankiImportInput" accept=".apkg,.apkgz" hidden />
+            <button class="btn btn-ghost btn-sm" id="ankiImportBtn"><span class="ico" data-icon="upload"></span> Import Anki (.apkg)</button>
+            <span class="updated-tag" id="flashcardCount">0 kartu</span>
+          </div>
         </div>
 
         <div class="grades-layout">
@@ -902,7 +1033,10 @@
     <div class="npb-title" id="npbTitle">—</div>
     <div class="npb-artist" id="npbArtist">—</div>
   </div>
-  <div class="npb-progress" id="npbProgress"></div>
+  <div class="npb-seek" id="npbSeekRail" role="slider" tabindex="0" aria-label="Posisi lagu" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+    <div class="npb-seek-fill" id="npbSeekFill"></div>
+    <div class="npb-seek-knob" id="npbSeekKnob" aria-hidden="true"></div>
+  </div>
   <div class="npb-controls">
     <button class="npb-btn" id="npbPrev" title="Sebelumnya"><span class="ico" data-icon="chevron-left"></span></button>
     <button class="npb-btn" id="npbPlayPause" title="Putar/Jeda"><span class="ico" data-icon="play"></span></button>
@@ -937,16 +1071,168 @@
 </div>
 
 <div class="focusmode" id="focusMode" aria-hidden="true">
-  <button class="fm-exit" id="focusModeExit"><span class="ico" data-icon="x"></span> Keluar (Esc)</button>
-  <div class="fm-label" id="focusModeLabel">Waktu fokus</div>
-  <div class="fm-time" id="focusModeTime">25:00</div>
-  <div class="fm-controls">
-    <button class="fm-btn" id="focusModeToggle" title="Mulai / jeda" aria-label="Mulai atau jeda timer"><span class="ico" data-icon="play"></span></button>
-    <button class="fm-btn" id="focusModeReset" title="Reset timer" aria-label="Reset timer"><span class="ico" data-icon="rotate"></span></button>
+  <canvas class="fm-canvas-ambient" id="fmAmbientCanvas" aria-hidden="true"></canvas>
+<div class="fm-ambient" aria-hidden="true">
+    <span class="fm-orb fm-orb-a"></span>
+    <span class="fm-orb fm-orb-b"></span>
+    <span class="fm-orb fm-orb-c"></span>
   </div>
-  <svg class="fm-wave" viewBox="0 0 1440 140" preserveAspectRatio="none" fill="none" aria-hidden="true"><path d="M0 90 Q90 55 180 90 T360 90 T540 90 T720 90 T900 90 T1080 90 T1260 90 T1440 90 V140 H0 Z" fill="#2c1216"/><path d="M0 112 Q90 84 180 112 T360 112 T540 112 T720 112 T900 112 T1080 112 T1260 112 T1440 112 V140 H0 Z" fill="#3e1a20" opacity=".7"/></svg>
+  <button class="fm-exit" id="focusModeExit"><span class="ico" data-icon="x"></span> Keluar (Esc)</button>
+  <div class="fm-center">
+    <div class="fm-label" id="focusModeLabel">Waktu fokus</div>
+    <div class="fm-ring-wrap">
+      <svg class="fm-ring" viewBox="0 0 220 220" role="img" aria-label="Progress timer">
+        <defs>
+          <linearGradient id="fmGrad" gradientUnits="userSpaceOnUse" x1="20" y1="200" x2="200" y2="20">
+            <stop offset="0%" stop-color="#fc8f8f" />
+            <stop offset="45%" stop-color="#ffb280" />
+            <stop offset="100%" stop-color="#fecf8f" />
+          </linearGradient>
+        </defs>
+        <circle class="fm-ring-track" cx="110" cy="110" r="96" />
+        <circle class="fm-ring-progress" id="focusModeRing" cx="110" cy="110" r="96" stroke="url(#fmGrad)" />
+        <circle class="fm-ring-inner" cx="110" cy="110" r="68" />
+      </svg>
+      <div class="fm-time-block">
+        <div class="fm-time" id="focusModeTime">25:00</div>
+        <div class="fm-mode" id="focusModeMode">Pomodoro</div>
+      </div>
+    </div>
+    <div class="fm-context" id="focusModeContext">
+      <span class="fm-chip" id="focusModeContextLabel">Tanpa mapel</span>
+      <span class="fm-chip fm-chip-soft" id="focusModeTaskLabel" hidden></span>
+    </div>
+    <div class="fm-controls">
+      <button class="fm-btn fm-btn-ghost" id="focusModeReset" title="Ulangi sesi" aria-label="Reset timer"><span class="ico" data-icon="rotate"></span></button>
+      <button class="fm-btn fm-btn-main" id="focusModeToggle" title="Mulai / jeda" aria-label="Mulai atau jeda timer"><span class="ico" data-icon="play"></span></button>
+      <button class="fm-btn fm-btn-ghost" id="focusModeSkip" title="Selesai lebih awal" aria-label="Akhiri sesi lebih awal"><span class="ico" data-icon="check-circle"></span></button>
+    </div>
+    <p class="fm-hint">Esc untuk keluar · klik <kbd>selesai</kbd> untuk mencatat sesi sekarang</p>
+  </div>
+  <div class="fm-ambient-bar" id="ambientBar" aria-hidden="false">
+    <div class="fm-ambient-head">
+      <span class="ico" data-icon="cloud-sun"></span>
+      <strong>Suara</strong>
+      <button class="fm-amb-power" id="ambientToggle" type="button" aria-pressed="true" aria-label="Aktif/nonaktifkan suara latar">Aktif</button>
+      <button class="fm-ambient-collapse" id="ambientCollapse" type="button" aria-label="Perkecil/munculkan panel ambient" title="Perkecil/munculkan panel ambient"><span id="ambientCollapseIcon">▸</span></button>
+    </div>
+    <div class="fm-ambient-body" id="ambientBody">
+      <div class="fm-ambient-chips" id="ambientChips" role="group" aria-label="Pilih ambient">
+        <button class="fm-amb-chip active" data-amb="off" type="button">Senyap</button>
+        <button class="fm-amb-chip" data-amb="rain" type="button">Hujan</button>
+        <button class="fm-amb-chip" data-amb="fire" type="button">Api</button>
+        <button class="fm-amb-chip" data-amb="ocean" type="button">Ombak</button>
+        <button class="fm-amb-chip" data-amb="forest" type="button">Hutan</button>
+        <button class="fm-amb-chip" data-amb="cafe" type="button">Kopi</button>
+        <button class="fm-amb-chip" data-amb="brown" type="button">Hum</button>
+        <button class="fm-amb-chip" data-amb="river" type="button">Sungai</button>
+        <button class="fm-amb-chip" data-amb="beach" type="button">Pantai</button>
+        <button class="fm-amb-chip" data-amb="wind" type="button">Angin</button>
+        <button class="fm-amb-chip" data-amb="white" type="button">Sunyi</button>
+        <button class="fm-amb-chip" data-amb="night" type="button">Malam</button>
+        <button class="fm-amb-chip" data-amb="breath" type="button">Napas</button>
+        <button class="fm-amb-chip" data-amb="thunder" type="button">Petir</button>
+        <button class="fm-amb-chip" data-amb="waterfall" type="button">Air terjun</button>
+        <button class="fm-amb-chip" data-amb="train" type="button">Kereta</button>
+        <button class="fm-amb-chip" data-amb="library" type="button">Perpustakaan</button>
+        <button class="fm-amb-chip" data-amb="cave" type="button">Gua</button>
+        <button class="fm-amb-chip" data-amb="windchime" type="button">Bel angin</button>
+        <button class="fm-amb-chip" data-amb="lofi" type="button">Lofi</button>
+        <button class="fm-amb-chip" data-amb="deep_space" type="button">Luar angkasa</button>
+        <button class="fm-amb-chip" data-amb="city_rain" type="button">Hujan kota</button>
+        <button class="fm-amb-chip" data-amb="jungle" type="button">Hutan lebat</button>
+        <button class="fm-amb-chip" data-amb="tide" type="button">Pasang surut</button>
+        <button class="fm-amb-chip" data-amb="aurora" type="button">Aurora</button>
+        <button class="fm-amb-chip" data-amb="bubble" type="button">Gelembung</button>
+        <button class="fm-amb-chip fm-amb-tick" id="focusTickToggle" type="button" aria-pressed="false" aria-label="Bunyi detik">🔊 Detik</button>
+      </div>
+      <label class="fm-amb-volume" for="ambientVolume">
+        <span class="ico" data-icon="bell"></span>
+        <input id="ambientVolume" type="range" min="0" max="100" step="1" value="35" aria-label="Volume suara latar" />
+        <span id="ambientVolumeValue" class="fm-amb-vol-num">35%</span>
+      </label>
+    </div>
+  </div>
 </div>
 
+
+<div class="clockmode" id="clockMode" aria-hidden="true">
+  <canvas class="fm-canvas-ambient" id="clockAmbientCanvas" aria-hidden="true"></canvas>
+  <div class="fm-ambient" aria-hidden="true">
+    <span class="fm-orb fm-orb-a"></span>
+    <span class="fm-orb fm-orb-b"></span>
+    <span class="fm-orb fm-orb-c"></span>
+  </div>
+  <button class="fm-exit" id="clockModeExit"><span class="ico" data-icon="x"></span> Keluar (Esc)</button>
+  <div class="cm-center">
+    <div class="cm-date-block">
+      <div class="cm-weekday" id="clockWeekday">Selasa</div>
+      <div class="cm-date-line">
+        <span id="clockDay" class="cm-day-num">17</span>
+        <div class="cm-month-year">
+          <span id="clockMonth" class="cm-month">November</span>
+          <span id="clockYear" class="cm-year">2026</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="cm-time-block">
+      <div class="cm-separator" aria-hidden="true"></div>
+      <div class="cm-time" id="clockTime">19:55:00</div>
+      <div class="cm-separator" aria-hidden="true"></div>
+      <div class="cm-label">WAKTU BELAJAR</div>
+    </div>
+
+    <div class="cm-hint">Ketuk <kbd>Fokus</kbd> kapan pun untuk mode timer 25 menit.</div>
+    <div class="cm-actions">
+      <button class="btn btn-primary cm-focus-btn" id="clockGoFocus"><span class="ico" data-icon="timer"></span> Fokus 25</button>
+    </div>
+  </div>
+
+  <div class="fm-ambient-bar" id="clockAmbientBar" aria-hidden="false">
+    <div class="fm-ambient-head">
+      <span class="ico" data-icon="cloud-sun"></span>
+      <strong>Suara</strong>
+      <button class="fm-amb-power" id="clockAmbientToggle" type="button" aria-pressed="true" aria-label="Aktif/nonaktifkan suara latar">Aktif</button>
+      <button class="fm-ambient-collapse" id="clockAmbientCollapse" type="button" aria-label="Perkecil/munculkan panel ambient" title="Perkecil/munculkan panel ambient"><span id="clockAmbientCollapseIcon">▸</span></button>
+    </div>
+    <div class="fm-ambient-body" id="clockAmbientBody">
+      <div class="fm-ambient-chips" id="clockAmbientChips" role="group" aria-label="Pilih ambient">
+        <button class="fm-amb-chip active" data-amb="off" type="button">Senyap</button>
+        <button class="fm-amb-chip" data-amb="rain" type="button">Hujan</button>
+        <button class="fm-amb-chip" data-amb="fire" type="button">Api</button>
+        <button class="fm-amb-chip" data-amb="ocean" type="button">Ombak</button>
+        <button class="fm-amb-chip" data-amb="forest" type="button">Hutan</button>
+        <button class="fm-amb-chip" data-amb="cafe" type="button">Kopi</button>
+        <button class="fm-amb-chip" data-amb="brown" type="button">Hum</button>
+        <button class="fm-amb-chip" data-amb="river" type="button">Sungai</button>
+        <button class="fm-amb-chip" data-amb="beach" type="button">Pantai</button>
+        <button class="fm-amb-chip" data-amb="wind" type="button">Angin</button>
+        <button class="fm-amb-chip" data-amb="white" type="button">Sunyi</button>
+        <button class="fm-amb-chip" data-amb="night" type="button">Malam</button>
+        <button class="fm-amb-chip" data-amb="breath" type="button">Napas</button>
+        <button class="fm-amb-chip" data-amb="thunder" type="button">Petir</button>
+        <button class="fm-amb-chip" data-amb="waterfall" type="button">Air terjun</button>
+        <button class="fm-amb-chip" data-amb="train" type="button">Kereta</button>
+        <button class="fm-amb-chip" data-amb="library" type="button">Perpustakaan</button>
+        <button class="fm-amb-chip" data-amb="cave" type="button">Gua</button>
+        <button class="fm-amb-chip" data-amb="windchime" type="button">Bel angin</button>
+        <button class="fm-amb-chip" data-amb="lofi" type="button">Lofi</button>
+        <button class="fm-amb-chip" data-amb="deep_space" type="button">Luar angkasa</button>
+        <button class="fm-amb-chip" data-amb="city_rain" type="button">Hujan kota</button>
+        <button class="fm-amb-chip" data-amb="jungle" type="button">Hutan lebat</button>
+        <button class="fm-amb-chip" data-amb="tide" type="button">Pasang surut</button>
+        <button class="fm-amb-chip" data-amb="aurora" type="button">Aurora</button>
+        <button class="fm-amb-chip" data-amb="bubble" type="button">Gelembung</button>
+      </div>
+      <label class="fm-amb-volume" for="clockAmbientVolume">
+        <span class="ico" data-icon="bell"></span>
+        <input id="clockAmbientVolume" type="range" min="0" max="100" step="1" value="35" aria-label="Volume suara latar" />
+        <span id="clockAmbientVolumeValue" class="fm-amb-vol-num">35%</span>
+      </label>
+    </div>
+  </div>
+</div>
 
 <div class="modal-overlay" id="flashcardReview" hidden role="dialog" aria-modal="true" aria-label="Review flashcard">
   <div class="modal" style="text-align:center">
@@ -1034,14 +1320,78 @@
   </div>
 </div>
 
+<div class="auth-overlay" id="authOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="authTitle">
+  <div class="auth-shell">
+    <aside class="auth-hero">
+      <img src="/icon.svg" class="auth-logo" alt="Logo Harita" width="72" height="72" />
+      <p class="auth-eyebrow">Dashboard harian lokal</p>
+      <h1 class="auth-title">Harita</h1>
+      <p class="auth-tagline">Konsisten &amp; rajin setiap hari — tugas, kalender, fokus, kebiasaan, cuaca, dan uang jajan dalam satu layar. Semua data tersimpan di perangkat ini, tanpa akun cloud.</p>
+      <ul class="auth-features">
+        <li><span class="auth-feat-ico"><span class="ico" data-icon="check-square"></span></span><span><strong>Tugas &amp; kalender</strong><small>Checklist harian, agenda berulang, countdown lomba &amp; deadline</small></span></li>
+        <li><span class="auth-feat-ico"><span class="ico" data-icon="flame"></span></span><span><strong>Fokus &amp; kebiasaan</strong><small>Pomodoro 25/5, streak harian, heatmap 112 hari</small></span></li>
+        <li><span class="auth-feat-ico"><span class="ico" data-icon="book"></span></span><span><strong>Belajar lebih tajam</strong><small>Flashcard SM-2, nilai &amp; KKM, laporan mingguan</small></span></li>
+        <li><span class="auth-feat-ico"><span class="ico" data-icon="cloud-sun"></span></span><span><strong>Cuaca realtime</strong><small>Prakiraan akurat Open-Meteo untuk 16 kota di Indonesia</small></span></li>
+        <li><span class="auth-feat-ico"><span class="ico" data-icon="play"></span></span><span><strong>Musik sambil belajar</strong><small>Koleksi lokal + jutaan trek gratis di tab Jelajah</small></span></li>
+      </ul>
+      <p class="auth-kbd-hint">Tekan <kbd>Ctrl</kbd> + <kbd>K</kbd> kapan pun — cari tugas, catatan, atau pengaturan dari mana saja.</p>
+    </aside>
+    <div class="auth-card">
+      <p class="eyebrow" id="authEyebrow">Akun lokal</p>
+      <h2 id="authTitle">Masuk ke Harita</h2>
+      <p class="auth-sub" id="authSub">Masukkan nama dan kata sandi yang kamu buat saat pertama kali.</p>
+      <form id="authForm" novalidate>
+        <div class="field">
+          <label for="authName">Nama</label>
+          <input id="authName" name="name" type="text" maxlength="40" autocomplete="username" placeholder="Nama panggilan" required />
+        </div>
+        <div class="field">
+          <label for="authPassword">Kata sandi</label>
+          <input id="authPassword" name="password" type="password" autocomplete="current-password" placeholder="Kata sandi" required />
+        </div>
+        <div class="field" id="authConfirmWrap" hidden>
+          <label for="authConfirm">Konfirmasi kata sandi</label>
+          <input id="authConfirm" name="confirm" type="password" autocomplete="new-password" placeholder="Ulangi kata sandi" />
+        </div>
+        <p class="auth-error" id="authError" role="alert" hidden></p>
+        <button class="btn btn-primary auth-submit" type="submit" id="authSubmit">Masuk</button>
+      </form>
+      <button class="link-btn auth-toggle" id="authToggle" type="button">Belum punya akun? Daftar</button>
+      <p class="auth-privacy"><span class="ico" data-icon="lock"></span> Kata sandi disimpan sebagai hash terenkripsi di perangkat ini — tidak dikirim ke server mana pun.</p>
+    </div>
+  </div>
+</div>
+
+<div class="update-banner" id="updateBanner" hidden role="status">
+  <span class="update-banner-dot" aria-hidden="true"></span>
+  <span class="update-banner-text">Pembaruan tersedia <strong id="updateBannerCount"></strong></span>
+  <button class="btn btn-primary btn-sm" id="updateNowBtn" type="button">Perbarui</button>
+  <a class="btn btn-primary btn-sm" id="updateDownloadBtn" href="#" target="_blank" rel="noreferrer" style="display:none">Unduh</a>
+  <button class="icon-btn update-dismiss" id="updateDismissBtn" type="button" aria-label="Nanti saja"><span class="ico" data-icon="x"></span></button>
+</div>
+
+<div class="update-overlay" id="updateOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="updateOverlayTitle">
+  <div class="update-box">
+    <div class="update-ring" aria-hidden="true"></div>
+    <h2 id="updateOverlayTitle">Memperbarui Harita…</h2>
+    <p class="update-step" id="updateStep">Menyiapkan cadangan data…</p>
+    <p class="update-note">Cadangan otomatis dibuat sebelum kode diubah. Aplikasi memuat ulang sendiri saat selesai — cukup tunggu sebentar.</p>
+  </div>
+</div>
+
 <div class="toast-wrap" id="toastWrap"></div>
 
 <script src="/js/i18n.js"></script>
 <script src="/js/icons.js"></script>
+<script src="/js/auth.js"></script>
 <script src="/js/core.js"></script>
 <script src="/js/data.js"></script>
 <script src="/js/dashboard.js"></script>
 <script src="/js/tasks.js"></script>
+<script src="/js/academic-calendar.js"></script>
+<script src="/js/clock.js"></script>
+<script src="/js/fm-ambient.js"></script>
+<script src="/js/ambient.js"></script>
 <script src="/js/calendar.js"></script>
 <script src="/js/competitions.js"></script>
 <script src="/js/notes.js"></script>

@@ -4,7 +4,7 @@
 
 const { defineConfig, devices } = require('@playwright/test');
 
-const PORT = 8777;
+const PORT = 8799;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
 module.exports = defineConfig({
@@ -46,9 +46,9 @@ module.exports = defineConfig({
   webServer: {
     // Boot a throwaway server/database so tests never touch real user data.
     command:
-      'HARITA_DB=.e2e/harita.db HARITA_DATA=.e2e HARITA_PORT=8777 python3 server.py',
+      'sh -c "rm -rf .e2e && HARITA_DB=.e2e/harita.db HARITA_DATA=.e2e HARITA_PORT=8799 exec python3 server.py"',
     url: BASE_URL,
-    reuseExistingServer: true,
+    reuseExistingServer: false,
     timeout: 60_000,
     stdout: 'ignore',
     stderr: 'pipe',

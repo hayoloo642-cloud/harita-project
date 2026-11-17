@@ -5,6 +5,72 @@ Semua perubahan penting pada proyek ini didokumentasikan di sini.
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/).
 
+## [1.9.0] — 2026-11-17 — "Lengkapi & poles"
+
+### Ditambahkan
+- **Siluet & pemandangan prosedural untuk setiap latar ambient (Mode Fokus & Mode Jam)** — 26 suasana kini punya gambar latar khas, tidak ada dua yang serupa: skyline + lampu neon & jendela menyala (Hujan Kota), perbukitan + pepohonan cemara (Hujan), skyline kota + petir (Badai), rak buku (Perpustakaan), kanopi hutan berlapis (Hutan Lebat), garis bukit + kota samar (Aurora), kereta api + rel (Kereta), kafe + lampu gantung (Kopi), dll. Semuanya digambar prosedural di kanvas (offline, <2KB kode, tanpa aset gambar).
+- **Kalender akademik 2026/2027** di halaman Kalender (semester ganjil, UTBK/SNBT, libur semester) + daftar hari libur nasional 2026/2027 + dot marker di grid.
+- **Import Anki (.apkg)** untuk flashcard — koleksi lengkap dari Anki langsung masuk sebagai kartu Harita.
+- **Import jadwal CSV** dengan deteksi bentrok jam (slot yang bentrok dilewati, sisanya masuk).
+- **Laporan semester (PDF print)** di halaman Nilai — ringkasan per mapel, rata-rata vs KKM, total menit fokus 90 hari, tugas selesai minggu ini.
+- **Budget warning lebih halus** sudah ada (progress bar) — ditambah **CSV export pengeluaran** di halaman Pengeluaran.
+- **Offline support (PWA)**: service worker kini mem-praceh API responses (network-first + fallback cache) — halaman utama tetap bisa dibuka tanpa server.
+- **Sync antar-perangkat**: Settings → Sinkronisasi backup memungkinkan ekspor ke folder (mis. Syncthing) dan impor dari folder yang sama.
+- **Self-update tanpa git** (mis. frozen build): cek versi rilis terbaru via GitHub API tanpa auth; banner menampilkan "Unduh vX.Y.Z".
+
+### Diperbaiki
+- **Server: dead code `check_deadline_reminders`** dihapus (menyebabkan `NameError: parseLocalDT` jika jalur dipanggil; frontend sudah handle pengingat).
+- **ruff clean**: F821, F841, I001 diperbaiki; `ruff check` kini masuk CI.
+- **Pagination**: pengeluaran dibatasi 100 transaksi awal, bisa dimuat 100 lagi tanpa lag.
+- **Siluet kanvas tidak tampil** — `drawRain` memanggil `clear()` sesaat setelah siluet digambar sehingga terhapus; kini dipecah menjadi `rainStreaks()`. Semua 26 ambient diverifikasi melukis (>700 ribu piksel non-transparan) lewat Playwright — fokus & mode jam.
+
+### Catatan
+- Laporan dibuat dengan data yang ada di perangkat, tanpa layanan pihak ketiga (kecuali cuaca & rilis check).
+- Build Linux kini dipancang `-march=x86-64-v2` untuk menghindari "Illegal instruction" di CPU lama (mis. Celeron N4020).
+
+## [1.8.0] — 2026-11-17
+
+### Ditambahkan
+- **Cari & putar hampir semua lagu di dunia** — Jelajah kini punya 3 sumber:
+  - **YouTube** — hasil pencarian diambil langsung dari YouTube; pemutaran lewat pemutar resmi YouTube tertanam (dengan thumbnail yang di-proxy lokal). Tidak perlu API key.
+  - **Spotify** — pencarian via Spotify Web API resmi (isi Client ID & Secret gratis di Pengaturan → Spotify, sekali isi seumur hidup); pemutaran via embed resmi (gratis dengan iklan).
+  - **Audius** — tetap tersedia: stream penuh gratis dari artisnya.
+- **Kontrol npb penuh untuk YouTube** — tombol play/pause/prev/next di now-playing bar mengendalikan pemutar YouTube lewat postMessage.
+- **Pemutar online universal** — satu panel untuk embed YouTube/Spotify, tombol Prev/Next, buka di sumber, dan judul di now-playing bar.
+
+### Diperbaiki
+- **Keterbacaan tombol ikon Musik** — tombol play/prev/next dulu nyaris tak terlihat (ikon terang di atas latar terang di dark mode); kini memakai kontras yang benar di kedua tema.
+- **Progress bar tidak bekerja** — dulu `style.width` diisi di elemen flex yang mengabaikannya dan klik-seek salah target (`parentElement` = seluruh panel). Sekarang rail/fill/knob terpisah, bisa diklik, di-drag, & dikontrol via keyboard (panah/Home/End), dengan `role="slider"` + `aria-valuenow`.
+- **Volume slider** — komponen yang sama (sebelumnya juga tidak akurat).
+- Volume & progress punya knob besar dengan hit-area luas, aria-label, dan aksesibilitas keyboard.
+
+### Catatan
+- YouTube search memakai halaman hasil YouTube (tanpa key); bisa berubah sewaktu-waktu bila markup YouTube berubah. Spotify memerlukan kredensial API gratis Anda (client credentials — tidak memerlukan Premium).
+- Gambar album Spotify di-proxy `/api/music/spotify/image` (hanya host CDN resmi Spotify) agar lolos CSP `img-src 'self'`.
+- Client Secret Spotify tidak pernah diekspor ke backup.
+
+## [1.7.0] — 2026-11-17
+
+### Ditambahkan
+- **Self-update dari dalam aplikasi** — Harita kini memeriksa pembaruan dari remote git secara otomatis (cache 30 menit); jika ada, banner kecil muncul di layar.
+- Tombol **Perbarui** memasang pembaruan tanpa perintah terminal: cadangan data dibuat otomatis (`data/backups/export-*-pre-update.json`), perubahan lokal disimpan (`git stash`), kode ditarik `--ff-only`, perubahan lokal diterapkan kembali, lalu server restart sendiri dan browser memuat ulang otomatis.
+- Jika update gagal atau perubahan lokal bertabrakan dengan upstream, semuanya dikembalikan ke kondisi semula (rollback otomatis) — data dan kode tidak hilang.
+- **Akun lokal** — splash pendaftaran (nama + kata sandi + konfirmasi) untuk pengguna baru; layar masuk untuk pengguna lama; hash PBKDF2, sesi 30 hari, ganti kata sandi, dan logout dari Pengaturan → Akun. Hash kata sandi & sesi tidak pernah diekspor ke backup.
+- **Aksen warna kustom** — color picker bebas selain 8 preset; diterapkan ke seluruh aplikasi (tombol, ring, highlight, status aktif) dan tersimpan permanen.
+- **Musik online (Audius)** — tab “Jelajah” di Musik: cari jutaan trek bebas dari mana pun tanpa file lokal; ditenagai proxy localhost (artwork & audio di-proxy agar lolos CSP & CORS), dengan cache artwork di `data/artwork/`.
+- **Tentang aplikasi** di Pengaturan — versi, lisensi, tautan Website/GitHub/Laporkan masalah, lokasi backup.
+- **Warna avatar** — 8 pilihan warna untuk inisial di bilah atas.
+- Tombol-tombol music player upstream kini benar-benar terhubung (sebelumnya `bindMusicActions()` tidak pernah dipanggil — semua kontrol musik mati).
+
+### Diperbaiki
+- Cuaca: timezone tidak lagi di-hardcode `Asia/Makassar` — kini otomatis per koordinat (`timezone=auto`), dan label UI menampilkan timezone yang benar.
+- Cuaca realtime: label di hero dashboard mencerminkan wilayah sebenarnya.
+- Symlink `/usr/bin/harita` dipaketan RPM/DEB upstream menunjuk ke path yang salah (`../opt/...` → `/usr/opt/...`) — di dokumentasikan; source install memakai path absolut.
+
+### Catatan
+- Self-update hanya tersedia untuk instalasi `git clone`. Untuk instalasi frozen/portabel, periksa [Releases](https://github.com/hayoloo642-cloud/harita-project/releases) dan unduh paket terbaru.
+- Build binary upstream dikompilasi dengan instruksi AVX sehingga crash `SIGILL` di CPU lama (mis. Celeron N4020) — jalankan dari source untuk CPU tersebut.
+
 ## [1.6.0] — 2026-11-17
 
 ### Ditambahkan (Tahap 4 — Retensi)

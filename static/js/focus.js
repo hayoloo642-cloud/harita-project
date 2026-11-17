@@ -129,7 +129,7 @@ async function completeTimer() {
   focusTimer.endAt = null;
   const wasFocus = focusTimer.mode === 'focus' || focusTimer.mode === 'custom';
   const minutes = Math.round(focusTimer.duration / 60);
-  beep(3);
+  chime();
   notify(wasFocus ? 'Sesi fokus selesai 🌿' : 'Istirahat selesai', wasFocus ? `${minutes} menit fokus tercatat. Waktunya istirahat sejenak.` : 'Siap kembali fokus?');
   if (wasFocus) {
     try {
@@ -159,6 +159,7 @@ function tickTimer() {
       if (rem !== lastTimerDomUpdate) {           // update DOM at most once per second
         lastTimerDomUpdate = rem;
         updateTimerUI();
+        if (state.settings.focus_tick === '1' && rem > 0 && typeof tickSound === 'function') tickSound();
       }
     }
   }
@@ -245,19 +246,55 @@ function openFocusMode() {
   o.classList.add('open');
   o.setAttribute('aria-hidden', 'false');
   syncFocusMode();
+  if (typeof window.__syncAmbient === 'function') window.__syncAmbient();
+  if (window.ambientEngine && state.settings.ambient_sound && state.settings.ambient_sound !== 'off') {
+    window.ambientEngine.play(state.settings.ambient_sound, (Number(state.settings.ambient_volume) || 35) / 100);
+  }
+  if (window.fmAmbient) window.fmAmbient.start('fmAmbientCanvas');
+  // gelembung kecil saat masuk
+  o.classList.remove('fm-enter');
+  void o.offsetWidth;
+  o.classList.add('fm-enter');
 }
 function closeFocusMode() {
   const o = $('#focusMode');
   if (!o) return;
   o.classList.remove('open');
   o.setAttribute('aria-hidden', 'true');
+  if (window.ambientEngine) window.ambientEngine.stop();
+  if (window.fmAmbient) window.fmAmbient.stop('fmAmbientCanvas');
 }
+const FM_RING = 2 * Math.PI * 96;
+const FM_MODE_SUB = { focus: 'Pomodoro', short: 'Istirahat', long: 'Istirahat panjang', custom: 'Deep work' };
+
 function syncFocusMode() {
   const time = $('#focusModeTime');
   if (!time) return;
+  const overlay = $('#focusMode');
+  if (overlay) overlay.classList.toggle('is-running', !!focusTimer.running);
   time.textContent = fmtSecs(focusTimer.remaining);
   const label = $('#focusModeLabel');
   if (label) label.textContent = MODE_LABEL[focusTimer.mode] || 'Fokus';
+  const mode = $('#focusModeMode');
+  if (mode) mode.textContent = FM_MODE_SUB[focusTimer.mode] || 'Fokus';
+  const ring = $('#focusModeRing');
+  if (ring) {
+    const pct = focusTimer.duration ? Math.min(1, Math.max(0, focusTimer.remaining / focusTimer.duration)) : 0;
+    ring.style.strokeDasharray = String(FM_RING);
+    ring.style.strokeDashoffset = String(FM_RING * (1 - pct));
+  }
+  const ctx = $('#focusModeContextLabel');
+  if (ctx) ctx.textContent = focusTimer.subject ? `📚 ${focusTimer.subject}` : 'Fokus bebas';
+  const taskChip = $('#focusModeTaskLabel');
+  if (taskChip) {
+    if (focusTimer.label) {
+      taskChip.textContent = `🎯 ${focusTimer.label}`;
+      taskChip.hidden = false;
+    } else {
+      taskChip.textContent = '';
+      taskChip.hidden = true;
+    }
+  }
   const toggle = $('#focusModeToggle');
   if (toggle) toggle.innerHTML = `<span class="ico">${iconSvg(focusTimer.running ? 'pause' : 'play')}</span>`;
 }
@@ -302,17 +339,68 @@ function bindFocusActions() {
     }
     renderFocusView();
   });
-  $('#focusCustomMinutes').addEventListener('change', (e) => {
-    const minutes = Math.max(1, Math.min(240, Number(e.target.value) || 45));
-    if (focusTimer.mode === 'custom') {
-      focusTimer.duration = minutes * 60;
-      focusTimer.remaining = minutes * 60;
+  const customH = $('#focusCustomHours');
+  const customM = $('#focusCustomMinutes');
+  const customS = $('#focusCustomSeconds');
+  function readCustomTime() {
+    const h = Math.max(0, Math.min(23, Number(customH && customH.value) || 0));
+    const m = Math.max(0, Math.min(59, Number(customM && customM.value) || 0));
+    const s = Math.max(0, Math.min(59, Number(customS && customS.value) || 0));
+    return (h * 3600) + (m * 60) + s;
+  }
+  function updateCustomSummary(total) {
+    const summary = $('#customTimeSummary');
+    if (!summary) return;
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    const parts = [];
+    if (h) parts.push(`${h} jam`);
+    if (m) parts.push(`${m} menit`);
+    if (s) parts.push(`${s} detik`);
+    summary.textContent = parts.length ? parts.join(' ') : '0 detik';
+  }
+
+  function applyCustomTime() {
+    const total = readCustomTime();
+    updateCustomSummary(total);
+    if (focusTimer.mode === 'custom' && total > 0) {
+      focusTimer.duration = total;
+      focusTimer.remaining = total;
       focusTimer.running = false;
       focusTimer.endAt = null;
       saveTimer();
-      $('#focusCustomTab').textContent = `Kustom · ${minutes}`;
+      const tab = $('#focusCustomTab');
+      if (tab) tab.textContent = `Kustom · ${fmtSecs(total)}`;
       updateTimerUI();
+      syncFocusMode();
     }
+  }
+
+  document.querySelectorAll('#focusCustomRow .ctg-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const h = Number(chip.dataset.h) || 0;
+      const m = Number(chip.dataset.m) || 0;
+      const s = Number(chip.dataset.s) || 0;
+      const hours = $('#focusCustomHours');
+      const minutes = $('#focusCustomMinutes');
+      const seconds = $('#focusCustomSeconds');
+      if (hours) hours.value = String(h);
+      if (minutes) minutes.value = String(m);
+      if (seconds) seconds.value = String(s);
+      applyCustomTime();
+    });
+  });
+
+  const h0 = $('#focusCustomHours'), m0 = $('#focusCustomMinutes'), s0 = $('#focusCustomSeconds');
+  if (h0 && m0 && s0) {
+    const total0 = (Number(h0.value) || 0) * 3600 + (Number(m0.value) || 0) * 60 + (Number(s0.value) || 0);
+    updateCustomSummary(total0);
+  }
+  [customH, customM, customS].forEach((el) => {
+    if (!el) return;
+    el.addEventListener('change', applyCustomTime);
+    el.addEventListener('input', applyCustomTime);
   });
   $('#focusTaskSelect').addEventListener('change', (e) => {
     focusTimer.label = e.target.value;
@@ -321,8 +409,115 @@ function bindFocusActions() {
   });
   const subj = $('#focusSubjectSelect');
   if (subj) subj.addEventListener('change', (e) => { focusTimer.subject = e.target.value; saveTimer(); });
+  // ambient sound engine
+  const ambientBar = $('#ambientBar');
+  const ambientToggle = $('#ambientToggle');
+  const ambientVolume = $('#ambientVolume');
+  const ambientVolumeValue = $('#ambientVolumeValue');
+  const ambientChipsWrap = $('#ambientChips');
+
+  function applyAmbientState() {
+    const current = (state.settings.ambient_sound || 'off');
+    if (ambientChipsWrap) {
+      ambientChipsWrap.querySelectorAll('.fm-amb-chip').forEach((chip) => {
+        if (chip.id === 'focusTickToggle') return;
+        chip.classList.toggle('active', chip.dataset.amb === current);
+      });
+    }
+    const tickBtn = document.getElementById('focusTickToggle');
+    const tickOn = state.settings.focus_tick === '1';
+    if (tickBtn) {
+      tickBtn.classList.toggle('active', tickOn);
+      tickBtn.setAttribute('aria-pressed', String(tickOn));
+    }
+    if (ambientToggle) {
+      const on = current !== 'off';
+      ambientToggle.setAttribute('aria-pressed', String(on));
+      ambientToggle.textContent = on ? 'Aktif' : 'Mati';
+      ambientToggle.classList.toggle('is-on', on);
+    }
+    if (ambientVolume && ambientVolumeValue) {
+      ambientVolume.value = String(Number(state.settings.ambient_volume ?? 35));
+      ambientVolumeValue.textContent = `${Number(state.settings.ambient_volume ?? 35)}%`;
+    }
+    if (window.ambientEngine) window.ambientEngine.setVolume((Number(state.settings.ambient_volume ?? 35)) / 100);
+
+    const overlay = document.getElementById('focusMode');
+    if (overlay) {
+      ['ambient-rain','ambient-fire','ambient-ocean','ambient-forest','ambient-cafe','ambient-brown','ambient-river','ambient-beach','ambient-wind','ambient-white','ambient-night','ambient-breath','ambient-thunder','ambient-waterfall','ambient-train','ambient-library','ambient-cave','ambient-windchime','ambient-lofi','ambient-deep_space','ambient-city_rain','ambient-jungle','ambient-tide','ambient-aurora','ambient-bubble'].forEach((c) => overlay.classList.remove(c));
+      if (current !== 'off') overlay.classList.add('ambient-' + current);
+    }
+    if (window.fmAmbient) window.fmAmbient.setAmbient(current, 'fmAmbientCanvas');
+  }
+
+  async function saveAmbientSettings(patch) {
+    Object.assign(state.settings, patch);
+    try {
+      await api('/api/settings', { method: 'POST', body: patch });
+    } catch (_) { /* keep local change anyway */ }
+  }
+
+  if (ambientChipsWrap) {
+    ambientChipsWrap.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.fm-amb-chip');
+      if (!btn) return;
+      const name = btn.dataset.amb;
+      await saveAmbientSettings({ ambient_sound: name, ambient_volume: state.settings.ambient_volume ?? 35 });
+      if (window.ambientEngine) {
+        if (name === 'off') window.ambientEngine.stop();
+        else window.ambientEngine.play(name, (Number(state.settings.ambient_volume) || 35) / 100);
+      }
+      applyAmbientState();
+    });
+  }
+  const tickToggle = $('#focusTickToggle');
+  if (tickToggle) {
+    tickToggle.addEventListener('click', async () => {
+      const current = state.settings.focus_tick || '0';
+      const next = current === '1' ? '0' : '1';
+      await saveAmbientSettings({ focus_tick: next });
+      applyAmbientState();
+    });
+  }
+  const collapseBtn = $('#ambientCollapse');
+  const ambientBody = $('#ambientBody');
+  const collapseIcon = $('#ambientCollapseIcon');
+  if (collapseBtn && ambientBody) {
+    collapseBtn.addEventListener('click', () => {
+      const collapsed = ambientBody.hidden;
+      ambientBody.hidden = !collapsed;
+      if (collapseIcon) collapseIcon.textContent = collapsed ? '▾' : '▸';
+    });
+  }
+
+  if (ambientVolume) {
+    ambientVolume.addEventListener('input', async (e) => {
+      const v = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+      if (ambientVolumeValue) ambientVolumeValue.textContent = `${v}%`;
+      await saveAmbientSettings({ ambient_volume: v });
+      if (window.ambientEngine) window.ambientEngine.setVolume(v / 100);
+    });
+  }
+  if (ambientToggle) {
+    ambientToggle.addEventListener('click', async () => {
+      const current = state.settings.ambient_sound || 'off';
+      const next = current === 'off' ? 'rain' : 'off';
+      await saveAmbientSettings({ ambient_sound: next });
+      if (window.ambientEngine) {
+        if (next === 'off') window.ambientEngine.stop();
+        else window.ambientEngine.play(next, (Number(state.settings.ambient_volume) || 35) / 100);
+      }
+      applyAmbientState();
+    });
+  }
+
   $('#focusModeOpen').addEventListener('click', openFocusMode);
   $('#focusModeExit').addEventListener('click', closeFocusMode);
   $('#focusModeToggle').addEventListener('click', () => { startPauseTimer(); syncFocusMode(); });
   $('#focusModeReset').addEventListener('click', () => { resetTimer(); syncFocusMode(); });
+  const skipBtn = $('#focusModeSkip');
+  if (skipBtn) skipBtn.addEventListener('click', () => { completeTimer(); });
+
+  // expose for syncFocusMode
+  window.__syncAmbient = applyAmbientState;
 }

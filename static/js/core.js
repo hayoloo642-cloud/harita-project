@@ -167,6 +167,7 @@ const state = {
   expenses: [],
   expenseMonth: '',
   expenseQuery: '',
+  expenseLimit: 100,
   expenseSummary: { total: 0, count: 0 },
   weeklyGoal: null,
   weeklyGoalLoaded: false,
@@ -222,15 +223,18 @@ async function api(path, options = {}) {
   const pinToken = storage.get('pin_token', '');
   if (pinToken) config.headers['X-Pin-Token'] = pinToken;
   let timer = null;
+  document.documentElement.classList.remove('is-offline');
   if (!config.signal && typeof AbortController !== 'undefined') {
     const controller = new AbortController();
     config.signal = controller.signal;
     timer = setTimeout(() => controller.abort(), 15000);
   }
   let res;
+  let offline = false;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       res = await fetch(path, config);
+      offline = false;
       break;
     } catch (err) {
       if (err && err.name === 'AbortError') {
@@ -239,6 +243,7 @@ async function api(path, options = {}) {
       }
       const canRetry = attempt === 0 && (!config.method || String(config.method).toUpperCase() === 'GET');
       if (!canRetry) {
+        document.documentElement.classList.add('is-offline');
         if (timer) clearTimeout(timer);
         throw new Error('Tidak dapat terhubung ke server Harita. Pastikan aplikasi masih berjalan.');
       }
@@ -338,6 +343,47 @@ function beep(times = 2) {
       osc.start(t); osc.stop(t + 0.26);
     }
     setTimeout(() => ctx.close(), 1400);
+  } catch { /* ignore */ }
+}
+
+function chime() {
+  if (state.settings.sound !== '1') return;
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const notes = [523.25, 659.25, 783.99]; // C5 E5 G5
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + i * 0.14);
+      gain.gain.exponentialRampToValueAtTime(0.16, ctx.currentTime + i * 0.14 + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i * 0.14 + 1.1);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + i * 0.14); osc.stop(ctx.currentTime + i * 0.14 + 1.15);
+    });
+    setTimeout(() => ctx.close(), 1800);
+  } catch { /* ignore */ }
+}
+
+function tickSound() {
+  if (state.settings.sound !== '1') return;
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = 1250;
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.07, ctx.currentTime + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.06);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.07);
+    setTimeout(() => ctx.close(), 250);
   } catch { /* ignore */ }
 }
 

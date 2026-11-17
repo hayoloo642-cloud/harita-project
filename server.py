@@ -6,25 +6,29 @@ dan proxy Open-Meteo untuk cuaca realtime.
 """
 from __future__ import annotations
 
-import json
-import math
-import os
-import re
-import sqlite3
 import hashlib
 import hmac
+import io
+import json
+import os
+import re
+import secrets
+import shutil
+import sqlite3
+import subprocess
 import sys
+import tempfile
 import threading
 import time
 import urllib.parse
 import urllib.request
-import subprocess
 import webbrowser
-from datetime import datetime, date, timedelta
+import zipfile
+from datetime import date, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from zoneinfo import ZoneInfo
 
-__version__ = "1.6.0"
+__version__ = "1.9.0"
 
 try:
     import psutil
@@ -136,6 +140,16 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS accounts (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    name TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sessions (
+    token_hash TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -321,6 +335,13 @@ DEFAULT_SETTINGS = {
     "lock_enabled": "0",
     "lock_pin_hash": "",
     "accent": "terracotta",
+    "accent_custom": "#fc8f8f",
+    "avatar_color": "",
+    "spotify_client_id": "",
+    "spotify_client_secret": "",
+    "ambient_sound": "off",
+    "ambient_volume": "35",
+    "focus_tick": "0",
     "font_size": "normal",
     "contrast": "normal",
     "sidebar": "expanded",
@@ -613,7 +634,7 @@ weather_memory: dict[str, dict] = {}
 def load_weather_disk() -> None:
     global weather_memory
     try:
-        with open(WEATHER_CACHE_PATH, "r", encoding="utf-8") as f:
+        with open(WEATHER_CACHE_PATH, encoding="utf-8") as f:
             weather_memory = json.load(f)
     except Exception:
         weather_memory = {}
@@ -634,7 +655,7 @@ def fetch_weather(key: str) -> dict:
     params = {
         "latitude": loc["lat"],
         "longitude": loc["lon"],
-        "timezone": "Asia/Makassar",
+        "timezone": "auto",
         "forecast_days": "7",
         "current": "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,"
         "precipitation,weather_code,cloud_cover,pressure_msl,wind_speed_10m,"
@@ -681,6 +702,968 @@ def get_weather(key: str, force: bool = False) -> dict:
                     "data": cached,
                 }
             return {"ok": False, "error": str(exc)}
+
+
+
+# ----------------------------------------------------------------------------
+# Accounts & sessions (local-only login, single account per install)
+# ----------------------------------------------------------------------------
+
+AUTH_COOKIE = "Harita_session"
+SESSION_DAYS = 30
+PBKDF2_ITERATIONS = 210_000
+
+
+def _account_exists(conn) -> bool:
+    return conn.execute("SELECT 1 FROM accounts WHERE id = 1").fetchone() is not None
+
+
+def _make_password_hash(password: str) -> str:
+    salt = secrets.token_bytes(16).hex()
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), bytes.fromhex(salt), PBKDF2_ITERATIONS)
+    return f"pbkdf2${PBKDF2_ITERATIONS}${salt}${digest.hex()}"
+
+
+def _verify_password(password: str, stored: str) -> bool:
+    try:
+        scheme, iters, salt, expected = stored.split("$", 3)
+        if scheme != "pbkdf2":
+            return False
+        digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), bytes.fromhex(salt), int(iters))
+        return hmac.compare_digest(digest.hex(), expected)
+    except Exception:
+        return False
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _get_session_token(handler: BaseHTTPRequestHandler) -> str:
+    cookie = handler.headers.get("Cookie") or ""
+    for part in cookie.split(";"):
+        name, sep, value = part.strip().partition("=")
+        if sep and name.strip() == AUTH_COOKIE:
+            return value.strip()
+    return ""
+
+
+def _create_session(conn) -> str:
+    token = secrets.token_urlsafe(32)
+    conn.execute(
+        "INSERT INTO sessions(token_hash, created_at) VALUES(?, ?)",
+        (_hash_token(token), now_local()),
+    )
+    conn.commit()
+    return token
+
+
+def _session_cookie(token: str) -> str:
+    max_age = SESSION_DAYS * 86400
+    return f"{AUTH_COOKIE}={token}; Path=/; Max-Age={max_age}; HttpOnly; SameSite=Strict"
+
+
+def _clear_session_cookie() -> str:
+    return f"{AUTH_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict"
+
+
+def _session_valid(handler: BaseHTTPRequestHandler) -> bool:
+    token = _get_session_token(handler)
+    if not token:
+        return False
+    conn = db_connect()
+    try:
+        row = conn.execute(
+            "SELECT created_at FROM sessions WHERE token_hash = ?", (_hash_token(token),)
+        ).fetchone()
+        if not row:
+            return False
+        try:
+            created = datetime.fromisoformat(row["created_at"])
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=TZ)
+            if (datetime.now(TZ) - created).days >= SESSION_DAYS:
+                conn.execute("DELETE FROM sessions WHERE token_hash = ?", (_hash_token(token),))
+                conn.commit()
+                return False
+        except Exception:
+            return False
+        return True
+    except Exception:
+        return False
+    finally:
+        conn.close()
+
+
+def _purge_sessions() -> None:
+    conn = None
+    try:
+        conn = db_connect()
+        conn.execute(
+            "DELETE FROM sessions WHERE datetime(created_at) < datetime('now', ?)",
+            (f"-{SESSION_DAYS} days",),
+        )
+        conn.commit()
+    except Exception:
+        pass
+    finally:
+        if conn:
+            conn.close()
+
+
+def api_auth_status(handler: BaseHTTPRequestHandler) -> None:
+    conn = db_connect()
+    try:
+        row = conn.execute("SELECT name, created_at FROM accounts WHERE id = 1").fetchone()
+    finally:
+        conn.close()
+    registered = row is not None
+    authenticated = bool(row) and _session_valid(handler)
+    send_json(
+        handler,
+        200,
+        {
+            "registered": registered,
+            "authenticated": authenticated,
+            "name": row["name"] if authenticated else None,
+            "created_at": row["created_at"] if row else None,
+        },
+    )
+
+
+def api_auth_register(handler: BaseHTTPRequestHandler) -> None:
+    body = parse_json_body(handler)
+    name = clip(body.get("name"), 40)
+    password = str(body.get("password") or "")
+    confirm = str(body.get("confirm") or body.get("password_confirm") or "")
+    if not name:
+        raise ValueError("Nama wajib diisi")
+    if len(password) < 6:
+        raise ValueError("Kata sandi minimal 6 karakter")
+    if password != confirm:
+        raise ValueError("Konfirmasi kata sandi tidak cocok")
+    conn = db_connect()
+    try:
+        if _account_exists(conn):
+            send_json(handler, 409, {"error": "Akun sudah terdaftar. Silakan masuk."})
+            return
+        conn.execute(
+            "INSERT INTO accounts(id, name, password_hash, created_at) VALUES(1, ?, ?, ?)",
+            (name, _make_password_hash(password), now_local()),
+        )
+        set_setting(conn, "name", name)
+        conn.commit()
+        token = _create_session(conn)
+    finally:
+        conn.close()
+    send_json(handler, 200, {"ok": True, "name": name}, {"Set-Cookie": _session_cookie(token)})
+
+
+def api_auth_login(handler: BaseHTTPRequestHandler) -> None:
+    body = parse_json_body(handler)
+    name = clip(body.get("name"), 40)
+    password = str(body.get("password") or "")
+    if not name or not password:
+        raise ValueError("Nama dan kata sandi wajib diisi")
+    conn = db_connect()
+    try:
+        row = conn.execute("SELECT name, password_hash FROM accounts WHERE id = 1").fetchone()
+        ok = bool(row) and hmac.compare_digest(row["name"].lower(), name.lower()) and _verify_password(password, row["password_hash"])
+        if not ok:
+            time.sleep(0.6)  # blunt brute-force
+            send_json(handler, 401, {"error": "Nama atau kata sandi salah"})
+            return
+        token = _create_session(conn)
+        send_json(handler, 200, {"ok": True, "name": row["name"]}, {"Set-Cookie": _session_cookie(token)})
+    finally:
+        conn.close()
+
+
+def api_auth_logout(handler: BaseHTTPRequestHandler) -> None:
+    token = _get_session_token(handler)
+    if token:
+        conn = db_connect()
+        try:
+            conn.execute("DELETE FROM sessions WHERE token_hash = ?", (_hash_token(token),))
+            conn.commit()
+        finally:
+            conn.close()
+    send_json(handler, 200, {"ok": True}, {"Set-Cookie": _clear_session_cookie()})
+
+
+def api_auth_password(handler: BaseHTTPRequestHandler) -> None:
+    if not _session_valid(handler):
+        send_json(handler, 401, {"error": "Sesi berakhir. Silakan masuk lagi."})
+        return
+    body = parse_json_body(handler)
+    current = str(body.get("current") or "")
+    nxt = str(body.get("next") or "")
+    confirm = str(body.get("confirm") or "")
+    if len(nxt) < 6:
+        raise ValueError("Kata sandi baru minimal 6 karakter")
+    if nxt != confirm:
+        raise ValueError("Konfirmasi kata sandi baru tidak cocok")
+    conn = db_connect()
+    try:
+        row = conn.execute("SELECT password_hash FROM accounts WHERE id = 1").fetchone()
+        if not row or not _verify_password(current, row["password_hash"]):
+            send_json(handler, 401, {"error": "Kata sandi lama salah"})
+            return
+        conn.execute("UPDATE accounts SET password_hash = ? WHERE id = 1", (_make_password_hash(nxt),))
+        conn.commit()
+    finally:
+        conn.close()
+    send_json(handler, 200, {"ok": True})
+
+
+def api_auth_profile(handler: BaseHTTPRequestHandler) -> None:
+    if not _session_valid(handler):
+        send_json(handler, 401, {"error": "Sesi berakhir. Silakan masuk lagi."})
+        return
+    body = parse_json_body(handler)
+    name = clip(body.get("name"), 40)
+    if not name:
+        raise ValueError("Nama wajib diisi")
+    conn = db_connect()
+    try:
+        conn.execute("UPDATE accounts SET name = ? WHERE id = 1", (name,))
+        set_setting(conn, "name", name)
+        conn.commit()
+    finally:
+        conn.close()
+    send_json(handler, 200, {"ok": True, "name": name})
+
+
+# ----------------------------------------------------------------------------
+# Music online (Audius — katalog bebas, streaming legal, tanpa API key)
+# ----------------------------------------------------------------------------
+
+AUDIUS_BASE = "https://discoveryprovider.audius.co"
+AUDIUS_APP = "harita"
+music_online_cache: dict[str, tuple[float, list]] = {}
+
+
+ARTWORK_CACHE_DIR = os.path.join(DATA_DIR, "artwork")
+
+
+def _sniff_image_type(data: bytes) -> tuple[str, str]:
+    if data[:3] == b"\xff\xd8\xff":
+        return "image/jpeg", ".jpg"
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png", ".png"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp", ".webp"
+    return "image/jpeg", ".jpg"
+
+
+def _serve_bytes(handler: BaseHTTPRequestHandler, status: int, body: bytes, content_type: str, headers: dict | None = None) -> None:
+    handler.send_response(status)
+    handler.send_header("Content-Type", content_type)
+    handler.send_header("Content-Length", str(len(body)))
+    for key, value in (headers or {}).items():
+        handler.send_header(key, value)
+    _send_common_headers(handler)
+    handler.end_headers()
+    handler.wfile.write(body)
+
+
+def api_music_online_artwork(handler: BaseHTTPRequestHandler, track_id: str) -> None:
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,32}", track_id or ""):
+        send_json(handler, 400, {"error": "ID trek tidak valid"})
+        return
+    try:
+        os.makedirs(ARTWORK_CACHE_DIR, exist_ok=True)
+    except Exception:
+        pass
+    # disk cache hit?
+    for ext in (".jpg", ".png", ".webp"):
+        cached = os.path.join(ARTWORK_CACHE_DIR, f"{track_id}{ext}")
+        if os.path.exists(cached) and os.path.getsize(cached) > 0:
+            mime = {".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}[ext]
+            with open(cached, "rb") as fh:
+                body = fh.read()
+            _serve_bytes(handler, 200, body, mime, {"Cache-Control": "public, max-age=86400"})
+            return
+    try:
+        track_url = f"{AUDIUS_BASE}/v1/tracks/{track_id}?app_name={AUDIUS_APP}"
+        req = urllib.request.Request(track_url, headers={"User-Agent": "Harita/1.6 (local)"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        art_url = ((payload.get("data") or {}).get("artwork") or {}).get("480x480") \
+            or ((payload.get("data") or {}).get("artwork") or {}).get("150x150")
+        if not art_url:
+            _serve_bytes(handler, 404, b"", "image/jpeg")
+            return
+        img_req = urllib.request.Request(art_url, headers={"User-Agent": "Harita/1.6 (local)"})
+        with urllib.request.urlopen(img_req, timeout=15) as resp:
+            data = resp.read(3_000_000)
+        mime, ext = _sniff_image_type(data)
+        try:
+            with open(os.path.join(ARTWORK_CACHE_DIR, f"{track_id}{ext}"), "wb") as fh:
+                fh.write(data)
+        except Exception:
+            pass
+        _serve_bytes(handler, 200, data, mime, {"Cache-Control": "public, max-age=86400"})
+    except Exception:
+        _serve_bytes(handler, 404, b"", "image/jpeg")
+
+
+def api_music_online_search(handler: BaseHTTPRequestHandler, query: dict) -> None:
+    q = (query.get("q") or "").strip()
+    if not q:
+        send_json(handler, 200, {"tracks": []})
+        return
+    key = q.lower()
+    hit = music_online_cache.get(key)
+    if hit and (time.time() - hit[0]) < 300:
+        send_json(handler, 200, {"tracks": hit[1]})
+        return
+    try:
+        url = f"{AUDIUS_BASE}/v1/tracks/search?query={urllib.parse.quote(q)}&app_name={AUDIUS_APP}"
+        req = urllib.request.Request(url, headers={"User-Agent": "Harita/1.6 (local)"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        tracks = []
+        for t in (payload.get("data") or []):
+            if t.get("is_streamable") is False or t.get("is_stream_gated"):
+                continue
+            art = t.get("artwork") or {}
+            owner = t.get("user") or {}
+            tracks.append(
+                {
+                    "id": t.get("id"),
+                    "title": t.get("title") or "Tanpa judul",
+                    "artist": owner.get("name") or "Artis tidak dikenal",
+                    "genre": t.get("genre") or "",
+                    "duration": int(t.get("duration") or 0),
+                    "plays": int(t.get("play_count") or 0),
+                    "artwork": (f"/api/music/online/artwork/{t.get('id')}" if (art.get("480x480") or art.get("150x150")) else ""),
+                    "stream_url": f"/api/music/online/stream/{t.get('id')}",
+                }
+            )
+            if len(tracks) >= 24:
+                break
+        if len(music_online_cache) > 64:
+            music_online_cache.clear()
+        music_online_cache[key] = (time.time(), tracks)
+        send_json(handler, 200, {"tracks": tracks})
+    except Exception as exc:
+        send_json(handler, 200, {"tracks": [], "error": f"Gagal memuat musik online: {exc}"})
+
+
+def api_music_online_stream(handler: BaseHTTPRequestHandler, track_id: str) -> None:
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,32}", track_id or ""):
+        send_json(handler, 400, {"error": "ID trek tidak valid"})
+        return
+    target = f"{AUDIUS_BASE}/v1/tracks/{track_id}/stream?app_name={AUDIUS_APP}"
+    headers = {"User-Agent": "Harita/1.6 (local)"}
+    client_range = handler.headers.get("Range")
+    if client_range:
+        headers["Range"] = client_range
+    try:
+        req = urllib.request.Request(target, headers=headers)
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            status = getattr(resp, "status", 200) or 200
+            content_type = resp.headers.get("Content-Type") or "audio/mpeg"
+            body = resp.read()
+            out_headers = {"Accept-Ranges": "bytes", "Cache-Control": "private, max-age=3600"}
+            if resp.headers.get("Content-Range"):
+                out_headers["Content-Range"] = resp.headers["Content-Range"]
+            _serve_bytes(handler, status, body, content_type, out_headers)
+    except Exception as exc:
+        send_json(handler, 502, {"error": f"Gagal memuat trek audio: {exc}"})
+
+
+
+# ----------------------------------------------------------------------------
+# Self-update — cek & pasang pembaruan langsung dari dalam aplikasi
+# (hanya untuk instalasi yang merupakan `git clone`; aman untuk folder data —
+#  data/ di-ignore oleh git, jadi tidak pernah tersentuh oleh pull/stash)
+# ----------------------------------------------------------------------------
+
+UPDATE_CACHE: dict = {"result": None, "checked_at": 0.0}
+UPDATE_CACHE_TTL = 1800  # 30 menit
+
+
+def _git(args: list[str], timeout: int = 60) -> tuple[int, str, str]:
+    try:
+        proc = subprocess.run(
+            ["git", *args], cwd=BASE_DIR,
+            capture_output=True, text=True, timeout=timeout,
+        )
+        return proc.returncode, (proc.stdout or "").strip(), (proc.stderr or "").strip()
+    except FileNotFoundError:
+        return 127, "", "git tidak terpasang"
+    except subprocess.TimeoutExpired:
+        return 124, "", "perintah git melebihi batas waktu"
+    except Exception as exc:
+        return 1, "", str(exc)
+
+
+def _git_is_work_tree() -> bool:
+    rc, out, _ = _git(["rev-parse", "--is-inside-work-tree"])
+    return rc == 0 and out == "true"
+
+
+def _git_remote_branch(branch: str | None) -> str:
+    """Branch di remote yang diikuti; detached HEAD (mis. checkout tag) → master."""
+    if branch and branch != "HEAD":
+        return branch
+    return "master"
+
+
+def _git_fetch(branch: str) -> tuple[int, str, str]:
+    """Fetch dengan refspec eksplisit agar refs/remotes/origin/<branch> selalu ada."""
+    refspec = f"+refs/heads/{branch}:refs/remotes/origin/{branch}"
+    return _git(["fetch", "origin", refspec], timeout=60)
+
+
+def _update_status(force: bool = False) -> dict:
+    now = time.time()
+    if not force and UPDATE_CACHE["result"] is not None and (now - UPDATE_CACHE["checked_at"]) < UPDATE_CACHE_TTL:
+        return UPDATE_CACHE["result"]
+    result: dict = {
+        "supported": False,
+        "reason": None,
+        "current_version": __version__,
+        "current_sha": None,
+        "remote_sha": None,
+        "branch": None,
+        "behind": 0,
+        "available": False,
+        "error": None,
+        "checked_at": now_local(),
+    }
+    if not _git_is_work_tree():
+        result["reason"] = "Instalasi ini bukan git clone — perbarui manual lewat halaman Releases."
+        try:
+            req = urllib.request.Request(
+                "https://api.github.com/repos/hayoloo642-cloud/harita-project/releases/latest",
+                headers={"User-Agent": "Harita/1.8.0 (local)", "Accept": "application/vnd.github+json"},
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                payload = json.loads(resp.read().decode("utf-8"))
+            tag = (payload.get("tag_name") or "").lstrip("v")
+            latest = tuple(int(x) if x.isdigit() else 0 for x in tag.split(".")[:3])
+            current = tuple(int(x) if x.isdigit() else 0 for x in __version__.split(".")[:3])
+            result["latest_version"] = tag
+            result["latest_url"] = payload.get("html_url") or "https://github.com/hayoloo642-cloud/harita-project/releases/latest"
+            result["available"] = bool(latest and latest > current and tag)
+            result["supported"] = False
+            result["current_version"] = __version__
+        except Exception as exc:
+            result["error"] = f"Tidak bisa mengecek rilis: {exc}"
+        UPDATE_CACHE.update({"result": result, "checked_at": now})
+        return result
+    result["supported"] = True
+    _, branch, _ = _git(["rev-parse", "--abbrev-ref", "HEAD"])
+    remote_branch = _git_remote_branch(branch)
+    _, sha, _ = _git(["rev-parse", "--short", "HEAD"])
+    result["branch"] = branch
+    result["current_sha"] = sha
+    rc, _, fetch_err = _git_fetch(remote_branch)
+    if rc != 0:
+        result["error"] = f"git fetch gagal: {fetch_err or 'tidak ada koneksi ke GitHub'}"
+    _, remote_sha, _ = _git(["rev-parse", "--short", f"origin/{remote_branch}"])
+    _, behind_s, _ = _git(["rev-list", "--count", f"HEAD..origin/{remote_branch}"])
+    try:
+        behind = int(behind_s or "0")
+    except ValueError:
+        behind = 0
+    result["remote_sha"] = remote_sha
+    result["behind"] = behind
+    result["available"] = behind > 0
+    UPDATE_CACHE.update({"result": result, "checked_at": now})
+    return result
+
+
+def api_update_status(handler: BaseHTTPRequestHandler, query: dict) -> None:
+    if not _session_valid(handler):
+        send_json(handler, 401, {"error": "Sesi berakhir. Silakan masuk lagi."})
+        return
+    send_json(handler, 200, _update_status(force=query.get("refresh") == "1"))
+
+
+def api_update_apply(handler: BaseHTTPRequestHandler) -> None:
+    if not _session_valid(handler):
+        send_json(handler, 401, {"error": "Sesi berakhir. Silakan masuk lagi."})
+        return
+    # 1) cadangan data dulu — sebelum menyentuh kode
+    try:
+        snapshot = _snapshot_backup("pre-update")
+    except Exception:
+        snapshot = None
+    if not _git_is_work_tree():
+        send_json(handler, 400, {
+            "ok": False,
+            "error": "Instalasi ini bukan git clone — unduh paket terbaru dari halaman Releases.",
+        })
+        return
+    _, pre_sha, _ = _git(["rev-parse", "HEAD"])
+    _, branch, _ = _git(["rev-parse", "--abbrev-ref", "HEAD"])
+    remote_branch = _git_remote_branch(branch)
+    # 2) simpan perubahan lokal (tracked saja) — file untracked dibiarkan di tempat,
+    #    tidak pernah tersentuh oleh stash/pop/reset; git sendiri menolak pull
+    #    (ff-only gagal) bila upstream menghadirkan file di path yang sama.
+    rc, out, _ = _git(["stash", "push", "-m", "harita-auto-update"])
+    stashed = rc == 0 and "No local changes" not in out
+    # 3) tarik versi terbaru (fast-forward saja, tidak pernah mengubah riwayat)
+    rc, _, pull_err = _git(["pull", "--ff-only", "origin", remote_branch], timeout=180)
+    if rc != 0:
+        if stashed:
+            _git(["stash", "pop"])
+        UPDATE_CACHE["result"] = None
+        send_json(handler, 500, {
+            "ok": False,
+            "error": f"git pull gagal: {pull_err or 'kesalahan tidak dikenal'}. Perubahan lokal dikembalikan.",
+        })
+        return
+    # 4) kembalikan perubahan lokal di atas kode baru
+    if stashed:
+        rc, _, pop_err = _git(["stash", "pop"])
+        if rc != 0:
+            # rollback total — kode & data kembali persis seperti sebelum update.
+            # Untracked tidak pernah disentuh; tracked dikembalikan dari stash.
+            _git(["reset", "--hard", pre_sha])
+            _git(["stash", "pop"])
+            UPDATE_CACHE["result"] = None
+            send_json(handler, 409, {
+                "ok": False,
+                "error": "Pembaruan dibatalkan karena perubahan lokal bertabrakan dengan upstream. Kode dan data Anda dikembalikan ke kondisi semula — perubahan lokal tersimpan juga sebagai cadangan di git stash 'harita-auto-update'.",
+                "detail": pop_err,
+            })
+            return
+    UPDATE_CACHE["result"] = None
+    _, new_sha, _ = _git(["rev-parse", "--short", "HEAD"])
+    send_json(handler, 200, {"ok": True, "from": pre_sha, "to": new_sha, "backup": snapshot})
+
+    # 5) restart server agar kode baru aktif (proses digantikan, port dipakai lagi)
+    def _restart() -> None:
+        time.sleep(1.2)
+        try:
+            os.execv(sys.executable, [sys.executable, *sys.argv])
+        except Exception:
+            os._exit(0)
+
+    threading.Thread(target=_restart, daemon=True).start()
+
+
+
+# ----------------------------------------------------------------------------
+# Music online — YouTube (hasil pencarian via halaman YouTube, diputar lewat
+# pemutar resmi tertanam) & Spotify (API resmi, butuh kredensial gratis)
+# ----------------------------------------------------------------------------
+
+YOUTUBE_SEARCH_CACHE: dict[str, tuple[float, list]] = {}
+YOUTUBE_THUMB_CACHE_DIR = os.path.join(DATA_DIR, "artwork", "yt")
+
+try:
+    _YT_JSON_DECODER = json.JSONDecoder()
+except Exception:  # pragma: no cover
+    _YT_JSON_DECODER = None
+
+
+def _parse_youtube_results(html: str) -> list[dict]:
+    """Ambil ytInitialData dari HTML YouTube dan kumpulkan semua videoRenderer."""
+    m = re.search(r"ytInitialData\s*=\s*(\{)", html)
+    if not m or _YT_JSON_DECODER is None:
+        return []
+    try:
+        data, _ = _YT_JSON_DECODER.raw_decode(html, m.start(1))
+    except ValueError:
+        return []
+
+    videos: list[dict] = []
+
+    def walk(node) -> None:
+        if isinstance(node, dict):
+            vr = node.get("videoRenderer")
+            if isinstance(vr, dict):
+                videos.append(vr)
+                return
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(data)
+    return videos
+
+
+def _yt_text(node) -> str:
+    if not isinstance(node, dict):
+        return ""
+    simple = node.get("simpleText")
+    if isinstance(simple, str):
+        return simple
+    return "".join(r.get("text", "") for r in node.get("runs", []))
+
+
+def _parse_duration(text: str) -> int:
+    try:
+        parts = [int(p) for p in text.split(":")]
+        seconds = 0
+        for p in parts:
+            seconds = seconds * 60 + p
+        return seconds
+    except ValueError:
+        return 0
+
+
+def api_music_youtube_search(handler: BaseHTTPRequestHandler, query: dict) -> None:
+    q = (query.get("q") or "").strip()
+    if not q:
+        send_json(handler, 200, {"tracks": []})
+        return
+    key = q.lower()
+    hit = YOUTUBE_SEARCH_CACHE.get(key)
+    if hit and (time.time() - hit[0]) < 300:
+        send_json(handler, 200, {"tracks": hit[1]})
+        return
+    try:
+        params = {"search_query": q, "hl": "en", "gl": "id"}
+        url = "https://www.youtube.com/results?" + urllib.parse.urlencode(params)
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+                "Accept-Language": "en-US,en;q=0.9,id;q=0.8",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            html = resp.read().decode("utf-8", "ignore")
+        tracks = []
+        seen = set()
+        for vr in _parse_youtube_results(html):
+            vid = vr.get("videoId") or ""
+            if not vid or vid in seen or not re.fullmatch(r"[A-Za-z0-9_-]{11}", vid):
+                continue
+            seen.add(vid)
+            title = _yt_text(vr.get("title")) or "Tanpa judul"
+            channel = _yt_text(vr.get("ownerText")) or _yt_text(vr.get("shortBylineText")) or "Kanal tidak dikenal"
+            duration_text = _yt_text(vr.get("lengthText"))
+            views_text = _yt_text(vr.get("viewCountText")) or ""
+            tracks.append(
+                {
+                    "id": vid,
+                    "title": title,
+                    "artist": channel,
+                    "duration": _parse_duration(duration_text),
+                    "duration_text": duration_text,
+                    "views": views_text,
+                    "artwork": f"/api/music/youtube/thumb/{vid}",
+                    "watch_url": f"https://www.youtube.com/watch?v={vid}",
+                    "embed_url": f"https://www.youtube-nocookie.com/embed/{vid}",
+                }
+            )
+            if len(tracks) >= 20:
+                break
+        if len(YOUTUBE_SEARCH_CACHE) > 64:
+            YOUTUBE_SEARCH_CACHE.clear()
+        YOUTUBE_SEARCH_CACHE[key] = (time.time(), tracks)
+        send_json(handler, 200, {"tracks": tracks})
+    except Exception as exc:
+        send_json(handler, 200, {"tracks": [], "error": f"Gagal memuat YouTube: {exc}"})
+
+
+def api_music_youtube_thumb(handler: BaseHTTPRequestHandler, vid: str) -> None:
+    if not re.fullmatch(r"[A-Za-z0-9_-]{11}", vid or ""):
+        send_json(handler, 400, {"error": "ID video tidak valid"})
+        return
+    try:
+        os.makedirs(YOUTUBE_THUMB_CACHE_DIR, exist_ok=True)
+    except Exception:
+        pass
+    for ext, mime in ((".jpg", "image/jpeg"), (".png", "image/png"), (".webp", "image/webp")):
+        cached = os.path.join(YOUTUBE_THUMB_CACHE_DIR, f"{vid}{ext}")
+        if os.path.exists(cached) and os.path.getsize(cached) > 0:
+            with open(cached, "rb") as fh:
+                body = fh.read()
+            _serve_bytes(handler, 200, body, mime, {"Cache-Control": "public, max-age=86400"})
+            return
+    try:
+        url = f"https://i.ytimg.com/vi/{vid}/mqdefault.jpg"
+        req = urllib.request.Request(url, headers={"User-Agent": "Harita/1.7 (local)"})
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            data = resp.read(3_000_000)
+        mime, ext = _sniff_image_type(data)
+        try:
+            with open(os.path.join(YOUTUBE_THUMB_CACHE_DIR, f"{vid}{ext}"), "wb") as fh:
+                fh.write(data)
+        except Exception:
+            pass
+        _serve_bytes(handler, 200, data, mime, {"Cache-Control": "public, max-age=86400"})
+    except Exception:
+        _serve_bytes(handler, 404, b"", "image/jpeg")
+
+
+SPOTIFY_TOKEN_CACHE: dict = {"token": None, "expires_at": 0.0, "key": None}
+
+
+def _spotify_token(cid: str, secret: str):
+    now = time.time()
+    key = cid + ":" + secret
+    if SPOTIFY_TOKEN_CACHE["token"] and SPOTIFY_TOKEN_CACHE["key"] == key and now < SPOTIFY_TOKEN_CACHE["expires_at"] - 60:
+        return SPOTIFY_TOKEN_CACHE["token"]
+    import base64
+    creds = base64.b64encode(f"{cid}:{secret}".encode()).decode("ascii")
+    body = urllib.parse.urlencode({"grant_type": "client_credentials"}).encode("utf-8")
+    req = urllib.request.Request(
+        "https://accounts.spotify.com/api/token",
+        data=body,
+        headers={"Authorization": f"Basic {creds}", "Content-Type": "application/x-www-form-urlencoded"},
+    )
+    with urllib.request.urlopen(req, timeout=12) as resp:
+        payload = json.loads(resp.read().decode("utf-8"))
+    token = payload.get("access_token")
+    expires = now + int(payload.get("expires_in", 3600) or 3600)
+    SPOTIFY_TOKEN_CACHE.update({"token": token, "expires_at": expires, "key": key})
+    return token
+
+
+SPOTIFY_IMAGE_CACHE_DIR = os.path.join(DATA_DIR, "artwork", "sp")
+_SPOTIFY_CDN_HOSTS = {"i.scdn.co", "mosaic.scdn.co", "seeded-session-images.scdn.co"}
+
+
+def api_music_spotify_image(handler: BaseHTTPRequestHandler, query: dict) -> None:
+    """Proxy gambar album Spotify (CSP img-src 'self') — hanya host CDN resmi."""
+    target = (query.get("u") or "").strip()
+    try:
+        parsed = urllib.parse.urlparse(target)
+        if parsed.scheme != "https" or (parsed.hostname or "").lower() not in _SPOTIFY_CDN_HOSTS:
+            send_json(handler, 400, {"error": "Host gambar tidak diizinkan"})
+            return
+    except Exception:
+        send_json(handler, 400, {"error": "URL tidak valid"})
+        return
+    import hashlib
+    cache_name = hashlib.sha256(target.encode("utf-8")).hexdigest()[:24] + ".img"
+    try:
+        os.makedirs(SPOTIFY_IMAGE_CACHE_DIR, exist_ok=True)
+    except Exception:
+        pass
+    for ext in (".jpg", ".png", ".webp"):
+        cached = os.path.join(SPOTIFY_IMAGE_CACHE_DIR, cache_name.rsplit(".", 1)[0] + ext)
+        if os.path.exists(cached) and os.path.getsize(cached) > 0:
+            mime = {".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}[ext]
+            with open(cached, "rb") as fh:
+                body = fh.read()
+            _serve_bytes(handler, 200, body, mime, {"Cache-Control": "public, max-age=86400"})
+            return
+    try:
+        req = urllib.request.Request(target, headers={"User-Agent": "Harita/1.8 (local)"})
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            data = resp.read(3_000_000)
+        mime, ext = _sniff_image_type(data)
+        try:
+            with open(os.path.join(SPOTIFY_IMAGE_CACHE_DIR, cache_name.rsplit(".", 1)[0] + ext), "wb") as fh:
+                fh.write(data)
+        except Exception:
+            pass
+        _serve_bytes(handler, 200, data, mime, {"Cache-Control": "public, max-age=86400"})
+    except Exception:
+        _serve_bytes(handler, 404, b"", "image/jpeg")
+
+
+def api_music_spotify_status(handler: BaseHTTPRequestHandler) -> None:
+    conn = db_connect()
+    try:
+        settings = get_settings(conn)
+    finally:
+        conn.close()
+    configured = bool((settings.get("spotify_client_id") or "").strip() and (settings.get("spotify_client_secret") or "").strip())
+    send_json(handler, 200, {"configured": configured})
+
+
+def api_music_spotify_search(handler: BaseHTTPRequestHandler, query: dict) -> None:
+    q = (query.get("q") or "").strip()
+    if not q:
+        send_json(handler, 200, {"tracks": []})
+        return
+    conn = db_connect()
+    try:
+        settings = get_settings(conn)
+    finally:
+        conn.close()
+    cid = (settings.get("spotify_client_id") or "").strip()
+    secret = (settings.get("spotify_client_secret") or "").strip()
+    if not cid or not secret:
+        send_json(handler, 200, {"tracks": [], "needs_setup": True})
+        return
+    try:
+        token = _spotify_token(cid, secret)
+        if not token:
+            send_json(handler, 200, {"tracks": [], "error": "Gagal autentikasi Spotify — periksa Client ID/Secret."})
+            return
+        url = "https://api.spotify.com/v1/search?" + urllib.parse.urlencode(
+            {"q": q, "type": "track", "limit": 20, "market": "ID"}
+        )
+        req = urllib.request.Request(
+            url, headers={"Authorization": f"Bearer {token}", "User-Agent": "Harita/1.7 (local)"}
+        )
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        tracks = []
+        for t in (payload.get("tracks") or {}).get("items") or []:
+            images = (t.get("album") or {}).get("images") or []
+            raw_art = (images[-1] or {}).get("url") if images else ""
+            artwork = f"/api/music/spotify/image?u={urllib.parse.quote(raw_art, safe='')}" if raw_art else ""
+            artists = ", ".join(a.get("name", "") for a in t.get("artists", []))
+            tracks.append(
+                {
+                    "id": t.get("id"),
+                    "title": t.get("name") or "Tanpa judul",
+                    "artist": artists or "Artis tidak dikenal",
+                    "album": (t.get("album") or {}).get("name") or "",
+                    "duration": int((t.get("duration_ms") or 0) / 1000),
+                    "duration_text": "",
+                    "artwork": artwork,
+                    "embed_url": f"https://open.spotify.com/embed/track/{t.get('id')}",
+                    "open_url": (t.get("external_urls") or {}).get("spotify") or f"https://open.spotify.com/track/{t.get('id')}",
+                }
+            )
+        send_json(handler, 200, {"tracks": tracks, "needs_setup": False})
+    except Exception as exc:
+        send_json(handler, 200, {"tracks": [], "error": f"Gagal memuat Spotify: {exc}"})
+
+
+
+# ----------------------------------------------------------------------------
+# Import Anki .apkg — koleksi .anki2 (SQLite) di dalam zip/arsip
+# ----------------------------------------------------------------------------
+def api_flashcards_import_anki(handler: BaseHTTPRequestHandler) -> None:
+    length = int(handler.headers.get("Content-Length") or 0)
+    if length <= 0:
+        raise ValueError("File kosong")
+    if length > 60_000_000:
+        raise ValueError("File terlalu besar (maks 60 MB)")
+    raw = handler.rfile.read(length)
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(raw))
+    except Exception:
+        raise ValueError("File bukan .apkg yang valid (bukan zip)")
+
+    collection = None
+    for name in zf.namelist():
+        base = name.lower()
+        if base.endswith(".anki2") or base.endswith(".anki21"):
+            collection = name
+            break
+    if not collection:
+        raise ValueError("Koleksi Anki (.anki2) tidak ditemukan di dalam paket")
+
+    tmpdir = tempfile.mkdtemp(prefix="harita-anki-")
+    try:
+        db_path = os.path.join(tmpdir, "col.anki2")
+        with zf.open(collection) as src, open(db_path, "wb") as dst:
+            shutil.copyfileobj(src, dst)
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            rows = conn.execute("SELECT flds FROM notes").fetchall()
+        except Exception:
+            try:
+                rows = conn.execute("SELECT fld FROM notes").fetchall()
+            except Exception as exc:
+                raise ValueError(f"Struktur catatan Anki tidak dikenal: {exc}")
+        cards = []
+        for row in rows:
+            flds = row[0] if not isinstance(row, sqlite3.Row) or len(row) == 1 else row["flds"]
+            fields = str(flds if flds is not None else "").split("\x1f")
+            front = fields[0].strip() if fields else ""
+            back = fields[1].strip() if len(fields) > 1 else ""
+            if front and back:
+                cards.append((clip(front, 1000), clip(back, 2000)))
+        conn.close()
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+    conn = db_connect()
+    try:
+        for front, back in cards[:5000]:
+            conn.execute(
+                "INSERT INTO flashcards(subject, front, back, ease, interval_days, repetitions, due, created_at) VALUES(?,?,?,?,?,?,?,?)",
+                ("Anki", front, back, 2.5, 0, 0, today_local(), now_local()),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+    send_json(handler, 200, {"ok": True, "imported": len(cards)})
+
+
+
+# ----------------------------------------------------------------------------
+# Sync ke folder (mis. Syncthing / Google Drive lokal) — backup manual antar perangkat
+# ----------------------------------------------------------------------------
+
+def api_sync_export(handler: BaseHTTPRequestHandler) -> None:
+    body = parse_json_body(handler)
+    folder = clip(body.get("folder"), 500)
+    if not folder:
+        raise ValueError("Isi path folder tujuan")
+    try:
+        os.makedirs(folder, exist_ok=True)
+    except OSError as exc:
+        raise ValueError(f"Tidak bisa membuat folder: {exc}")
+    if not os.path.isdir(folder):
+        raise ValueError("Path bukan folder")
+    if not os.access(folder, os.R_OK | os.W_OK):
+        raise ValueError("Folder tidak bisa dibaca/ditulis")
+    filename = f"harita-sync-{today_local()}.json"
+    path = os.path.join(folder, filename)
+    data = export_all_tables()
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, ensure_ascii=False, indent=1)
+    send_json(handler, 200, {"ok": True, "path": path, "filename": filename, "size": os.path.getsize(path)})
+
+
+def api_sync_list(handler: BaseHTTPRequestHandler) -> None:
+    body = parse_json_body(handler)
+    folder = clip(body.get("folder"), 500)
+    if not folder or not os.path.isdir(folder):
+        raise ValueError("Folder tidak ditemukan")
+    try:
+        entries = []
+        for name in os.listdir(folder):
+            if not name.startswith("harita-sync-") or not name.endswith(".json"):
+                continue
+            full = os.path.join(folder, name)
+            try:
+                st = os.stat(full)
+                entries.append({"name": name, "size": st.st_size, "mtime": st.st_mtime, "path": full})
+            except OSError:
+                pass
+        entries.sort(key=lambda e: e["mtime"], reverse=True)
+        send_json(handler, 200, {"files": entries})
+    except OSError as exc:
+        raise ValueError(f"Tidak bisa membaca folder: {exc}")
+
+
+def api_sync_import(handler: BaseHTTPRequestHandler) -> None:
+    body = parse_json_body(handler)
+    path = clip(body.get("path"), 500)
+    if not path:
+        raise ValueError("Isi path file backup")
+    if not path.endswith(".json"):
+        raise ValueError("File harus .json")
+    if not os.path.exists(path):
+        raise ValueError("File tidak ditemukan")
+    with open(path, encoding="utf-8") as fh:
+        payload = json.load(fh)
+    tables = payload.get("tables") if isinstance(payload, dict) else None
+    if not isinstance(tables, dict):
+        raise ValueError("File bukan backup Harita (tidak ada objek 'tables')")
+    summary, _unknown = _validate_import_payload(payload)
+    available = {item["table"] for item in summary}
+    if not available:
+        raise ValueError("Tidak ada tabel yang dikenali dalam backup ini")
+    result = _import_payload(payload, available, include_settings=True)
+    try:
+        os.remove(os.path.join(DATA_DIR, ".corrupt-detected"))
+    except OSError:
+        pass
+    send_json(handler, 200, {"ok": True, "source": os.path.basename(path), **result})
 
 
 # ----------------------------------------------------------------------------
@@ -1856,92 +2839,6 @@ def api_reminder_delete(handler: BaseHTTPRequestHandler, reminder_id: int) -> No
         conn.close()
 
 
-def check_deadline_reminders() -> None:
-    """Check competitions/events whose deadline is near and send browser-friendly reminder hints."""
-    try:
-        conn = db_connect()
-        settings = get_settings(conn)
-        comps = conn.execute("SELECT * FROM competitions WHERE deleted_at IS NULL AND status != 'selesai'").fetchall()
-        events = conn.execute("SELECT * FROM events WHERE deleted_at IS NULL").fetchall()
-        conn.close()
-    except Exception:
-        return
-    if settings.get("notifications", "0") != "1":
-        return
-    try:
-        notified = load_reminder_sent()
-    except Exception:
-        notified = {}
-    now = time.time()
-    changed = False
-    for c in comps:
-        dl = parseLocalDT(c["deadline"])
-        if dl is None or not _finite(dl) or dl <= now:
-            continue
-        diff_min = (dl - now) / 60000.0
-        rkey = f"comp-{c['id']}"
-        minutes = 60
-        if 0 < diff_min <= minutes and not notified.get(rkey):
-            # reminder hint: store so frontend can show toast
-            notified[rkey] = now
-            changed = True
-            try:
-                save_reminder_sent(notified)
-            except Exception:
-                pass
-            break
-    for e in events:
-        if not e.get("time"):
-            continue
-        t = parseLocalDT(f"{e['date']}T{str(e['time']).strip()}:00")
-        if t is None or not _finite(t) or t <= now:
-            continue
-        diff_min = (t - now) / 60000.0
-        rkey = f"ev-{e['id']}"
-        if 0 < diff_min <= 10 and not notified.get(rkey):
-            notified[rkey] = now
-            changed = True
-            try:
-                save_reminder_sent(notified)
-            except Exception:
-                pass
-            break
-    if changed:
-        try:
-            items = list(notified.items())[-200:]
-            save_reminder_sent(dict(items))
-        except Exception:
-            pass
-
-
-def _finite(v) -> bool:
-    try:
-        return math.isfinite(float(v))
-    except Exception:
-        return False
-
-
-REMINDER_SENT_PATH = os.path.join(DATA_DIR, "reminder_sent.json")
-
-
-def load_reminder_sent() -> dict:
-    try:
-        with open(REMINDER_SENT_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {}
-
-
-def save_reminder_sent(data: dict) -> None:
-    try:
-        tmp = REMINDER_SENT_PATH + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False)
-        os.replace(tmp, REMINDER_SENT_PATH)
-    except Exception:
-        pass
-
-
 # ----------------------------------------------------------------------------
 # Device performance monitoring
 # ----------------------------------------------------------------------------
@@ -1963,7 +2860,6 @@ def device_stats() -> dict:
             idle = getattr(raw, "idle", 0.0) + getattr(raw, "iowait", 0.0)
             busy = total - idle
             if _last_cpu["t"] > 0:
-                dt = max(now - _last_cpu["t"], 0.001)
                 d_total = max(total - _last_cpu["total"], 0.001)
                 d_busy = max(busy - _last_cpu["busy"], 0.0)
                 cpu_percent = min(100.0, max(0.0, (d_busy / d_total) * 100.0))
@@ -2178,8 +3074,29 @@ def _validate_setting(key: str, value) -> str:
     if key == "theme":
         return s if s in ("dark", "light", "system") else "dark"
     if key == "accent":
-        allowed = {"terracotta", "teal", "emerald", "amber", "rose", "violet", "sky", "slate"}
+        allowed = {"terracotta", "teal", "emerald", "amber", "rose", "violet", "sky", "slate", "custom"}
         return s if s in allowed else "terracotta"
+    if key == "accent_custom":
+        if re.fullmatch(r"#[0-9a-fA-F]{6}", s):
+            return s.lower()
+        return "#fc8f8f"
+    if key == "avatar_color":
+        if s == "":
+            return ""
+        if re.fullmatch(r"#[0-9a-fA-F]{6}", s):
+            return s.lower()
+        return ""
+    if key in ("spotify_client_id", "spotify_client_secret"):
+        return clip(s, 200)
+    if key == "ambient_sound":
+        return s if s in {"off", "rain", "fire", "ocean", "forest", "cafe", "brown", "river", "beach", "wind", "white", "night", "breath", "thunder", "waterfall", "train", "library", "cave", "windchime", "lofi", "deep_space", "city_rain", "jungle", "tide", "aurora", "bubble"} else "off"
+    if key == "ambient_volume":
+        try:
+            return str(max(0, min(100, int(s))))
+        except ValueError:
+            return "35"
+    if key == "focus_tick":
+        return "1" if s in ("1", "true", "True", "yes") else "0"
     if key == "font_size":
         return s if s in ("small", "normal", "large") else "normal"
     if key == "contrast":
@@ -2241,7 +3158,7 @@ def api_settings(handler: BaseHTTPRequestHandler, body: dict | None = None) -> N
             conn.commit()
         settings = get_settings(conn)
         if settings.get("lock_enabled") == "1":
-            settings = {k: v for k, v in settings.items() if k not in ("lock_pin_hash",)}
+            settings = {k: v for k, v in settings.items() if k != "lock_pin_hash"}
         send_json(handler, 200, {"settings": settings})
     finally:
         conn.close()
@@ -2310,6 +3227,9 @@ EXPORT_TABLES = (
 )
 
 
+SENSITIVE_SETTING_KEYS = {"lock_pin_hash", "spotify_client_secret"}
+
+
 def export_all_tables() -> dict:
     conn = db_connect()
     try:
@@ -2317,6 +3237,8 @@ def export_all_tables() -> dict:
         for table in EXPORT_TABLES:
             try:
                 rows = conn.execute(f"SELECT * FROM {table}").fetchall()
+                if table == "settings":
+                    rows = [r for r in rows if r["key"] not in SENSITIVE_SETTING_KEYS]
                 data["tables"][table] = [row_to_dict(r) for r in rows]
             except Exception:
                 pass
@@ -2422,7 +3344,7 @@ def api_db_status(handler: BaseHTTPRequestHandler) -> None:
 
 
 IMPORT_MAX_BYTES = 25_000_000
-IMPORT_SKIP_SETTINGS = {"lock_pin_hash", "lock_enabled"}
+IMPORT_SKIP_SETTINGS = {"lock_pin_hash", "lock_enabled", "spotify_client_secret"}
 
 
 def _snapshot_backup(reason: str = "snapshot") -> str | None:
@@ -2728,16 +3650,18 @@ def _auth_ok(handler: BaseHTTPRequestHandler) -> bool:
     conn = None
     try:
         conn = db_connect()
-        enabled = _locked_enabled(conn)
+        pin_enabled = _locked_enabled(conn)
+        registered = _account_exists(conn)
     except Exception:
         return True  # fail-open so a DB hiccup never locks the user out of recovery
     finally:
         if conn:
             conn.close()
-    if not enabled:
-        return True
-    token = handler.headers.get("X-Pin-Token") or ""
-    return _token_valid(token)
+    if pin_enabled and not _token_valid(handler.headers.get("X-Pin-Token") or ""):
+        return False
+    if registered:
+        return _session_valid(handler)
+    return False  # belum ada akun — API dikunci sampai pengguna daftar di splash
 
 LOCK_EXEMPT_PREFIXES = ("/api/health", "/api/unlock", "/api/lock-status")
 
@@ -3206,6 +4130,7 @@ SECURITY_HEADERS = {
         "default-src 'self'; script-src 'self' 'unsafe-inline'; "
         "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
         "font-src 'self'; connect-src 'self'; object-src 'none'; "
+        "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com https://open.spotify.com; "
         "base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
     ),
 }
@@ -3302,7 +4227,8 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path
         query = {k: v[0] for k, v in urllib.parse.parse_qs(parsed.query).items()}
         try:
-            if not path.startswith("/api/health") and not path.startswith("/api/unlock") and not path.startswith("/api/lock-status") and not _auth_ok(self):
+            _OPEN = ("/api/health", "/api/unlock", "/api/lock-status", "/api/auth/status", "/api/auth/register", "/api/auth/login")
+            if path.startswith("/api/") and not path.startswith(_OPEN) and not _auth_ok(self):
                 send_json(self, 401, {"error": "Terkunci", "code": "locked"})
                 return
             if path == "/api/health":
@@ -3366,6 +4292,26 @@ class Handler(BaseHTTPRequestHandler):
                 api_habits(self)
             elif path == "/api/settings":
                 api_settings(self)
+            elif path == "/api/auth/status":
+                api_auth_status(self)
+            elif path == "/api/update/status":
+                api_update_status(self, query)
+            elif path == "/api/music/online/search":
+                api_music_online_search(self, query)
+            elif path == "/api/music/youtube/search":
+                api_music_youtube_search(self, query)
+            elif path.startswith("/api/music/youtube/thumb/"):
+                api_music_youtube_thumb(self, path[len("/api/music/youtube/thumb/"):])
+            elif path == "/api/music/spotify/search":
+                api_music_spotify_search(self, query)
+            elif path == "/api/music/spotify/image":
+                api_music_spotify_image(self, query)
+            elif path == "/api/music/spotify/status":
+                api_music_spotify_status(self)
+            elif path.startswith("/api/music/online/artwork/"):
+                api_music_online_artwork(self, path[len("/api/music/online/artwork/"):])
+            elif path.startswith("/api/music/online/stream/"):
+                api_music_online_stream(self, path[len("/api/music/online/stream/"):])
             elif path == "/api/export":
                 api_export(self)
             elif path == "/api/device":
@@ -3412,7 +4358,7 @@ class Handler(BaseHTTPRequestHandler):
             send_json(self, 403, {"error": "Permintaan lintas asal (cross-origin) ditolak"})
             return
         path = urllib.parse.urlparse(self.path).path
-        if not (path.startswith("/api/health") or path.startswith("/api/unlock") or path.startswith("/api/lock-status")) and not _auth_ok(self):
+        if path.startswith("/api/") and not path.startswith(("/api/health", "/api/unlock", "/api/lock-status", "/api/auth/status", "/api/auth/register", "/api/auth/login")) and not _auth_ok(self):
             send_json(self, 401, {"error": "Terkunci", "code": "locked"})
             return
         try:
@@ -3434,6 +4380,12 @@ class Handler(BaseHTTPRequestHandler):
                 api_reset(self)
             elif path == "/api/db/restore":
                 api_db_restore(self)
+            elif path == "/api/sync/export":
+                api_sync_export(self)
+            elif path == "/api/sync/import":
+                api_sync_import(self)
+            elif path == "/api/sync/list":
+                api_sync_list(self)
             elif path == "/api/db/preview":
                 api_db_preview(self)
             elif path == "/api/db/import":
@@ -3468,6 +4420,8 @@ class Handler(BaseHTTPRequestHandler):
                 api_unlock(self)
             elif path == "/api/lock":
                 api_lock(self)
+            elif path == "/api/flashcards/import-anki":
+                api_flashcards_import_anki(self)
             elif path == "/api/flashcards":
                 api_flashcard_create(self)
             elif re.fullmatch(r"/api/flashcards/\d+/grade", path):
@@ -3476,6 +4430,18 @@ class Handler(BaseHTTPRequestHandler):
                 api_habit_toggle(self, int(path.split("/")[3]))
             elif path == "/api/settings":
                 api_settings(self, parse_json_body(self))
+            elif path == "/api/auth/register":
+                api_auth_register(self)
+            elif path == "/api/auth/login":
+                api_auth_login(self)
+            elif path == "/api/auth/logout":
+                api_auth_logout(self)
+            elif path == "/api/auth/password":
+                api_auth_password(self)
+            elif path == "/api/auth/profile":
+                api_auth_profile(self)
+            elif path == "/api/update/apply":
+                api_update_apply(self)
             elif path == "/api/music/state":
                 api_music_state(self, parse_json_body(self))
             elif path == "/api/weather/refresh":
@@ -3497,7 +4463,7 @@ class Handler(BaseHTTPRequestHandler):
             send_json(self, 403, {"error": "Permintaan lintas asal (cross-origin) ditolak"})
             return
         path = urllib.parse.urlparse(self.path).path
-        if not (path.startswith("/api/health") or path.startswith("/api/unlock") or path.startswith("/api/lock-status")) and not _auth_ok(self):
+        if path.startswith("/api/") and not path.startswith(("/api/health", "/api/unlock", "/api/lock-status", "/api/auth/status", "/api/auth/register", "/api/auth/login")) and not _auth_ok(self):
             send_json(self, 401, {"error": "Terkunci", "code": "locked"})
             return
         try:
@@ -3546,7 +4512,7 @@ class Handler(BaseHTTPRequestHandler):
             send_json(self, 403, {"error": "Permintaan lintas asal (cross-origin) ditolak"})
             return
         path = urllib.parse.urlparse(self.path).path
-        if not (path.startswith("/api/health") or path.startswith("/api/unlock") or path.startswith("/api/lock-status")) and not _auth_ok(self):
+        if path.startswith("/api/") and not path.startswith(("/api/health", "/api/unlock", "/api/lock-status", "/api/auth/status", "/api/auth/register", "/api/auth/login")) and not _auth_ok(self):
             send_json(self, 401, {"error": "Terkunci", "code": "locked"})
             return
         try:
@@ -3603,6 +4569,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     init_db()
+    _purge_sessions()
     backup_now()
     load_weather_disk()
     try:
@@ -3611,10 +4578,10 @@ def main() -> None:
         pass
     try:
         server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-    except OSError as exc:
+    except OSError:
         print(f"\nERROR: Port {PORT} sedang dipakai proses lain.")
         print('Matikan dulu dengan: pkill -f "harita/server.py"')
-        print(f"Atau pakai port lain: HARITA_PORT=8877 ./run.sh\n")
+        print("Atau pakai port lain: HARITA_PORT=8877 ./run.sh\n")
         raise SystemExit(1)
     log(f"Harita berjalan di http://127.0.0.1:{PORT}")
     if _FROZEN and _env("HARITA_NO_OPEN", "MYACT_NO_OPEN") != "1":

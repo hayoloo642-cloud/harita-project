@@ -1,4 +1,4 @@
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.9.0'; // ambient + custom H/M/S
 /* ============================================================
    App bootstrap, navigation, realtime tick, settings
    ============================================================ */
@@ -113,6 +113,182 @@ async function refreshAll() {
     toast('Semua data diperbarui');
   } catch (err) {
     toast(err.message, 'error');
+  }
+}
+
+const CUSTOM_ACCENT_VARS = ['--accent', '--accent-2', '--accent-2-ink', '--accent-ink'];
+
+function hexToRgb(hex) {
+  let h = String(hex || '#fc8f8f').replace('#', '').trim();
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  const n = parseInt(h, 16);
+  if (Number.isNaN(n)) return { r: 252, g: 143, b: 143 };
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+const rgbToHex = ({ r, g, b }) => '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+const shade = (c, f) => rgbToHex({ r: c.r * f, g: c.g * f, b: c.b * f });
+const relLuminance = ({ r, g, b }) => {
+  const lin = (v) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); };
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+};
+
+function applyAccent(settings) {
+  const root = document.documentElement;
+  const accent = (settings && settings.accent) || 'terracotta';
+  if (accent === 'custom' && settings.accent_custom) {
+    const c = hexToRgb(settings.accent_custom);
+    root.setAttribute('data-accent', 'custom');
+    root.style.setProperty('--accent', settings.accent_custom);
+    root.style.setProperty('--accent-2', shade(c, 0.55));
+    root.style.setProperty('--accent-2-ink', settings.accent_custom);
+    root.style.setProperty('--accent-ink', relLuminance(c) > 0.32 ? '#241515' : '#f7f2ef');
+    return;
+  }
+  for (const v of CUSTOM_ACCENT_VARS) root.style.removeProperty(v);
+  root.setAttribute('data-accent', accent);
+}
+
+const AVATAR_COLORS = [
+  { value: '#fc8f8f', label: 'Terracotta' },
+  { value: '#f7b955', label: 'Amber' },
+  { value: '#8fd6a5', label: 'Emerald' },
+  { value: '#7dd3fc', label: 'Sky' },
+  { value: '#c4b5fd', label: 'Violet' },
+  { value: '#fb8fa0', label: 'Rose' },
+  { value: '#cbd5e5', label: 'Slate' },
+  { value: '#e8b49e', label: 'Warm' },
+];
+
+function applyAvatarColor(settings) {
+  const node = document.getElementById('topAvatar');
+  if (!node) return;
+  const color = settings && settings.avatar_color;
+  if (!color) { node.style.background = ''; node.style.color = ''; return; }
+  const c = hexToRgb(color);
+  node.style.background = color;
+  node.style.color = relLuminance(c) > 0.32 ? '#241515' : '#f7f2ef';
+}
+
+
+/* ---------- update checker & self-update ---------- */
+const UPDATE_DISMISS_KEY = 'harita-update-dismissed';
+
+function updateBannerEligible(remoteSha) {
+  try {
+    const raw = localStorage.getItem(UPDATE_DISMISS_KEY);
+    if (!raw) return true;
+    const saved = JSON.parse(raw);
+    return !(saved && saved.sha === remoteSha && Date.now() - saved.at < 24 * 3600 * 1000);
+  } catch (_) {
+    return true;
+  }
+}
+
+function hideUpdateBanner() {
+  const banner = document.getElementById('updateBanner');
+  if (banner) banner.hidden = true;
+}
+
+function showUpdateBanner(status) {
+  const banner = document.getElementById('updateBanner');
+  if (!banner) return;
+  const countNode = document.getElementById('updateBannerCount');
+  if (countNode) {
+    countNode.textContent = status.behind > 0
+      ? `${status.behind} commit baru${status.remote_sha ? ' · ' + status.remote_sha : ''}`
+      : '(versi baru)';
+  }
+  banner.hidden = false;
+  banner.dataset.sha = status.remote_sha || '';
+  const dl = document.getElementById('updateDownloadBtn');
+  const now = document.getElementById('updateNowBtn');
+  if (dl && now) {
+    if (status.supported === false) {
+      dl.href = status.latest_url || 'https://github.com/hayoloo642-cloud/harita-project/releases/latest';
+      dl.textContent = status.latest_version ? `Unduh v${status.latest_version}` : 'Unduh rilis terbaru';
+      dl.style.display = 'inline-flex';
+      now.style.display = 'none';
+    } else {
+      dl.style.display = 'none';
+      now.style.display = 'inline-flex';
+    }
+  }
+}
+
+async function checkForUpdate() {
+  try {
+    const status = await api('/api/update/status');
+    if (status && status.available && updateBannerEligible(status.remote_sha)) {
+      showUpdateBanner(status);
+    } else {
+      hideUpdateBanner();
+    }
+  } catch (_) {
+    hideUpdateBanner();
+  }
+}
+
+async function startUpdate() {
+  const overlay = document.getElementById('updateOverlay');
+  const step = document.getElementById('updateStep');
+  if (overlay) overlay.hidden = false;
+  const steps = [
+    'Menyiapkan cadangan data…',
+    'Mengunduh perubahan dari GitHub…',
+    'Menerapkan versi terbaru…',
+    'Konflik? Membatalkan dan mengembalikan data…',
+    'Memuat ulang aplikasi…',
+  ];
+  let i = 0;
+  if (step) step.textContent = steps[0];
+  const ticker = setInterval(() => {
+    i = Math.min(i + 1, steps.length - 1);
+    if (step) step.textContent = steps[i];
+  }, 1500);
+  try {
+    await api('/api/update/apply', { method: 'POST', body: {} });
+    clearInterval(ticker);
+    if (step) step.textContent = 'Memuat ulang aplikasi…';
+    // server restart sendiri — tunggu sampai health endpoint hidup lagi
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      try {
+        const res = await fetch('/api/health', { cache: 'no-store' });
+        if (res.ok) break;
+      } catch (_) { /* belum bangun */ }
+    }
+    try { sessionStorage.setItem('harita-updated', String(Date.now())); } catch (_) {}
+    window.location.reload();
+  } catch (err) {
+    clearInterval(ticker);
+    if (overlay) overlay.hidden = true;
+    toast((err && err.message) || 'Pembaruan gagal. Coba lagi nanti.', 'error', 9000);
+  }
+}
+
+function bindUpdateBanner() {
+  const nowBtn = document.getElementById('updateNowBtn');
+  const dismissBtn = document.getElementById('updateDismissBtn');
+  if (nowBtn) {
+    nowBtn.addEventListener('click', () => {
+      const banner = document.getElementById('updateBanner');
+      const sha = banner ? banner.dataset.sha || '' : '';
+      confirmDialog({
+        title: 'Perbarui Harita sekarang?',
+        message: 'Cadangan data dibuat otomatis dulu, lalu kode ditarik ke versi terbaru dan aplikasi memuat ulang sendiri.<br><br><span class="hint">Perubahan lokal milikmu tersimpan otomatis (git stash) dan diterapkan kembali setelah update. Jika bertabrakan dengan upstream, update dibatalkan dan semuanya dikembalikan — tidak ada yang hilang.</span>',
+        confirmLabel: 'Perbarui sekarang',
+        danger: false,
+        onConfirm: startUpdate,
+      });
+    });
+  }
+  if (dismissBtn) {
+    dismissBtn.addEventListener('click', () => {
+      const banner = document.getElementById('updateBanner');
+      const sha = banner ? banner.dataset.sha || '' : '';
+      try { localStorage.setItem(UPDATE_DISMISS_KEY, JSON.stringify({ sha, at: Date.now() })); } catch (_) {}
+      hideUpdateBanner();
+    });
   }
 }
 
@@ -420,6 +596,10 @@ function openSettingsModal() {
   const accentHtml = ACCENT_SWATCHES.map((s) => `
     <button type="button" class="accent-swatch ${currentAccent === s.id ? 'active' : ''}" data-accent="${s.id}" title="${s.label}" aria-label="Aksen ${s.label}" style="background:${s.color}"></button>
   `).join('');
+  const currentAvatarColor = state.settings.avatar_color || '';
+  const avatarColorHtml = AVATAR_COLORS.map((c) => `
+    <button type="button" class="avatar-color ${currentAvatarColor === c.value ? 'active' : ''}" data-avatar-color="${c.value}" title="${c.label}" style="background:${c.value}" aria-label="Warna avatar ${c.label}"></button>
+  `).join('');
 
   const body = `
     <div class="settings-scroll">
@@ -434,6 +614,27 @@ function openSettingsModal() {
           <label>${esc(t('settings.location'))}</label>
           <select name="location">${locOptions}</select>
         </div>
+      </div>
+      <div class="field full">
+        <label>Warna avatar</label>
+        <div class="avatar-color-row" id="avatarColorRow">${avatarColorHtml}</div>
+      </div>
+
+      <!-- Akun -->
+      <p class="eyebrow" style="margin:22px 0 12px">Akun</p>
+      <div class="field full">
+        <label>Kata sandi</label>
+        <button type="button" class="btn btn-ghost btn-sm" id="togglePasswordForm">${ico('lock')} Ganti kata sandi</button>
+        <div class="password-form" id="passwordForm" hidden>
+          <input name="pw_current" type="password" autocomplete="current-password" placeholder="Kata sandi lama" />
+          <input name="pw_next" type="password" autocomplete="new-password" placeholder="Kata sandi baru (min. 6 karakter)" />
+          <input name="pw_confirm" type="password" autocomplete="new-password" placeholder="Ulangi kata sandi baru" />
+          <button type="button" class="btn btn-primary btn-sm" id="savePasswordBtn">Simpan kata sandi</button>
+        </div>
+      </div>
+      <div class="field full" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button type="button" class="btn btn-ghost btn-sm" id="logoutBtn">${ico('x')} Keluar dari akun</button>
+        <span class="help">Sesi tersimpan 30 hari di perangkat ini. Kata sandi disimpan sebagai hash — tidak pernah diekspor atau dikirim ke mana pun.</span>
       </div>
 
       <!-- Tampilan -->
@@ -452,6 +653,16 @@ function openSettingsModal() {
         <label>${esc(t('settings.accent'))}</label>
         <div class="accent-grid" role="radiogroup" aria-label="Aksen warna">${accentHtml}</div>
         <span class="help">Tema tetap, aksen berubah untuk tombol, ring, dan highlight.</span>
+      </div>
+
+      <div class="field full">
+        <label>Aksen kustom</label>
+        <div class="accent-custom-row">
+          <input type="color" id="accentCustomPicker" value="${esc(state.settings.accent_custom || '#fc8f8f')}" aria-label="Pilih warna aksen bebas" />
+          <button type="button" class="btn btn-ghost btn-sm" id="accentCustomApply">Terapkan ke seluruh aplikasi</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="accentCustomReset">Kembali ke preset</button>
+        </div>
+        <span class="help">“Terapkan” langsung mengubah tombol, ring, dan highlight di semua halaman. Tersimpan permanen saat menekan Simpan.</span>
       </div>
 
       <div class="field full">
@@ -508,6 +719,18 @@ function openSettingsModal() {
       <div class="settings-install">
         <button class="btn btn-ghost" id="installHaritaButton" type="button"><span class="ico" data-icon="download"></span> ${esc(t('settings.install', 'Install Harita di perangkat ini'))}</button>
         <span class="help">${esc(t('settings.installHelp', 'Di Chrome/Edge, Harita bisa dipasang seperti aplikasi desktop. Di iOS, gunakan menu Bagikan → Add to Home Screen.'))}</span>
+      </div>
+
+      <!-- Sinkronisasi -->
+      <p class="eyebrow" style="margin:22px 0 12px">Sinkronisasi backup</p>
+      <div class="field full">
+        <label>Folder backup (lokal atau Syncthing/Google Drive)</label>
+        <div class="inline-actions" style="display:flex;gap:8px;flex-wrap:wrap">
+          <input name="sync_folder_hint" id="syncFolderInput" style="flex:1;min-width:200px" placeholder="/home/.../Sync/Harita" value="" autocomplete="off" />
+          <button class="btn btn-ghost btn-sm" type="button" id="syncExportBtn">${ico('download')} Ekspor sekarang</button>
+          <button class="btn btn-ghost btn-sm" type="button" id="syncImportBtn">${ico('upload')} Impor dari folder</button>
+        </div>
+        <span class="help">Backup JSON otomatis dikirim ke folder ini (mis. folder Syncthing) sehingga laptop lain bisa impor. Tombol impor membaca file <code>harita-sync-*.json</code> terbaru dari folder yang sama.</span>
       </div>
 
       <!-- Uang -->
@@ -570,10 +793,28 @@ function openSettingsModal() {
         <span class="help">Memeriksa status database…</span>
       </div>
 
-      <p style="font-size:9.5px;color:var(--faint);line-height:1.7;margin-top:16px">
-        Semua data tersimpan lokal di <code>data/harita.db</code> (SQLite). Cuaca memakai Open-Meteo tanpa API key.<br>
-        Harita v${APP_VERSION} · MIT · Changelog &amp; kontribusi tersedia di paket source repository.
-      </p>
+      <p class="eyebrow" style="margin:22px 0 12px">Spotify (opsional)</p>
+      <div class="field">
+        <label>Client ID</label>
+        <input name="spotify_client_id" maxlength="120" value="${esc(state.settings.spotify_client_id || '')}" placeholder="contoh: 7f3a…b12e" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="field">
+        <label>Client Secret</label>
+        <input name="spotify_client_secret" type="password" maxlength="120" value="${esc(state.settings.spotify_client_secret || '')}" placeholder="tempel secret dari app di dashboard" autocomplete="off" spellcheck="false" />
+        <span class="help">Buat app gratis di <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer" style="color:var(--accent)">developer.spotify.com/dashboard</a> → Create App → salin Client ID &amp; Secret (redirect URI: apa saja, tidak dipakai). Disimpan lokal, tidak pernah diekspor ke backup.</span>
+      </div>
+
+      <p class="eyebrow" style="margin:22px 0 12px">Tentang aplikasi</p>
+      <div class="about-box">
+        <img src="/icon.svg" width="64" height="64" alt="Logo Harita" />
+        <div>
+          <strong style="font-size:17px;font-family:var(--display)">Harita</strong> <span class="help">v${APP_VERSION}</span>
+          <br><span class="help">Dashboard harian lokal untuk pelajar Indonesia · MIT License</span>
+          <br><span class="help">Cuaca: Open-Meteo (tanpa API key) · Musik online: Audius (bebas, tanpa langganan)</span>
+          <br><span class="help">Backup otomatis di <code>data/backups</code> &amp; <code>~/harita-backups</code> — data akun &amp; hash kata sandi tidak pernah diekspor.</span>
+          <br><span class="help"><a href="https://hayoloo642-cloud.github.io/harita-project/" target="_blank" rel="noreferrer">Website</a> &nbsp;·&nbsp; <a href="https://github.com/hayoloo642-cloud/harita-project" target="_blank" rel="noreferrer">GitHub</a> &nbsp;·&nbsp; <a href="https://github.com/hayoloo642-cloud/harita-project/issues" target="_blank" rel="noreferrer">Laporkan masalah</a></span>
+        </div>
+      </div>
     </div>`;
 
   openModal({
@@ -593,6 +834,12 @@ function openSettingsModal() {
           throw new Error('Izin notifikasi belum diberikan. Aktifkan izin situs di browser lalu coba lagi.');
         }
       }
+      const pendingAccent = window.__haritaPendingAccent
+        || (document.querySelector('.accent-swatch.active')
+            ? { accent: document.querySelector('.accent-swatch.active').dataset.accent }
+            : (state.settings.accent === 'custom' && state.settings.accent_custom
+                ? { accent: 'custom', accent_custom: state.settings.accent_custom }
+                : { accent: state.settings.accent || 'terracotta' }));
       const payload = {
         name: formValue(form, 'name') || 'Kamu',
         location: formValue(form, 'location') || state.weather.key,
@@ -604,7 +851,11 @@ function openSettingsModal() {
         contrast: formValue(form, 'contrast') || 'normal',
         reminder_lead: formValue(form, 'reminder_lead') || '10',
         default_view: formValue(form, 'default_view') || 'beranda',
-        accent: document.querySelector('.accent-swatch.active')?.dataset.accent || 'terracotta',
+        accent: pendingAccent.accent,
+        ...(pendingAccent.accent === 'custom' ? { accent_custom: pendingAccent.accent_custom || state.settings.accent_custom || '#fc8f8f' } : {}),
+        avatar_color: document.querySelector('.avatar-color.active')?.dataset.avatarColor || state.settings.avatar_color || '',
+        spotify_client_id: formValue(form, 'spotify_client_id') || '',
+        spotify_client_secret: formValue(form, 'spotify_client_secret') || '',
         pinned_views: [...form.querySelectorAll('[data-pin-view]:checked')].map((el) => el.dataset.pinView).join(','),
         hidden_views: [...form.querySelectorAll('[data-hide-view]:checked')].map((el) => el.dataset.hideView).join(','),
         language: formValue(form, 'language') || 'id',
@@ -620,10 +871,11 @@ function openSettingsModal() {
         await api('/api/lock', { method: 'POST', body: { action: 'disable' } });
       }
       const data = await api('/api/settings', { method: 'POST', body: payload });
+      window.__haritaPendingAccent = null;
       state.settings = data.settings;
       // apply theme/accent/font immediately
       document.documentElement.setAttribute('data-theme', state.settings.theme === 'system' ? resolveInitialTheme() : state.settings.theme);
-      document.documentElement.setAttribute('data-accent', state.settings.accent);
+      applyAccent(state.settings);
       document.documentElement.setAttribute('data-font-size', state.settings.font_size);
       document.documentElement.setAttribute('data-contrast', state.settings.contrast || 'normal');
       renderChrome();
@@ -645,9 +897,99 @@ function openSettingsModal() {
         document.querySelectorAll('.accent-swatch').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
         const accent = btn.dataset.accent;
-        document.documentElement.setAttribute('data-accent', accent);
+        window.__haritaPendingAccent = { accent };
+        applyAccent({ accent });
       });
     });
+    document.querySelectorAll('#avatarColorRow .avatar-color').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#avatarColorRow .avatar-color').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyAvatarColor({ avatar_color: btn.dataset.avatarColor });
+      });
+    });
+    const accentCustomApply = document.getElementById('accentCustomApply');
+    const accentCustomPicker = document.getElementById('accentCustomPicker');
+    if (accentCustomApply && accentCustomPicker) {
+      accentCustomApply.addEventListener('click', () => {
+        const hex = accentCustomPicker.value;
+        document.querySelectorAll('.accent-swatch').forEach((b) => b.classList.remove('active'));
+        window.__haritaPendingAccent = { accent: 'custom', accent_custom: hex };
+        applyAccent({ accent: 'custom', accent_custom: hex });
+        toast('Aksen kustom diterapkan — Simpan untuk menyimpan permanen');
+      });
+    }
+    const accentCustomReset = document.getElementById('accentCustomReset');
+    if (accentCustomReset) {
+      accentCustomReset.addEventListener('click', () => {
+        window.__haritaPendingAccent = null;
+        document.querySelectorAll('.accent-swatch').forEach((b) => b.classList.toggle('active', b.dataset.accent === 'terracotta'));
+        applyAccent({ accent: 'terracotta' });
+      });
+    }
+    const togglePw = document.getElementById('togglePasswordForm');
+    const pwForm = document.getElementById('passwordForm');
+    if (togglePw && pwForm) togglePw.addEventListener('click', () => { pwForm.hidden = !pwForm.hidden; });
+    const savePw = document.getElementById('savePasswordBtn');
+    if (savePw && pwForm) {
+      savePw.addEventListener('click', async () => {
+        const current = pwForm.querySelector('[name="pw_current"]').value;
+        const next = pwForm.querySelector('[name="pw_next"]').value;
+        const confirm = pwForm.querySelector('[name="pw_confirm"]').value;
+        if (next.length < 6) { toast('Kata sandi baru minimal 6 karakter', 'error'); return; }
+        if (next !== confirm) { toast('Konfirmasi kata sandi baru tidak cocok', 'error'); return; }
+        try {
+          await api('/api/auth/password', { method: 'POST', body: { current, next, confirm } });
+          toast('Kata sandi berhasil diganti');
+          pwForm.querySelectorAll('input').forEach((i) => { i.value = ''; });
+          pwForm.hidden = true;
+        } catch (err) { toast(err.message, 'error'); }
+      });
+    }
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        try { await api('/api/auth/logout', { method: 'POST', body: {} }); } catch (_) { /* tetap reload */ }
+        window.location.reload();
+      });
+    }
+
+    const syncExportBtn = document.getElementById('syncExportBtn');
+    const syncImportBtn = document.getElementById('syncImportBtn');
+    const syncInput = document.getElementById('syncFolderInput');
+    const syncFolder = () => (syncInput ? syncInput.value.trim() : '');
+    if (syncExportBtn) {
+      syncExportBtn.addEventListener('click', async () => {
+        const folder = syncFolder();
+        if (!folder) { toast('Isi path folder dulu', 'error'); return; }
+        try {
+          const res = await api('/api/sync/export', { method: 'POST', body: { folder } });
+          toast(`Backup disalin: ${res.filename}`, 'ok', 5000);
+        } catch (err) { toast(err.message, 'error', 7000); }
+      });
+    }
+    if (syncImportBtn) {
+      syncImportBtn.addEventListener('click', async () => {
+        const folder = syncFolder();
+        if (!folder) { toast('Isi path folder dulu', 'error'); return; }
+        try {
+          const res = await api('/api/sync/list', { method: 'POST', body: { folder } });
+          const latest = (res.files || []).slice().sort((a, b) => b.name.localeCompare(a.name))[0];
+          if (!latest) { toast('Folder tidak punya harita-sync-*.json', 'error'); return; }
+          confirmDialog({
+            title: 'Impor backup dari folder?',
+            message: `Semua tabel (termasuk pengaturan) akan diganti dengan data dari <strong>${esc(latest.name)}</strong>.<br><br>Snapshot otomatis dibuat dulu, bisa dikembalikan lewat "Pulihkan backup terbaru".`,
+            confirmLabel: 'Impor & ganti data',
+            onConfirm: async () => {
+              const done = await api('/api/sync/import', { method: 'POST', body: { path: latest.path } });
+              toast(`Diimpor ${done.rows || 0} baris. Memuat ulang…`, 'ok', 4000);
+              setTimeout(() => window.location.reload(), 1200);
+            },
+          });
+        } catch (err) { toast(err.message, 'error', 7000); }
+      });
+    }
+
     const diagBtn = document.getElementById('diagCopyBtn');
     if (diagBtn) diagBtn.addEventListener('click', copyDiagnostics);
     const dbInfo = document.getElementById('settingsDbInfo');
@@ -1435,6 +1777,19 @@ $('#crashClose')?.addEventListener('click', () => {
 
 /* ---------- init ---------- */
 async function init() {
+  if (window.haritaAuthGate) {
+    const authed = await window.haritaAuthGate();
+    if (!authed) return;
+  }
+  try {
+    if (sessionStorage.getItem('harita-updated')) {
+      sessionStorage.removeItem('harita-updated');
+      setTimeout(() => toast('Harita berhasil diperbarui ke versi terbaru'), 600);
+    }
+  } catch (_) {}
+  bindUpdateBanner();
+  setTimeout(checkForUpdate, 5000);
+  setInterval(checkForUpdate, 6 * 60 * 60 * 1000);
   hydrateIcons();
   restoreTimer();
   bindGlobal();

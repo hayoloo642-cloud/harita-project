@@ -1,0 +1,28 @@
+[project]
+name = "harita"
+version = "1.9.0"
+description = "Harita — dashboard harian lokal untuk pelajar Indonesia"
+requires-python = ">=3.10"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "SIM", "TRY", "BLE"]
+# masalah gaya lama yang disengaja (defensif), tidak menghalangi CI:
+ignore = [
+    "BLE001",  # blind except — disengaja: fallback lokal tak boleh bocor
+    "S110",    # try-except-pass — disengaja di jalur pemulihan
+    "TRY003",  # raise dengan pesan panjang — disengaja (pesan = UX untuk pengguna)
+    "TRY004",  # ValueError vs TypeError — preferensi tim
+    "TRY300",  # try-consider-else — kosmetik
+    "SIM105",  # contextlib.suppress — gaya lama
+    "SIM118",  # in-dict-keys — kosmetik
+    "SIM201",  # negate-equal-op — kosmetik
+    "E501",    # line length — soft limit
+    "E701",    # multiple statements on one line — gaya tertentu
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["BLE001", "TRY004"]

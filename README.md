@@ -133,6 +133,17 @@ py server.py
 
 ---
 
+### Akun lokal (baru di v1.6.0+)
+
+Saat pertama kali dibuka, Harita menampilkan layar pembuka dan meminta pendaftaran **nama + kata sandi** (sekali saja, tersimpan lokal di perangkat ini sebagai hash PBKDF2 — tidak dikirim ke mana pun).
+
+- Pendaftaran pertama: isi nama, kata sandi, dan konfirmasi — kamu langsung masuk ke dashboard.
+- Setelahnya: masukkan nama + kata sandi yang sama setiap membuka Harita.
+- Ganti kata sandi / keluar: Pengaturan → **Akun**.
+- Sesi tersimpan 30 hari di browser; logout kapan pun dari Pengaturan.
+- Data kamu tidak pernah dihapus oleh alur ini; backup otomatis tetap berjalan (`data/backups/` + `~/harita-backups/`).
+- Kata sandi dan sesi tidak pernah diekspor ke backup JSON.
+
 ### Update aplikasi
 
 **Windows installer:** jalankan ulang perintah installer dari opsi 1; file kode diperbarui, folder `data/` dipertahankan.

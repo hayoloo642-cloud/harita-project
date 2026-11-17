@@ -18,6 +18,13 @@ command -v "$PYTHON" >/dev/null 2>&1 \
 "$PYTHON" -m PyInstaller --version >/dev/null 2>&1 \
   || die "PyInstaller belum terpasang. Jalankan: $PYTHON -m pip install --user pyinstaller"
 
+# x86-64-v2 baseline: binary upstream rilis WAS ditautkan dengan AVX sehingga
+# crash (Illegal instruction) di CPU generasi lebih lama (mis. Celeron N4020).
+# Jaga agar build tetap jalan luas — jangan pakai -march=native saat membangun.
+export CFLAGS="${CFLAGS:--O2 -fPIC -march=x86-64-v2 -mtune=generic}"
+export CXXFLAGS="$CXXFLAGS:-O2 -fPIC -march=x86-64-v2 -mtune=generic"
+export LDFLAGS="${LDFLAGS:--Wl,--build-id}"
+
 say "==> Harita: build Linux one-file (PyInstaller)"
 rm -rf "$ROOT/build" "$ROOT/dist"
 "$PYTHON" -m PyInstaller --clean --noconfirm packaging/harita.spec

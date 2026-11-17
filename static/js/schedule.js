@@ -169,6 +169,24 @@ function parseScheduleDay(v) {
   return null;
 }
 
+function scheduleConflicts(existing, item) {
+  const start = String(item.start_time || '').slice(0, 5);
+  const end = item.end_time ? String(item.end_time).slice(0, 5) : start;
+  if (!start || !end) return null;
+  const sMin = toMinutes(start), eMin = toMinutes(end || start);
+  return existing.some((s) => {
+    if (Number(s.weekday) !== Number(item.weekday)) return false;
+    const a = toMinutes(String(s.start_time).slice(0, 5));
+    const b = toMinutes(String(s.end_time || s.start_time).slice(0, 5));
+    return sMin < b && a < eMin;
+  }) ? { subject: item.subject, start } : null;
+}
+
+function toMinutes(t) {
+  const [h, m] = String(t).split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
 async function importScheduleCsv(file) {
   const text = await file.text();
   const raw = parseCsv(text.replace(/^﻿/, '')).filter((r) => r.length >= 3);
@@ -188,11 +206,17 @@ async function importScheduleCsv(file) {
     items.push({ weekday: day, start_time: startNorm, end_time: '', subject, room, note });
   }
   let ok = 0, fail = 0;
+  const conflicts = [];
   for (const it of items) {
+    const conflict = scheduleConflicts(state.schedule, it);
+    if (conflict) { conflicts.push(conflict); continue; }
     try {
       await api('/api/schedule', { method: 'POST', body: it });
       ok++;
     } catch { fail++; }
+  }
+  if (conflicts.length) {
+    toast(`${conflicts.length} slot dilewati karena bentrok jam: ${conflicts.slice(0,3).map(c => `${c.subject} ${c.start}`).join(', ')}${conflicts.length > 3 ? '…' : ''}`, 'error');
   }
   await loadSchedule();
   if (!items.length) {

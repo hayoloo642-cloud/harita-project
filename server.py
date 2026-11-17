@@ -23,7 +23,7 @@ from datetime import datetime, date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from zoneinfo import ZoneInfo
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 try:
     import psutil
@@ -790,12 +790,16 @@ def api_task_complete_all(handler: BaseHTTPRequestHandler) -> None:
     day = body.get("date") or today_local()
     conn = db_connect()
     try:
-        cur = conn.execute(
-            "UPDATE tasks SET done = 1, updated_at = ? WHERE date = ? AND deleted_at IS NULL AND done = 0",
-            (now_local(), day),
-        )
+        ids = [r["id"] for r in conn.execute(
+            "SELECT id FROM tasks WHERE date = ? AND deleted_at IS NULL AND done = 0", (day,)
+        ).fetchall()]
+        if ids:
+            conn.execute(
+                "UPDATE tasks SET done = 1, updated_at = ? WHERE date = ? AND deleted_at IS NULL AND done = 0",
+                (now_local(), day),
+            )
         conn.commit()
-        send_json(handler, 200, {"ok": True, "date": day, "count": cur.rowcount})
+        send_json(handler, 200, {"ok": True, "date": day, "count": len(ids), "ids": ids})
     finally:
         conn.close()
 

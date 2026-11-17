@@ -1,5 +1,5 @@
 /* MyAct service worker — network-first (fresh assets online, fallback offline) */
-const CACHE = 'myact-v3';
+const CACHE = 'myact-v4';
 const SHELL = [
   '/',
   '/index.html',

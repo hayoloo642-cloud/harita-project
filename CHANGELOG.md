@@ -5,6 +5,29 @@ Semua perubahan penting pada proyek ini didokumentasikan di sini.
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] — 2026-11-17
+
+### Ditambahkan
+- Splash screen dengan logo MyAct dan tagline
+- Pengaturan lengkap: tema (gelap/terang/sistem), 8 aksen warna, ukuran teks, kontras tinggi, halaman awal, sidebar ciut
+- Data contoh sekali klik (onboarding & Pengaturan) — dataset kecil siap jelajah
+- Tombol Beranda di topbar + shortcut `Alt + H` dan `Ctrl/Cmd + N` untuk tugas baru
+- Indikator "Menyimpan…/Tersimpan" pada setiap perubahan
+- Pencarian tugas, "Selesaikan semua" dengan Undo, edit judul tugas inline
+- Badge pencapaian streak (3/7/30/100 hari) dan grafik tren fokus 7 hari di Beranda
+- Loading skeleton untuk tugas, catatan, jadwal, nilai, flashcard, dan lomba
+- Laporan diagnostik sekali klik (dari layar error maupun Pengaturan)
+- Tombol "Bersihkan cache file" untuk memaksa muat ulang aset
+- `tests/smoke.py` — uji API + mode `--stress` (300 tugas, 200 kartu)
+
+### Diperbaiki
+- `/api/reset` kini benar-benar menghapus semua data (fungsi sebelumnya belum terdaftar)
+- Aksen warna kini mewarnai seluruh permukaan bertinta, bukan hanya beberapa tombol
+- Pengaturan ukuran teks benar-benar mengubah ukuran teks isi
+- Modal dan Pengaturan tidak terpotong pada layar pendek
+- `api()` gagal dengan pesan jelas setelah 15 detik, bukan menggantung
+- `localStorage` yang rusak tidak lagi membuat aplikasi gagal saat boot
+
 ## [1.0.0] — 2026-11-17
 
 ### Ditambahkan

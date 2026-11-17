@@ -123,7 +123,17 @@ async function renderBerandaFocusSubjects() {
       return;
     }
     const max = Math.max(...rows.map((r) => r.minutes_7d), 1);
-    node.innerHTML = rows.map((r) => `<div class="focus-subject-row"><strong>${esc(r.subject)}</strong><div class="fsr-bar"><div class="fsr-fill" style="width:${Math.round((r.minutes_7d / max) * 100)}%"></div></div><span>${r.minutes_7d}m</span></div>`).join('');
+    let trend = '';
+    try {
+      const hist = await api('/api/focus/history?days=7');
+      const days = hist.days || [];
+      const peak = Math.max(...days.map((d) => d.minutes), 1);
+      if (days.length) {
+        trend = `<div class="focus-spark" aria-label="Tren fokus 7 hari">${days.map((d) => `
+          <div class="fs-bar" title="${esc(fmtShort(d.date))}: ${d.minutes} menit"><span style="height:${Math.max(6, Math.round((d.minutes / peak) * 100))}%"></span></div>`).join('')}</div>`;
+      }
+    } catch { /* ignore */ }
+    node.innerHTML = trend + rows.map((r) => `<div class="focus-subject-row"><strong>${esc(r.subject)}</strong><div class="fsr-bar"><div class="fsr-fill" style="width:${Math.round((r.minutes_7d / max) * 100)}%"></div></div><span>${r.minutes_7d}m</span></div>`).join('');
   } catch { node.innerHTML = ''; }
 }
 

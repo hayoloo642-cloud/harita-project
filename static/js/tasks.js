@@ -293,6 +293,45 @@ function bindTaskQuickActions() {
     state.taskFilter = btn.dataset.filter;
     renderTasksView();
   });
+  const taskList = $('#taskList');
+  if (taskList) {
+    taskList.addEventListener('dblclick', (e) => {
+      const titleNode = e.target.closest('.task-title');
+      if (!titleNode || titleNode.querySelector('input')) return;
+      const item = titleNode.closest('.task-item');
+      const id = Number(item && item.dataset.taskId);
+      const task = (state.tasks.tasks || []).find((t) => t.id === id);
+      if (!task) return;
+      const input = document.createElement('input');
+      input.className = 'inline-edit';
+      input.maxLength = 140;
+      input.value = task.title;
+      titleNode.textContent = '';
+      titleNode.appendChild(input);
+      input.focus();
+      input.select();
+      let done = false;
+      const finish = async (save) => {
+        if (done) return;
+        done = true;
+        const value = input.value.trim();
+        if (save && value && value !== task.title) {
+          try {
+            await api(`/api/tasks/${id}`, { method: 'PATCH', body: { title: value } });
+            task.title = value;
+            toast('Judul tugas diperbarui');
+          } catch (err) { toast(err.message, 'error'); }
+        }
+        renderTasksView();
+        renderDashboard();
+      };
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); finish(true); }
+        if (ev.key === 'Escape') { ev.preventDefault(); finish(false); }
+      });
+      input.addEventListener('blur', () => finish(true));
+    });
+  }
   const taskSearch = $('#taskSearch');
   if (taskSearch) {
     taskSearch.addEventListener('input', (e) => {
@@ -313,9 +352,15 @@ function bindTaskQuickActions() {
         message: `${openTasks.length} tugas aktif pada <strong>${esc(fmtLong(state.tasks.date || state.taskDate))}</strong> akan ditandai selesai.`,
         confirmLabel: 'Selesaikan semua',
         onConfirm: async () => {
-          await api('/api/tasks/complete-all', { method: 'POST', body: { date: state.tasks.date || state.taskDate } });
+          const date = state.tasks.date || state.taskDate;
+          const res = await api('/api/tasks/complete-all', { method: 'POST', body: { date } });
+          const ids = res.ids || [];
           await loadTasks(state.taskDate);
-          toast(`${openTasks.length} tugas diselesaikan`);
+          toastUndo(`${ids.length} tugas diselesaikan`, async () => {
+            await Promise.all(ids.map((id) => api(`/api/tasks/${id}`, { method: 'PATCH', body: { done: 0 } })));
+            await loadTasks(state.taskDate);
+            toast('Tugas dikembalikan');
+          }, 8000);
         },
       });
     });

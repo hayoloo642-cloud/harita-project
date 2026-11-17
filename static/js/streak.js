@@ -30,6 +30,7 @@ function renderHabitsView() {
     return;
   }
   if (empty) empty.hidden = true;
+  renderAchievements();
   grid.innerHTML = habitsCache.map((h) => {
     const week = h.week || [];
     const todayEntry = week.find((s) => s.date === today);
@@ -52,6 +53,28 @@ function renderHabitsView() {
         <span class="hint" style="margin:0">${doneToday ? 'Selesai hari ini 🎉' : 'Belum ditandai hari ini'}</span>
         <button class="btn ${doneToday ? 'btn-ghost' : 'btn-primary'} btn-sm" data-habit-toggle="${h.id}" data-done="${doneToday ? 1 : 0}">${doneToday ? `${iconSvg('rotate')} Batalkan` : `${iconSvg('check')} Tandai selesai`}</button>
       </div>
+    </div>`;
+  }).join('');
+}
+
+function renderAchievements() {
+  const node = $('#achievementGrid');
+  if (!node) return;
+  const best = habitsCache.reduce((max, h) => Math.max(max, Number(h.best || h.current || 0)), 0);
+  const current = habitsCache.reduce((max, h) => Math.max(max, Number(h.current || 0)), 0);
+  const badges = [
+    { days: 3, label: 'Awal yang baik', icon: 'sparkles' },
+    { days: 7, label: 'Seminggu penuh', icon: 'flame' },
+    { days: 30, label: 'Sebulan konsisten', icon: 'trophy' },
+    { days: 100, label: '100 hari', icon: 'star' },
+  ];
+  node.innerHTML = badges.map((b) => {
+    const unlocked = best >= b.days;
+    return `<div class="achievement ${unlocked ? 'unlocked' : 'locked'}" title="${unlocked ? 'Terbuka' : `Butuh ${b.days} hari berturut-turut`}">
+      <div class="ach-ico">${iconSvg(unlocked ? b.icon : 'lock')}</div>
+      <strong>${b.days} hari</strong>
+      <span>${b.label}</span>
+      <div class="ach-bar"><span style="width:${Math.min(100, Math.round((current / b.days) * 100))}%"></span></div>
     </div>`;
   }).join('');
 }

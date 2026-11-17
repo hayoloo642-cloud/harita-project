@@ -60,6 +60,7 @@ const ICON_PATHS = {
   keyboard: '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6"/>',
   printer: '<path d="M6 9V3h12v6M6 18H3v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6h-3M6 14h12v7H6z"/>',
   upload: '<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>',
+  lock: '<rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
   star: '<path d="m12 3 2.6 5.9 6.4.5-4.9 4.2 1.5 6.2L12 17.3 6.4 19.8l1.5-6.2-4.9-4.2 6.4-.5Z"/>',
   chart: '<path d="M4 20V4M4 20h16M8 16v-5M12 16V8M16 16v-9"/>',
   target2: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',

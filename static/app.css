@@ -1109,7 +1109,7 @@ select option { background: var(--panel-solid); color: var(--text); }
 .palette-empty { padding: 30px; text-align: center; color: var(--faint); font-size: 12px; }
 
 /* ---------- habits (multi-habit streak) ---------- */
-.habits-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; }
+.habits-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; }
 .habit-card { padding: 18px; display: flex; flex-direction: column; gap: 10px; }
 .habit-head { display: flex; align-items: center; gap: 10px; }
 .habit-ico { width: 38px; height: 38px; border-radius: 11px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
@@ -1551,3 +1551,26 @@ html[data-contrast="high"] .card { border-width: 1.5px; }
   .top-home { display: none; }
 }
 .onboard-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+
+/* ---------- Batch D: achievements + focus sparkline ---------- */
+.achievement-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.achievement { border: 1px solid var(--border); border-radius: 13px; padding: 12px; display: flex; flex-direction: column; gap: 4px; background: var(--panel); }
+.achievement.unlocked { border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.achievement.locked { opacity: .62; }
+.ach-ico { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent-2-ink); margin-bottom: 2px; }
+.achievement strong { font-size: 12px; color: var(--text); }
+.achievement span { font-size: 10px; color: var(--muted); line-height: 1.35; }
+.ach-bar { height: 4px; border-radius: 99px; background: var(--border); overflow: hidden; margin-top: 6px; }
+.ach-bar span { display: block; height: 100%; background: var(--accent-2); border-radius: 99px; }
+
+.focus-spark { display: flex; align-items: flex-end; gap: 5px; height: 46px; margin-bottom: 10px; }
+.fs-bar { flex: 1; height: 100%; background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 5px; display: flex; align-items: flex-end; }
+.fs-bar span { display: block; width: 100%; background: var(--accent-2); border-radius: 5px; min-height: 3px; }
+
+/* ---------- inline task title edit ---------- */
+.task-title .inline-edit {
+  width: 100%; font: inherit; font-size: 13px; color: var(--text);
+  background: var(--panel-solid); border: 1px solid var(--accent-2); border-radius: 7px;
+  padding: 4px 7px; outline: none;
+}
+.task-title { cursor: text; }

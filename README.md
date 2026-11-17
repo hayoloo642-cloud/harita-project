@@ -19,9 +19,12 @@
 - **Streak & kebiasaan** — multi-habit streak dengan heatmap 112 hari
 - **Music player lokal** — putar file audio di laptop, progress, volume, now-playing bar
 - **Device monitor** — CPU, RAM, disk, baterai, suhu, jaringan realtime
-- **Tema gelap & terang** — otomatis ikut sistem atau toggle manual
-- **Keyboard first** — `Ctrl/Cmd + K` untuk command palette, `Ctrl/Cmd + /` untuk bantuan shortcut
-- **Privasi penuh** — semua data tersimpan lokal di SQLite; backup JSON otomatis
+- **Tema & tampilan** — gelap/terang/ikuti sistem, 8 aksen warna, ukuran teks, kontras tinggi, sidebar bisa diciutkan
+- **Keyboard first** — `Ctrl/Cmd + K` command palette, `Ctrl/Cmd + N` tugas baru, `Alt + H` beranda, `Ctrl/Cmd + /` bantuan shortcut
+- **Data contoh** — tombol "Isi data contoh" untuk melihat semua fitur tanpa mengotori data asli
+- **Tugas lebih cepat** — pencarian dalam daftar, selesaikan semua + undo, edit judul langsung (klik dua kali)
+- **Arsip & pemulihan** — soft-delete + Undo, backup JSON otomatis, bersihkan cache file dari Pengaturan
+- **Privasi penuh** — semua data tersimpan lokal di SQLite; tidak ada akun atau cloud
 
 ---
 

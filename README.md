@@ -48,6 +48,19 @@ cd harita-project
 
 Buka `http://127.0.0.1:8777` di browser (Chrome/Chromium direkomendasikan untuk mode app standalone).
 
+### Windows tanpa Git (paling mudah)
+
+1. Install Python 3.10+ dari https://www.python.org/downloads/ dan centang **Add python.exe to PATH**.
+2. Download source: https://github.com/hayoloo642-cloud/harita-project/archive/refs/heads/master.zip
+3. Extract ZIP ke folder biasa.
+4. Double-click `run.bat`, atau buka Command Prompt di folder itu lalu jalankan:
+   ```bat
+   py server.py
+   ```
+5. Buka `http://127.0.0.1:8777`.
+
+Kalau muncul error `python` atau `py` tidak dikenali, install ulang Python dan pastikan **Add python.exe to PATH** dicentang.
+
 ### Atau jalankan manual
 
 ```bash

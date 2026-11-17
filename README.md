@@ -161,7 +161,7 @@ git pull
 Release resmi tersedia untuk:
 
 - **Windows** — portable `.exe` atau installer `Harita-Setup-*.exe`
-- **Linux** — binary raw, **AppImage**, dan **RPM**
+- **Linux** — binary raw, **AppImage**, **DEB**, dan **RPM**
 - **macOS** — `.app` (`.zip`), `.dmg`, dan binary raw (Apple Silicon)
 
 Lihat halaman Release: https://github.com/hayoloo642-cloud/harita-project/releases

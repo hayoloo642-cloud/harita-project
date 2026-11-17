@@ -1,0 +1,12 @@
+Package: harita
+Version: __VERSION__
+Section: utils
+Priority: optional
+Architecture: __ARCH__
+Maintainer: Harita contributors <hayoloo642@gmail.com>
+Depends: libc6
+Description: Harita — local-first daily dashboard for Indonesian students
+ Harita is a local-first daily dashboard for Indonesian students: tasks,
+ calendar, pomodoro, flashcards, habits, expenses, deadlines, weather, and
+ device monitoring. It stores all data locally in SQLite; no account or
+ cloud service is required.

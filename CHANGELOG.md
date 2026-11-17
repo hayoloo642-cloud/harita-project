@@ -16,7 +16,7 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/).
 ### Desktop packaging
 - Binary Linux kini tersedia sebagai raw binary dan **AppImage**, plus paket **RPM** untuk Fedora/RHEL/openSUSE-style distros
 - Windows kini tersedia sebagai portable `.exe` dan **installer Inno Setup** (`Harita-Setup-<versi>.exe`) dengan shortcut Desktop/Start Menu
-- Release workflow membuat Linux (.AppImage/.RPM), Windows (.exe/installer), macOS (.app/.dmg), dan source archive otomatis
+- Release workflow membuat Linux (.AppImage/.deb/.rpm), Windows (.exe/installer), macOS (.app/.dmg), dan source archive otomatis
 
 ### Diperbaiki
 - Streak tampil dengan benar saat hari ini belum ditandai: Harita menghitung dari hari terakhir yang selesai, bukan langsung nol.

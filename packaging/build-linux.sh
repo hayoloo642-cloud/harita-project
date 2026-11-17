@@ -90,6 +90,16 @@ else
   say "      Atau set APPIMAGETOOL=/path/ke/appimagetool dan jalankan lagi."
 fi
 
+# --- DEB opsional ----------------------------------------------------------
+if command -v dpkg-deb >/dev/null 2>&1; then
+  say ""
+  say "==> dpkg-deb ditemukan — membuat DEB"
+  sh packaging/build-deb.sh
+else
+  say ""
+  say "Info: dpkg-deb tidak ditemukan — langkah DEB dilewati."
+fi
+
 # --- RPM opsional ----------------------------------------------------------
 if command -v rpmbuild >/dev/null 2>&1; then
   say ""

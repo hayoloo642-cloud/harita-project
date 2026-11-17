@@ -13,7 +13,9 @@ repositori — build dilakukan di mesin masing-masing.
 | File | Fungsi |
 |------|--------|
 | `harita.spec` | Spec PyInstaller one-file: `server.py` + `static/` + `LICENSE` |
-| `build-linux.sh` | Build Linux binary, lalu AppImage jika `appimagetool` tersedia, dan RPM jika `rpmbuild` tersedia |
+| `build-linux.sh` | Build Linux binary, lalu AppImage jika `appimagetool` tersedia, DEB jika `dpkg-deb` tersedia, dan RPM jika `rpmbuild` tersedia |
+| `build-deb.sh` | Membungkus binary `dist/Harita` menjadi paket DEB |
+| `deb/control`, `deb/postinst`, `deb/prerm`, `deb/harita.desktop` | Metadata Debian package |
 | `build-rpm.sh` | Membungkus binary `dist/Harita` menjadi paket RPM |
 | `rpm/harita.spec` | Spec RPM: `/opt/harita`, symlink `/usr/bin/harita`, desktop entry, ikon |
 | `build-windows.bat` | Build Windows portable → `dist\Harita.exe` |
@@ -52,6 +54,7 @@ Hasil:
 
 - `dist/Harita` — binary one-file.
 - `dist/harita-<versi>-linux-<arch>.AppImage` — jika `appimagetool` ada di `PATH` atau diset lewat `APPIMAGETOOL`.
+- `dist/harita-<versi>-linux-<arch>.deb` — jika `dpkg-deb` tersedia.
 - `dist/harita-<versi>-linux-<arch>.rpm` — jika `rpmbuild` tersedia.
 
 ### Windows

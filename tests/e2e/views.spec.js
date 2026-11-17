@@ -6,10 +6,13 @@ test('semua view bisa dibuka tanpa JS error', async ({ page }) => {
 
   await page.goto('/?nosw=1', { waitUntil: 'networkidle' });
 
-  // registrasi pertama (data e2e selalu segar)
+  // registrasi pertama (DB segar); kalau akun sudah ada (mis. app.spec.js
+  // jalan lebih dulu dengan data terbagi), masuk dengan kredensial yang sama
   await page.fill('#authName', 'E2E Test');
   await page.fill('#authPassword', 'e2e-test-password');
-  await page.fill('#authConfirm', 'e2e-test-password');
+  if (await page.locator('#authConfirmWrap:visible').count() > 0) {
+    await page.fill('#authConfirm', 'e2e-test-password');
+  }
   await page.click('#authSubmit');
   await expect(page.locator('#splash')).toBeHidden({ timeout: 20_000 });
 

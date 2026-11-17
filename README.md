@@ -48,6 +48,35 @@ cd harita-project
 
 Buka `http://127.0.0.1:8777` di browser (Chrome/Chromium direkomendasikan untuk mode app standalone).
 
+### Windows lewat CMD / PowerShell (satu perintah)
+
+Install tanpa Git, otomatis download source, buat desktop shortcut, dan jalankan Harita.
+Tidak butuh admin. Pastikan Python sudah ada; kalau belum, installer akan memberi instruksi.
+
+Command Prompt:
+```bat
+curl.exe -L -o harita-install.ps1 https://raw.githubusercontent.com/hayoloo642-cloud/harita-project/master/install.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\harita-install.ps1
+```
+
+PowerShell:
+```powershell
+iwr -UseBasicParsing https://raw.githubusercontent.com/hayoloo642-cloud/harita-project/master/install.ps1 -OutFile harita-install.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\harita-install.ps1
+```
+
+Atau langsung dari folder repo:
+```powershell
+.\install.ps1
+```
+
+Uninstall (shortcut saja, data tetap):
+```powershell
+.\uninstall.ps1
+```
+
+> Tips: kalau kamu tidak nyaman menjalankan script download, buka URL installer di atas dulu dan baca isinya sebelum menjalankannya.
+
 ### Windows tanpa Git (paling mudah)
 
 1. Install Python 3.10+ dari https://www.python.org/downloads/ dan centang **Add python.exe to PATH**.

@@ -1,7 +1,7 @@
 {
   "name": "MyAct — Dashboard Harian",
   "short_name": "MyAct",
-  "description": "Dashboard harian lokal untuk siswa sekolah: cuaca realtime, todo, kalender, lomba, fokus, catatan, jadwal, musik & streak.",
+  "description": "Dashboard harian lokal untuk siswa sekolah: cuaca realtime, todo, kalender, lomba, fokus, catatan, pengeluaran, jadwal, musik & streak.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -168,11 +168,39 @@ def main() -> int:
         status, res = request(base, "/api/settings", "POST", {"pinned_views": "evil,__proto__"})
         check("invalid views coerced", status == 200 and res.get("settings", {}).get("pinned_views") == "")
 
+        print("expenses")
+        month = data["today"][:7]
+        status, exp = request(base, "/api/expenses", "POST", {
+            "date": data["today"], "amount": 25000, "category": "makan",
+            "method": "qris", "note": "Smoke lunch",
+        })
+        check("create expense", status in (200, 201) and exp.get("expense", {}).get("id"), str(exp)[:140])
+        eid = exp.get("expense", {}).get("id")
+        if eid:
+            status, listing = request(base, f"/api/expenses?month={month}")
+            check("month list includes expense", status == 200 and any(x["id"] == eid for x in listing.get("expenses", [])), str(listing)[:160])
+            check("month total counted", listing.get("total", 0) >= 25000, str(listing.get("total")))
+            status, upd = request(base, f"/api/expenses/{eid}", "PATCH", {"amount": 30000, "note": "Smoke lunch edited"})
+            check("update expense", status == 200 and upd.get("expense", {}).get("amount") == 30000, str(upd)[:140])
+            status, _ = request(base, f"/api/expenses/{eid}", "DELETE")
+            check("soft-delete expense", status == 200)
+            status, listing = request(base, f"/api/expenses?month={month}")
+            check("deleted expense hidden", all(x["id"] != eid for x in listing.get("expenses", [])))
+            status, _ = request(base, "/api/restore", "POST", {"kind": "expense", "id": eid})
+            check("restore expense", status == 200)
+            status, listing = request(base, f"/api/expenses?month={month}")
+            check("restored expense visible", any(x["id"] == eid for x in listing.get("expenses", [])))
+        status, bad = request(base, "/api/expenses", "POST", {"amount": 0})
+        check("invalid expense amount rejected", status == 400, str(bad)[:120])
+        status, res = request(base, "/api/settings", "POST", {"expense_budget": "500000"})
+        check("expense budget saved", status == 200 and res.get("settings", {}).get("expense_budget") == "500000", str(res)[:140])
+
         print("backup preview & import")
         status, status_payload = request(base, "/api/db/status")
         check("db status 200", status == 200 and "backups" in status_payload, str(status_payload)[:120])
         status, exported = request(base, "/api/export")
         check("export returns tables", status == 200 and "tables" in exported)
+        check("export includes expenses", "expenses" in exported.get("tables", {}))
         status, preview = request(base, "/api/db/preview", "POST", {"data": exported})
         check("preview accepts upload", status == 200 and any(t["table"] == "tasks" for t in preview.get("tables", [])), str(preview)[:160])
         status, imp = request(base, "/api/db/import", "POST", {"data": exported, "tables": ["tasks"]})
@@ -189,6 +217,8 @@ def main() -> int:
         check("demo seeded", status == 200 and res.get("seeded") is True, str(res))
         status, listing = request(base, "/api/tasks")
         check("demo tasks present", len(listing.get("tasks", [])) >= 3)
+        status, listing = request(base, "/api/expenses")
+        check("demo expenses present", len(listing.get("expenses", [])) >= 3, str(listing)[:160])
 
         if stress:
             print("stress (300 tasks, 200 flashcards)")

@@ -113,6 +113,9 @@
       </button>
 
       <p class="nav-group-label" data-i18n="nav.group.other">Lainnya</p>
+      <button class="nav-item" data-view="pengeluaran">
+        <span class="nav-ico" data-icon="wallet"></span><span data-i18n="nav.expenses">Pengeluaran</span>
+      </button>
       <button class="nav-item" data-view="streak">
         <span class="nav-ico" data-icon="flame"></span><span data-i18n="nav.streak">Streak</span>
       </button>
@@ -611,6 +614,38 @@
         <div class="notes-grid" id="notesGrid"></div>
       </section>
 
+      <!-- ============ PENGELUARAN ============ -->
+      <section class="view" id="view-pengeluaran">
+        <div class="view-head">
+          <div>
+            <h2>Pengeluaran</h2>
+            <p>Catat uang keluar, lihat ke mana perginya, dan jaga anggaran bulanan.</p>
+          </div>
+          <div class="view-actions">
+            <div class="search-box">
+              <span class="ico" data-icon="search"></span>
+              <input type="search" id="expenseSearch" placeholder="Cari catatan / kategori…" aria-label="Cari pengeluaran" />
+            </div>
+            <input type="month" id="expenseMonth" class="month-input" aria-label="Pilih bulan" />
+            <button class="btn btn-primary btn-sm" id="expenseAdd"><span class="ico" data-icon="plus"></span> Catat</button>
+          </div>
+        </div>
+        <div class="expense-stats" id="expenseStats"></div>
+        <div class="expense-layout">
+          <div class="card expense-main">
+            <div class="card-head">
+              <div><p class="eyebrow">Transaksi</p><h3 id="expenseListTitle">—</h3></div>
+              <span class="hint" id="expenseCount"></span>
+            </div>
+            <div class="expense-list" id="expenseList"></div>
+          </div>
+          <aside class="card expense-side">
+            <div class="card-head"><div><p class="eyebrow">Per kategori</p><h3 id="expenseBreakdownTitle">Bulan ini</h3></div></div>
+            <div class="expense-breakdown" id="expenseBreakdown"></div>
+          </aside>
+        </div>
+      </section>
+
       <!-- ============ JADWAL ============ -->
       <section class="view" id="view-jadwal">
         <div class="view-head">
@@ -973,6 +1008,7 @@
 <script src="/js/calendar.js"></script>
 <script src="/js/competitions.js"></script>
 <script src="/js/notes.js"></script>
+<script src="/js/expenses.js"></script>
 <script src="/js/schedule.js"></script>
 <script src="/js/focus.js"></script>
 <script src="/js/device.js"></script>

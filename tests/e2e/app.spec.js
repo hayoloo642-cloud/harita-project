@@ -97,6 +97,37 @@ test('task CRUD: create, toggle done, then delete through confirm dialog', async
   await expect(page.locator('#modalOverlay')).toBeHidden();
 });
 
+test('expenses: create, edit, then delete through confirm dialog', async ({ page }) => {
+  await gotoApp(page);
+  await openView(page, 'pengeluaran');
+
+  const note = `E2E expense ${Date.now()}`;
+  await page.locator('#expenseAdd').click();
+  await expect(page.locator('#modalOverlay')).toBeVisible();
+  await expect(page.locator('#modalTitle')).toHaveText('Catat pengeluaran');
+  await page.locator('#modalBody input[name="amount"]').fill('25000');
+  await page.locator('#modalBody input[name="note"]').fill(note);
+  await page.locator('#modalSubmit').click();
+  await expect(page.locator('#modalOverlay')).toBeHidden();
+
+  const row = page.locator('#expenseList .expense-row').filter({ hasText: note });
+  await expect(row).toBeVisible();
+  await expect(row.locator('.expense-amount')).toContainText('25.000');
+
+  await row.locator('[data-expense-edit]').click();
+  await expect(page.locator('#modalTitle')).toHaveText('Edit pengeluaran');
+  await page.locator('#modalBody input[name="amount"]').fill('30000');
+  await page.locator('#modalSubmit').click();
+  await expect(page.locator('#modalOverlay')).toBeHidden();
+  await expect(row.locator('.expense-amount')).toContainText('30.000');
+
+  await row.locator('[data-expense-del]').click();
+  await expect(page.locator('#modalTitle')).toHaveText('Hapus pengeluaran?');
+  await page.locator('#modalSubmit').click();
+  await expect(page.locator('#modalOverlay')).toBeHidden();
+  await expect(row).toHaveCount(0);
+});
+
 test('search: non-matching tasks are filtered out', async ({ page }) => {
   await gotoApp(page);
   await openView(page, 'tugas');

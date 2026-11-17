@@ -108,6 +108,22 @@ async function loadNotes() {
   } catch (err) { toast(err.message, 'error'); }
 }
 
+async function loadExpenses(month) {
+  const target = month || state.expenseMonth || (state.today || todayStr()).slice(0, 7);
+  state.expenseMonth = target;
+  state.loading.expenses = true;
+  try {
+    const data = await api(`/api/expenses?month=${encodeURIComponent(target)}`);
+    state.expenses = data.expenses || [];
+    state.expenseSummary = { total: data.total || 0, count: data.count || 0 };
+    state.loading.expenses = false;
+    if (state.view === 'pengeluaran') renderExpensesView();
+  } catch (err) {
+    state.loading.expenses = false;
+    toast(err.message, 'error');
+  }
+}
+
 async function loadSchedule() {
   state.loading.schedule = true;
   try {

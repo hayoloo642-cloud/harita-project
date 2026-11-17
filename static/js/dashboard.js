@@ -15,6 +15,7 @@ const PAGE_META = {
   device: ['Performa laptop', 'Device'],
   music: ['Music player', 'Musik'],
   streak: ['Streak konsistensi', 'Streak'],
+  pengeluaran: ['Catatan uang keluar', 'Pengeluaran'],
 };
 
 function parseViewList(value) {

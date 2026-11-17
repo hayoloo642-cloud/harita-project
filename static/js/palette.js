@@ -17,6 +17,7 @@ function paletteCommands() {
     ['device', 'gauge', 'Device', 'Performa laptop'],
     ['music', 'play', 'Musik', 'Music player'],
     ['streak', 'flame', 'Streak', 'Streak & kebiasaan'],
+    ['pengeluaran', 'wallet', 'Pengeluaran', 'Catatan uang keluar & anggaran'],
     ['flashcard', 'book', 'Flashcard', 'Kartu & SM-2 spaced repetition'],
   ];
   for (const [view, ico, label, hint] of views) {
@@ -24,6 +25,7 @@ function paletteCommands() {
   }
   cmds.push({ ico: 'plus', label: 'Tambah tugas baru…', hint: 'Langsung buka form tugas', keywords: 'tambah tugas baru task', run: () => openTaskModal(null, state.today) });
   cmds.push({ ico: 'note', label: 'Catatan baru…', hint: 'Langsung buka form catatan', keywords: 'catatan baru note', run: () => openNoteModal() });
+  cmds.push({ ico: 'wallet', label: 'Catat pengeluaran…', hint: 'Uang keluar bulan ini', keywords: 'pengeluaran uang belanja expense budget', run: () => { setView('pengeluaran'); openExpenseModal(); } });
   cmds.push({ ico: 'trophy', label: 'Lomba baru…', hint: 'Tambah lomba / proyek', keywords: 'lomba baru deadline project', run: () => openCompModal() });
   cmds.push({ ico: 'calendar', label: 'Agenda baru…', hint: 'Tambah ke kalender', keywords: 'agenda baru jadwal event', run: () => openEventModal(null, state.cal.selected || state.today) });
   cmds.push({ ico: 'moon', label: 'Ganti tema gelap / terang', hint: 'Toggle dark & light', keywords: 'tema gelap terang dark light mode', run: () => toggleTheme() });
@@ -65,6 +67,7 @@ function contentMatches(query) {
   for (const g of (state.grades.grades || [])) if (match(g.subject + ' ' + g.label)) add('star', `${g.subject} · ${g.label} (${g.score})`, 'nilai', () => setView('nilai'));
   for (const c of (state.flashcards.cards || [])) if (match(c.subject + ' ' + c.front + ' ' + c.back)) add('book', c.front, `flashcard · ${c.subject}`, () => setView('flashcard'));
   for (const c of (state.competitions || [])) if (match(c.title)) add('trophy', c.title, 'lomba', () => setView('lomba'));
+  for (const x of (state.expenses || [])) if (match(`${x.note || ''} ${x.category || ''} ${x.amount}`)) add('wallet', x.note || formatRupiah(x.amount), `pengeluaran · ${formatRupiah(x.amount)}`, () => setView('pengeluaran'));
   return out.slice(0, 10);
 }
 

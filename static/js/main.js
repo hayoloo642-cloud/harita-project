@@ -1,4 +1,4 @@
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.4.0';
 /* ============================================================
    App bootstrap, navigation, realtime tick, settings
    ============================================================ */
@@ -26,6 +26,7 @@ function setView(view) {
   if (view === 'lomba') safeViewRender(view, renderCompetitionsView);
   if (view === 'fokus') safeViewRender(view, renderFocusView);
   if (view === 'catatan') safeViewRender(view, renderNotesView);
+  if (view === 'pengeluaran') safeViewRender(view, () => { loadExpenses(state.expenseMonth); renderExpensesView(); });
   if (view === 'jadwal') safeViewRender(view, renderScheduleView);
   if (view === 'nilai') safeViewRender(view, () => loadGrades && loadGrades());
   if (view === 'flashcard') safeViewRender(view, () => loadFlashcards && loadFlashcards());
@@ -45,6 +46,7 @@ function renderAll() {
   renderCalendarView();
   renderCompetitionsView();
   renderNotesView();
+  renderExpensesView();
   renderScheduleView();
   renderFocusView();
   if (typeof loadGrades === 'function') loadGrades();
@@ -96,6 +98,7 @@ async function refreshAll() {
       loadEvents(),
       loadCompetitions(),
       loadNotes(),
+      loadExpenses(),
       loadSchedule(),
       loadFocus(),
       loadWeather(state.weather.key, true),
@@ -127,7 +130,7 @@ function openSettingsModal() {
     ['beranda', 'Beranda'], ['tugas', 'Tugas'], ['kalender', 'Kalender'],
     ['fokus', 'Fokus'], ['catatan', 'Catatan'], ['jadwal', 'Jadwal'],
     ['nilai', 'Nilai'], ['flashcard', 'Flashcard'], ['lomba', 'Lomba'],
-    ['streak', 'Streak'], ['cuaca', 'Cuaca'], ['music', 'Musik'],
+    ['pengeluaran', 'Pengeluaran'], ['streak', 'Streak'], ['cuaca', 'Cuaca'], ['music', 'Musik'],
   ];
   const viewOptions = navViews.map(([v, l]) => `<option value="${v}" ${(state.settings.default_view || 'beranda') === v ? 'selected' : ''}>${esc(l)}</option>`).join('');
   const pinnedSet = new Set(parseViewList(state.settings.pinned_views));
@@ -226,6 +229,14 @@ function openSettingsModal() {
         </label>
       </div>
 
+      <!-- Uang -->
+      <p class="eyebrow" style="margin:22px 0 12px">${esc(t('settings.money', 'Uang'))}</p>
+      <div class="field">
+        <label>${esc(t('settings.budget', 'Anggaran pengeluaran bulanan (Rp)'))}</label>
+        <input name="expense_budget" type="number" min="0" step="1000" inputmode="numeric" value="${Number(state.settings.expense_budget) || 0}" />
+        <span class="help">${esc(t('settings.budgetHelp', 'Isi 0 untuk mematikan anggaran. Progres muncul di halaman Pengeluaran.'))}</span>
+      </div>
+
       <!-- Notifikasi -->
       <p class="eyebrow" style="margin:22px 0 12px">${esc(t('settings.notifications'))}</p>
 
@@ -309,6 +320,7 @@ function openSettingsModal() {
         pinned_views: [...form.querySelectorAll('[data-pin-view]:checked')].map((el) => el.dataset.pinView).join(','),
         hidden_views: [...form.querySelectorAll('[data-hide-view]:checked')].map((el) => el.dataset.hideView).join(','),
         language: formValue(form, 'language') || 'id',
+        expense_budget: formValue(form, 'expense_budget') || '0',
       };
       const languageChanged = payload.language !== (state.settings.language || 'id');
       const lockPin = formValue(form, 'lock_pin');
@@ -975,6 +987,7 @@ function bindGlobal() {
   bindCalendarActions();
   bindCompetitionActions();
   bindNoteActions();
+  bindExpenseActions();
   bindScheduleActions();
   bindFocusActions();
   bindTheme();
@@ -1110,6 +1123,7 @@ async function init() {
       loadEvents(),
       loadCompetitions(),
       loadNotes(),
+      loadExpenses(),
       loadSchedule(),
       loadFocus(),
       loadWeather(state.weather.key),

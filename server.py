@@ -23,7 +23,7 @@ from datetime import datetime, date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from zoneinfo import ZoneInfo
 
-__version__ = "1.3.0"
+__version__ = "1.4.0"
 
 try:
     import psutil
@@ -127,6 +127,17 @@ CREATE TABLE IF NOT EXISTS notes (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS expenses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    category TEXT NOT NULL DEFAULT 'lainnya',
+    method TEXT NOT NULL DEFAULT 'tunai',
+    note TEXT DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
 CREATE TABLE IF NOT EXISTS schedule (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     weekday INTEGER NOT NULL,
@@ -230,6 +241,7 @@ DEFAULT_SETTINGS = {
     "pinned_views": "",
     "hidden_views": "",
     "language": "id",
+    "expense_budget": "0",
 }
 
 
@@ -339,7 +351,7 @@ def init_db() -> None:
                 if _col not in existing:
                     conn.execute(f"ALTER TABLE {_t} ADD COLUMN {_col} {_ddl}")
         # ---- migrations: soft delete ----
-        for _t in ("tasks", "events", "competitions", "notes"):
+        for _t in ("tasks", "events", "competitions", "notes", "expenses"):
             cols = [r[1] for r in conn.execute(f"PRAGMA table_info({_t})").fetchall()]
             if "deleted_at" not in cols:
                 conn.execute(f"ALTER TABLE {_t} ADD COLUMN deleted_at TEXT")
@@ -798,6 +810,16 @@ def api_demo(handler: BaseHTTPRequestHandler) -> None:
                 "INSERT INTO notes (title, body, pinned, color, created_at, updated_at) VALUES (?,?,?,?,?,?)",
                 (title, body_text, pinned, color, now, now),
             )
+        for cat, amount, method, note, day_off in [
+            ("makan", 15000, "tunai", "Nasi goreng kantin", 0),
+            ("transport", 12000, "qris", "Ojek ke sekolah", 0),
+            ("belajar", 45000, "transfer", "Buku latihan soal", -1),
+            ("hiburan", 20000, "tunai", "Nonton film bersama", -3),
+        ]:
+            conn.execute(
+                "INSERT INTO expenses(date, amount, category, method, note, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
+                (add_days(day_off), amount, cat, method, note, now, now),
+            )
         for weekday in range(5):
             rows = [("07:00", "07:45", "Matematika", "R.12"), ("08:00", "08:45", "Bahasa Indonesia", "R.07")]
             for start, end, subject, room in rows:
@@ -1250,6 +1272,141 @@ def api_note_delete(handler: BaseHTTPRequestHandler, note_id: int) -> None:
         conn.close()
 
 
+EXPENSE_CATEGORIES = ("makan", "transport", "belajar", "hiburan", "kesehatan", "belanja", "tagihan", "lainnya")
+EXPENSE_METHODS = ("tunai", "qris", "transfer", "kartu", "lainnya")
+
+
+def _expense_category(value) -> str:
+    text = clip(value, 40).lower() or "lainnya"
+    return text if text in EXPENSE_CATEGORIES else "lainnya"
+
+
+def _expense_method(value) -> str:
+    text = clip(value, 20).lower() or "tunai"
+    return text if text in EXPENSE_METHODS else "lainnya"
+
+
+def _expense_amount(value) -> int:
+    try:
+        amount = int(float(value))
+    except (TypeError, ValueError):
+        raise ValueError("Nominal pengeluaran tidak valid")
+    if amount <= 0:
+        raise ValueError("Nominal harus lebih dari 0")
+    if amount > 1_000_000_000_000:
+        raise ValueError("Nominal terlalu besar")
+    return amount
+
+
+def api_expenses(handler: BaseHTTPRequestHandler, query: dict) -> None:
+    month = (query.get("month") or "").strip()
+    start = (query.get("from") or "").strip()
+    end = (query.get("to") or "").strip()
+    if month and not re.fullmatch(r"\d{4}-\d{2}", month):
+        raise ValueError("Format bulan harus YYYY-MM")
+    where = ["deleted_at IS NULL"]
+    args: list = []
+    if month:
+        where.append("date LIKE ?")
+        args.append(f"{month}-%")
+    else:
+        if start:
+            where.append("date >= ?")
+            args.append(start)
+        if end:
+            where.append("date <= ?")
+            args.append(end)
+    conn = db_connect()
+    try:
+        rows = conn.execute(
+            f"SELECT * FROM expenses WHERE {' AND '.join(where)} ORDER BY date DESC, id DESC LIMIT 2000",
+            args,
+        ).fetchall()
+        items = [row_to_dict(r) for r in rows]
+        total = sum(int(r["amount"] or 0) for r in rows)
+        send_json(handler, 200, {"expenses": items, "total": total, "count": len(items), "month": month})
+    finally:
+        conn.close()
+
+
+def api_expense_create(handler: BaseHTTPRequestHandler) -> None:
+    body = parse_json_body(handler)
+    day = (body.get("date") or today_local()).strip()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
+        raise ValueError("Tanggal pengeluaran tidak valid")
+    amount = _expense_amount(body.get("amount"))
+    now = now_local()
+    conn = db_connect()
+    try:
+        cur = conn.execute(
+            "INSERT INTO expenses(date, amount, category, method, note, created_at, updated_at) "
+            "VALUES(?,?,?,?,?,?,?)",
+            (
+                day,
+                amount,
+                _expense_category(body.get("category")),
+                _expense_method(body.get("method")),
+                clip(body.get("note"), 500),
+                now,
+                now,
+            ),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM expenses WHERE id = ?", (cur.lastrowid,)).fetchone()
+        send_json(handler, 201, {"expense": row_to_dict(row)})
+    finally:
+        conn.close()
+
+
+def api_expense_update(handler: BaseHTTPRequestHandler, expense_id: int) -> None:
+    body = parse_json_body(handler)
+    fields, values = [], []
+    if "date" in body:
+        day = str(body.get("date") or "").strip()
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
+            raise ValueError("Tanggal pengeluaran tidak valid")
+        fields.append("date = ?")
+        values.append(day)
+    if "amount" in body:
+        fields.append("amount = ?")
+        values.append(_expense_amount(body.get("amount")))
+    if "category" in body:
+        fields.append("category = ?")
+        values.append(_expense_category(body.get("category")))
+    if "method" in body:
+        fields.append("method = ?")
+        values.append(_expense_method(body.get("method")))
+    if "note" in body:
+        fields.append("note = ?")
+        values.append(clip(body.get("note"), 500))
+    if not fields:
+        send_json(handler, 400, {"error": "Tidak ada perubahan"})
+        return
+    fields.append("updated_at = ?")
+    values.extend([now_local(), expense_id])
+    conn = db_connect()
+    try:
+        conn.execute(f"UPDATE expenses SET {', '.join(fields)} WHERE id = ?", values)
+        conn.commit()
+        row = conn.execute("SELECT * FROM expenses WHERE id = ?", (expense_id,)).fetchone()
+        if not row:
+            send_json(handler, 404, {"error": "Pengeluaran tidak ditemukan"})
+            return
+        send_json(handler, 200, {"expense": row_to_dict(row)})
+    finally:
+        conn.close()
+
+
+def api_expense_delete(handler: BaseHTTPRequestHandler, expense_id: int) -> None:
+    conn = db_connect()
+    try:
+        soft_delete(conn, "expenses", expense_id)
+        conn.commit()
+        send_json(handler, 200, {"ok": True})
+    finally:
+        conn.close()
+
+
 def api_schedule(handler: BaseHTTPRequestHandler, query: dict) -> None:
     conn = db_connect()
     try:
@@ -1359,7 +1516,7 @@ def api_focus_create(handler: BaseHTTPRequestHandler) -> None:
 # ----------------------------------------------------------------------------
 # Soft delete & restore (B5/F1)
 # ----------------------------------------------------------------------------
-SOFT_DELETE_TABLES = {"task": "tasks", "event": "events", "competition": "competitions", "note": "notes", "habit": "habits", "grade": "grades"}
+SOFT_DELETE_TABLES = {"task": "tasks", "event": "events", "competition": "competitions", "note": "notes", "habit": "habits", "grade": "grades", "expense": "expenses"}
 
 
 def soft_delete(conn: sqlite3.Connection, table: str, row_id: int) -> bool:
@@ -1376,7 +1533,7 @@ def api_restore(handler: BaseHTTPRequestHandler) -> None:
         raise ValueError("id tidak valid")
     table = SOFT_DELETE_TABLES.get(kind)
     if not table or row_id <= 0:
-        raise ValueError("kind harus task|event|competition|note|habit|grade")
+        raise ValueError("kind harus task|event|competition|note|habit|grade|expense")
     conn = db_connect()
     try:
         conn.execute(f"UPDATE {table} SET deleted_at = NULL WHERE id = ?", (row_id,))
@@ -1823,11 +1980,16 @@ def _validate_setting(key: str, value) -> str:
         return s if s in ("expanded", "collapsed") else "expanded"
     if key == "language":
         return s if s in ("id", "en") else "id"
+    if key == "expense_budget":
+        try:
+            return str(max(0, min(1_000_000_000_000, int(float(s)))))
+        except ValueError:
+            return "0"
     if key == "default_view":
-        allowed = {"beranda", "tugas", "kalender", "fokus", "catatan", "jadwal", "nilai", "flashcard", "lomba", "streak", "cuaca", "music"}
+        allowed = {"beranda", "tugas", "kalender", "fokus", "catatan", "jadwal", "nilai", "flashcard", "lomba", "streak", "cuaca", "music", "pengeluaran"}
         return s if s in allowed else "beranda"
     if key in ("pinned_views", "hidden_views"):
-        allowed = ["beranda", "tugas", "kalender", "fokus", "catatan", "jadwal", "nilai", "flashcard", "lomba", "streak", "cuaca", "music"]
+        allowed = ["beranda", "tugas", "kalender", "fokus", "catatan", "jadwal", "nilai", "flashcard", "lomba", "streak", "cuaca", "music", "pengeluaran"]
         picked = [v.strip() for v in s.split(",") if v.strip() in allowed]
         return ",".join(dict.fromkeys(picked))[:200]
     if key == "music_volume":
@@ -1914,6 +2076,7 @@ EXPORT_TABLES = (
     "competitions",
     "competition_tasks",
     "notes",
+    "expenses",
     "schedule",
     "focus_sessions",
     "music_tracks",
@@ -1979,7 +2142,7 @@ def api_reset(handler: BaseHTTPRequestHandler) -> None:
     try:
         for table in (
             "tasks", "task_templates", "events", "competitions", "competition_tasks",
-            "notes", "schedule", "focus_sessions", "music_tracks", "music_state",
+            "notes", "expenses", "schedule", "focus_sessions", "music_tracks", "music_state",
             "streak", "habits", "habit_log", "grades", "flashcards", "reminder",
         ):
             conn.execute(f"DELETE FROM {table}")
@@ -2894,6 +3057,8 @@ class Handler(BaseHTTPRequestHandler):
                 api_competitions(self)
             elif path == "/api/notes":
                 api_notes(self)
+            elif path == "/api/expenses":
+                api_expenses(self, query)
             elif path == "/api/schedule":
                 api_schedule(self, query)
             elif path == "/api/focus":
@@ -2999,6 +3164,8 @@ class Handler(BaseHTTPRequestHandler):
                 api_competition_task_create(self, int(path.split("/")[3]))
             elif path == "/api/notes":
                 api_note_create(self)
+            elif path == "/api/expenses":
+                api_expense_create(self)
             elif path == "/api/schedule":
                 api_schedule_create(self)
             elif path == "/api/focus":
@@ -3065,6 +3232,8 @@ class Handler(BaseHTTPRequestHandler):
             m = re.fullmatch(r"/api/notes/(\d+)", path)
             if m:
                 api_note_update(self, int(m.group(1)))
+            elif (m := re.fullmatch(r"/api/expenses/(\d+)", path)):
+                api_expense_update(self, int(m.group(1)))
                 return
             m = re.fullmatch(r"/api/schedule/(\d+)", path)
             if m:
@@ -3116,6 +3285,8 @@ class Handler(BaseHTTPRequestHandler):
             m = re.fullmatch(r"/api/notes/(\d+)", path)
             if m:
                 api_note_delete(self, int(m.group(1)))
+            elif (m := re.fullmatch(r"/api/expenses/(\d+)", path)):
+                api_expense_delete(self, int(m.group(1)))
                 return
             m = re.fullmatch(r"/api/schedule/(\d+)", path)
             if m:

@@ -23,6 +23,16 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const pad2 = (n) => String(n).padStart(2, '0');
+function formatRupiah(value) {
+  const n = Number(value) || 0;
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
+}
+function formatRupiahShort(value) {
+  const n = Number(value) || 0;
+  if (n >= 1_000_000) return `Rp${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace('.', ',')} jt`;
+  if (n >= 1_000) return `Rp${Math.round(n / 1_000)} rb`;
+  return formatRupiah(n);
+}
 
 /* ---------- Tanggal & waktu (timezone lokal pengguna) ---------- */
 function localNow() { return new Date(); }
@@ -146,7 +156,7 @@ const state = {
   gradeQuery: '',
   eventQuery: '',
   selectedTasks: new Set(),
-  loading: { tasks: false, notes: false, schedule: false, grades: false, flashcards: false, competitions: false },
+  loading: { tasks: false, notes: false, schedule: false, grades: false, flashcards: false, competitions: false, expenses: false },
   events: [],
   competitions: [],
   notes: [],
@@ -154,6 +164,10 @@ const state = {
   scheduleDay: dayOfWeek(todayStr()),
   focus: { sessions: [], total_minutes: 0 },
   noteQuery: '',
+  expenses: [],
+  expenseMonth: '',
+  expenseQuery: '',
+  expenseSummary: { total: 0, count: 0 },
   cal: { year: +todayStr().slice(0, 4), month: +todayStr().slice(5, 7) - 1, selected: todayStr() },
   mini: { year: +todayStr().slice(0, 4), month: +todayStr().slice(5, 7) - 1 },
 };

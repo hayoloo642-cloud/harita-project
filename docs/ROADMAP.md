@@ -1,6 +1,6 @@
 # Roadmap MyAct
 
-Status: **v1.2.0** — fitur inti + kualitas rilis sudah berjalan lokal. Berikut rencana berikutnya.
+Status: **v1.4.0** — fitur inti + kualitas rilis sudah berjalan lokal. Berikut rencana berikutnya.
 
 ## Sedang dikerjakan / berikutnya
 
@@ -12,6 +12,7 @@ Status: **v1.2.0** — fitur inti + kualitas rilis sudah berjalan lokal. Berikut
 - [x] **Aksi massal** di daftar tugas (selesaikan/pindah/hapus + Undo)
 - [~] Terjemahan teks dinamis: tanggal, sapaan, modal, dan empty state dasar sudah; toast & sebagian teks turunan masih Indonesia
 - [x] Impor backup JSON dengan pratinjau per tabel + snapshot otomatis
+- [x] **Pencatatan pengeluaran** — CRUD, filter bulan, rincian kategori, anggaran bulanan, ekspor/impor
 - [ ] Fuzz test import/export JSON dan `.ics`
 - [ ] Enkripsi database/backup opsional
 - [ ] Pagination/virtualisasi untuk data ribuan baris

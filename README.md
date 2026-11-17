@@ -16,6 +16,7 @@
 - **Fokus (Pomodoro)** — 25/5/15/menit kustom, statistik per mata pelajaran, mode fokus layar penuh
 - **Flashcard SM-2** — spaced repetition klasik (Anki-style) untuk belajar lebih cepat
 - **Nilai & KKM** — catat nilai tiap mapel, pantau ketuntasan, cetak laporan / unduh CSV
+- **Pengeluaran** — catat uang keluar, filter bulan, rincian per kategori, rata-rata harian, dan anggaran bulanan dengan progres
 - **Streak & kebiasaan** — multi-habit streak dengan heatmap 112 hari
 - **Music player lokal** — putar file audio di laptop, progress, volume, now-playing bar
 - **Device monitor** — CPU, RAM, disk, baterai, suhu, jaringan realtime

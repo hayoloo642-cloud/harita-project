@@ -1,5 +1,5 @@
 /* MyAct service worker — network-first (fresh assets online, fallback offline) */
-const CACHE = 'myact-v6';
+const CACHE = 'myact-v7';
 const SHELL = [
   '/',
   '/index.html',
@@ -17,6 +17,7 @@ const SHELL = [
   '/js/calendar.js',
   '/js/competitions.js',
   '/js/notes.js',
+  '/js/expenses.js',
   '/js/schedule.js',
   '/js/focus.js',
   '/js/device.js',

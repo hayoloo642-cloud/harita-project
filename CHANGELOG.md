@@ -5,6 +5,23 @@ Semua perubahan penting pada proyek ini didokumentasikan di sini.
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] — 2026-11-17
+
+### Ditambahkan
+- **Pencatatan pengeluaran** — halaman Pengeluaran dengan total bulanan, rata-rata harian, rincian per kategori, pencarian, dan filter bulan
+- **Anggaran bulanan** di Pengaturan → Uang, lengkap dengan bilah progres dan peringatan saat mendekati/melewati anggaran
+- 8 kategori (makan, transport, belajar, hiburan, kesehatan, belanja, tagihan, lainnya) dan 5 metode bayar (tunai, QRIS, transfer, kartu, lainnya)
+- CRUD API `/api/expenses` + `/api/expenses/<id>`, soft-delete + Undo, dan dukungan restore
+- Pengeluaran ikut dalam ekspor/impor backup JSON dan pembersihan data
+- Data contoh kini menyertakan beberapa pengeluaran
+- Perintah “Catat pengeluaran…” di command palette dan pencarian isi pengeluaran
+- Smoke test mencakup CRUD pengeluaran, filter bulan, soft-delete/restore, anggaran, dan ekspor; E2E baru untuk alur pengeluaran
+- Terjemahan Indonesia/Inggris untuk label halaman, kategori, metode bayar, dan pengaturan anggaran
+
+### Catatan
+- Nominal disimpan sebagai bilangan bulat rupiah; batas wajar 1 triliun per transaksi.
+- Tombol hapus di baris pengeluaran langsung membuka dialog konfirmasi (dengan Undo setelahnya).
+
 ## [1.3.0] — 2026-11-17
 
 ### Ditambahkan

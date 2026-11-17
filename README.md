@@ -2,6 +2,8 @@
 
 **Konsisten & rajin setiap hari.** Harita adalah dashboard harian lokal untuk produktivitas dan kebiasaan — todo list, kalender, cuaca Indonesia realtime, lomba, pomodoro, flashcard, nilai & KKM, streak harian, dan pemantau device. Jalan sepenuhnya di laptop kamu — tanpa akun, tanpa cloud, tanpa subscription.
 
+![Harita demo](docs/demo.gif)
+
 ![Harita — Beranda](docs/screenshots/beranda.png)
 
 ---

@@ -25,8 +25,8 @@ echo OK - executable: dist\Harita.exe
 echo Jalankan: dist\Harita.exe
 echo Lalu buka: http://127.0.0.1:8777
 echo.
-echo Catatan: set HARITA_DATA ke folder permanen agar data tidak hilang.
-echo   contoh: set HARITA_DATA=%LOCALAPPDATA%\Harita
+echo Catatan: data tersimpan di folder user (%LOCALAPPDATA%\Harita).
+echo   Override dengan HARITA_DATA bila perlu.
 exit /b 0
 
 :no_python

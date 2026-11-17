@@ -20,6 +20,8 @@ command -v "$PYTHON" >/dev/null 2>&1 \
 
 "$PYTHON" -m PyInstaller --version >/dev/null 2>&1 \
   || die "PyInstaller belum terpasang. Jalankan: $PYTHON -m pip install --user pyinstaller"
+RELEASE_VERSION=$(sed -n 's/^__version__ = "\([^"]*\)".*$/\1/p' server.py | head -1)
+RELEASE_VERSION=${RELEASE_VERSION:-0.0.0}
 
 say "==> Harita: build macOS one-file (PyInstaller)"
 rm -rf "$ROOT/build" "$ROOT/dist"
@@ -46,7 +48,7 @@ if command -v hdiutil >/dev/null 2>&1; then
   cp "$BIN" "$APP/Contents/MacOS/Harita"
   chmod +x "$APP/Contents/MacOS/Harita"
 
-  cat > "$APP/Contents/Info.plist" <<'PLIST'
+  cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -59,9 +61,9 @@ if command -v hdiutil >/dev/null 2>&1; then
   <key>CFBundleIdentifier</key>
   <string>local.harita.app</string>
   <key>CFBundleVersion</key>
-  <string>1.1.0</string>
+  <string>$RELEASE_VERSION</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.1.0</string>
+  <string>$RELEASE_VERSION</string>
   <key>CFBundleExecutable</key>
   <string>Harita</string>
   <key>CFBundlePackageType</key>

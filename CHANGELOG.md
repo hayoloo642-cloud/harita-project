@@ -15,10 +15,27 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/).
 - localStorage memakai prefix `harita:`; preferensi `myact:` lama dimigrasikan otomatis
 - Referensi repo GitHub menjadi `hayoloo642-cloud/harita-project`
 
+### Ditambahkan (Tahap 1–2)
+- Onboarding berbasis tujuan belajar (belajar/ujian, lomba, kebiasaan, uang, atau campuran)
+- Beranda mode sederhana dan mode lengkap — kartu sekunder bisa disembunyikan
+- Global search via Ctrl/Cmd+K yang mencari tugas, agenda, catatan, uang, flashcard, lomba, dan kebiasaan
+- Inbox cepat untuk menangkap tugas/catatan/agenda/pengeluaran tanpa pindah halaman (tombol + atau Ctrl+Alt+K)
+- Review malam setelah pukul 17.00
+- Target mingguan satu hal besar
+- Template rutin belajar: ujian, KTI, membaca harian, dan fokus
+- Empty state tugas lebih berguna dengan CTA langsung
+- PWA: manifest lengkap (shortcuts, screenshots, categories), pengalaman install di Pengaturan, fallback instruksi iOS/Android
+- `docs/demo.gif` untuk landing/README
+
+### Diubah
+- Beranda lebih ringkas secara default; detail lengkap bisa ditampilkan lewat tombol mode
+- Weather API tidak lagi memblok boot/refresh aplikasi
+
 ### Kompatibilitas
 - PIN hash lama tetap valid; salt sengaja tidak diubah
 - Backup JSON lama (metadata `app: "MyAct"`) tetap bisa diimpor
 - Instalasi dari source tetap memakai folder `data/`
+- `HARITA_*` adalah nama variabel lingkungan utama; `MYACT_*` lama masih didukung
 
 ## [1.4.0] — 2026-11-17
 

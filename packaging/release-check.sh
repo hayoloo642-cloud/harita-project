@@ -41,10 +41,10 @@ say "==> smoke + stress"
 "$PYTHON" tests/smoke.py --stress >/tmp/harita-release-smoke.log
 tail -n 2 /tmp/harita-release-smoke.log
 
-say "==> asset budget (< 700 KB uncompressed)"
+say "==> asset budget (< 850 KB uncompressed)"
 total=$(find static -type f \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.woff2' \) -printf '%s\n' | awk '{s+=$1} END {print s}')
 say "  static assets: $((total/1024)) KB"
-[ "$total" -lt 716800 ] || die "asset budget exceeded"
+[ "$total" -lt 870400 ] || die "asset budget exceeded (850 KB)"
 ok "asset budget"
 
 say "==> version consistency"

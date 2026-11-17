@@ -36,11 +36,13 @@ jobs:
           python-version: "3.11"
       - name: API smoke + stress test
         run: python3 tests/smoke.py --stress
-      - name: Asset size budget (uncompressed < 700 KB)
+      # 850 KB: assets grew ~42% from v1.6.0 (565 KB) to v1.9.0 (~785 KB) —
+      # PWA/offline, ambient canvas engine, musik dunia, kalender, i18n.
+      - name: Asset size budget (uncompressed < 850 KB)
         run: |
           total=$(find static -type f \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.woff2' \) -printf '%s\n' | awk '{s+=$1} END {print s}')
           echo "static assets: $((total/1024)) KB"
-          test "$total" -lt 716800
+          test "$total" -lt 870400
 
   e2e:
     runs-on: ubuntu-latest

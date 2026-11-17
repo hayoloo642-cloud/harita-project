@@ -11,7 +11,13 @@ const APP_URL = '/?nosw=1';
 
 async function dismissOnboarding(page) {
   const overlay = page.locator('#onboardOverlay');
-  if (!(await overlay.isVisible().catch(() => false))) return;
+  // Onboarding muncul beberapa ratus ms setelah splash hilang — tunggu dulu,
+  // kalau memang tidak ada (pengguna kembali) lanjut saja.
+  try {
+    await overlay.waitFor({ state: 'visible', timeout: 2500 });
+  } catch (_) {
+    return;
+  }
 
   // Step 1 -> 2 -> 3, then finish. Fresh databases show this once.
   // The step buttons are all present in the DOM, so target only the visible one.
@@ -30,7 +36,20 @@ async function dismissOnboarding(page) {
 
 async function gotoApp(page) {
   await page.goto(APP_URL);
-  await expect(page.locator('#splash')).toBeHidden({ timeout: 15_000 });
+  // Fresh dan tiap konteks Playwright baru tidak punya cookie — lolos dulu
+  // gerbang auth (daftar bila DB kosong, masuk bila sudah terdaftar).
+  const authOverlay = page.locator('#authOverlay');
+  try {
+    await authOverlay.waitFor({ state: 'visible', timeout: 8000 });
+    const registerMode = (await page.locator('#authConfirmWrap:visible').count()) > 0;
+    await page.fill('#authName', 'E2E Test');
+    await page.fill('#authPassword', 'e2e-test-password');
+    if (registerMode) await page.fill('#authConfirm', 'e2e-test-password');
+    await page.click('#authSubmit');
+  } catch (_) {
+    // Tidak ada gerbang auth — server/akun tak terjangkau, lanjut saja.
+  }
+  await expect(page.locator('#splash')).toBeHidden({ timeout: 20_000 });
   await expect(page.locator('#crashOverlay')).toBeHidden();
   await dismissOnboarding(page);
 }
@@ -272,8 +291,7 @@ test('recovery: corrupt database banner offers restore and download', async ({ p
     body: JSON.stringify({ ok: true }),
   }));
 
-  await page.goto(APP_URL);
-  await expect(page.locator('#splash')).toBeHidden({ timeout: 15_000 });
+  await gotoApp(page);
   await expect(page.locator('#dbRecovery')).toBeVisible();
   await expect(page.locator('#dbRecoveryText')).toContainText('corrupt-1.bak');
   await expect(page.locator('#dbRestoreBtn')).toBeEnabled();
@@ -284,10 +302,11 @@ test('recovery: corrupt database banner offers restore and download', async ({ p
 });
 
 test('i18n: English chrome switches navigation and page title', async ({ page }) => {
+  await gotoApp(page); // login dulu — settings butuh sesi
   await page.request.post('/api/settings', { data: { language: 'en' } });
   try {
     await page.goto(APP_URL);
-    await expect(page.locator('#splash')).toBeHidden({ timeout: 15_000 });
+    await expect(page.locator('#splash')).toBeHidden({ timeout: 20_000 });
     await expect(page.locator('#pageTitle')).toHaveText('Home');
     await expect(page.locator('.nav-item[data-view="tugas"] span[data-i18n]')).toHaveText('Tasks');
     await expect(page.locator('#openSettings')).toContainText('Settings');

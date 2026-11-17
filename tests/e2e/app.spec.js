@@ -14,15 +14,16 @@ async function dismissOnboarding(page) {
   if (!(await overlay.isVisible().catch(() => false))) return;
 
   // Step 1 -> 2 -> 3, then finish. Fresh databases show this once.
-  const next = page.locator('#onboardOverlay [data-onboard-next]');
+  // The step buttons are all present in the DOM, so target only the visible one.
+  const next = overlay.locator('[data-onboard-next]:visible');
   for (let i = 0; i < 3; i += 1) {
-    if (!(await next.isVisible().catch(() => false))) break;
-    await next.click();
+    if (await next.count() === 0) break;
+    await next.first().click();
   }
 
-  const finish = page.locator('#onboardFinish');
-  if (await finish.isVisible().catch(() => false)) {
-    await finish.click();
+  const finish = overlay.locator('#onboardFinish:visible');
+  if (await finish.count() > 0) {
+    await finish.first().click();
   }
   await expect(overlay).toBeHidden();
 }

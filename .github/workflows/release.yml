@@ -49,7 +49,7 @@ jobs:
         shell: pwsh
         run: |
           .\packaging\build-windows.bat
-          $version = python -c "import re; print(re.search(r'__version__ = \"([^\"]+)\"', open('server.py', encoding='utf-8').read()).group(1))"
+          $version = (Select-String -Path server.py -Pattern '__version__ = "([^"]+)"').Matches[0].Groups[1].Value
           Move-Item dist\Harita.exe "dist\harita-$version-windows-x86_64.exe"
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4

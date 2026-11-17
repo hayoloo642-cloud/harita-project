@@ -43,6 +43,7 @@ jobs:
           sh packaging/build-macos.sh
           version=$(sed -n 's/^__version__ = "\([^"]*\)".*$/\1/p' server.py)
           mv dist/Harita "dist/harita-${version}-macos-arm64"
+          if [ -d dist/Harita.app ]; then ditto -c -k --sequesterRsrc --keepParent dist/Harita.app "dist/harita-${version}-macos-arm64.app.zip"; rm -rf dist/Harita.app; fi
           [ -f dist/Harita.dmg ] && mv dist/Harita.dmg "dist/harita-${version}-macos-arm64.dmg" || true
       - name: Build Windows binary
         if: matrix.os == 'windows-latest'

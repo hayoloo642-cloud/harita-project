@@ -51,6 +51,7 @@ function renderAll() {
   renderFocusView();
   if (typeof loadGrades === 'function') loadGrades();
   if (typeof loadFlashcards === 'function') loadFlashcards();
+  applyDashboardMode();
   if (typeof localizeStatic === 'function') localizeStatic();
 }
 
@@ -120,6 +121,67 @@ const ACCENT_SWATCHES = [
   { id: 'sky',        label: 'Sky',        color: '#7dd3fc' },
   { id: 'slate',      label: 'Slate',      color: '#e2e8f0' },
 ];
+
+function selectedOnboardingGoal() {
+  return ($('input[name="onboarding_goal"]:checked') || {}).value || 'mixed';
+}
+
+const ONBOARD_GOAL_COPY = {
+  study: ['Mode belajar & ujian', 'Kami prioritaskan fokus belajar, flashcard, nilai, dan jadwal sekolah.'],
+  contest: ['Mode lomba & proyek', 'Kami prioritaskan deadline, checklist persiapan, riset, dan progres proyek.'],
+  habit: ['Mode kebiasaan', 'Kami prioritaskan streak harian, rutin sederhana, dan konsistensi kecil.'],
+  money: ['Mode uang jajan', 'Kami prioritaskan catatan pengeluaran, kategori, dan anggaran bulanan.'],
+  mixed: ['Mode campuran', 'Campuran tugas, belajar, uang, kebiasaan, dan deadline.'],
+};
+function syncOnboardingGoalCopy() {
+  const goal = selectedOnboardingGoal();
+  const [headline, hint] = ONBOARD_GOAL_COPY[goal] || ONBOARD_GOAL_COPY.mixed;
+  const h = $('#onboardHeadline'); if (h) h.textContent = headline;
+  const p = $('#onboardGoalHint'); if (p) p.textContent = hint;
+}
+
+function applyDashboardMode() {
+  const minimal = (state.settings.dashboard_mode || 'minimal') !== 'full';
+  $$('.dash-optional').forEach((el) => { el.hidden = minimal; });
+  const btn = $('#dashboardModeToggle');
+  if (btn) {
+    btn.textContent = minimal ? 'Tampilkan mode lengkap' : 'Tampilkan mode sederhana';
+    btn.setAttribute('aria-pressed', String(!minimal));
+  }
+}
+
+async function toggleDashboardMode() {
+  const current = state.settings.dashboard_mode || 'minimal';
+  const next = current === 'full' ? 'minimal' : 'full';
+  state.settings.dashboard_mode = next;
+  applyDashboardMode();
+  try { await api('/api/settings', { method: 'POST', body: { dashboard_mode: next } }); } catch {}
+}
+
+let deferredInstallPrompt = null;
+function openInstallHelp() {
+  openModal({
+    title: 'Install Harita',
+    eyebrow: 'Aplikasi',
+    body: `<div class="install-help">
+      <p><strong>Chrome / Edge (desktop):</strong> klik tombol install di address bar, atau menu ⋮ → “Install Harita”.</p>
+      <p><strong>Android Chrome:</strong> menu ⋮ → “Add to Home screen” / “Install app”.</p>
+      <p><strong>iOS Safari:</strong> tombol Bagikan → “Add to Home Screen”.</p>
+      <p class="help">Setelah dipasang, Harita terbuka seperti aplikasi biasa dan menyimpan data tetap di perangkat ini.</p>
+    </div>`,
+    submitLabel: 'Mengerti',
+    onSubmit: async () => {},
+  });
+}
+async function promptInstallHarita() {
+  if (!deferredInstallPrompt) { openInstallHelp(); return; }
+  deferredInstallPrompt.prompt();
+  try {
+    const choice = await deferredInstallPrompt.userChoice;
+    toast(choice.outcome === 'accepted' ? 'Harita dipasang' : 'Instalasi dibatalkan');
+  } catch {}
+  deferredInstallPrompt = null;
+}
 
 function openSettingsModal() {
   const name = esc(state.settings.name || '');
@@ -227,6 +289,13 @@ function openSettingsModal() {
         <label class="check-line"><input type="checkbox" name="carry_over" ${state.settings.carry_over === '1' ? 'checked' : ''} />
           <span><strong>Bawa tugas yang belum selesai</strong>Saat hari baru dibuka, tugas yang belum dicentang otomatis disalin ke hari itu.</span>
         </label>
+      </div>
+
+      <!-- Aplikasi -->
+      <p class="eyebrow" style="margin:22px 0 12px">${esc(t('settings.app', 'Aplikasi'))}</p>
+      <div class="settings-install">
+        <button class="btn btn-ghost" id="installHaritaButton" type="button"><span class="ico" data-icon="download"></span> ${esc(t('settings.install', 'Install Harita di perangkat ini'))}</button>
+        <span class="help">${esc(t('settings.installHelp', 'Di Chrome/Edge, Harita bisa dipasang seperti aplikasi desktop. Di iOS, gunakan menu Bagikan → Add to Home Screen.'))}</span>
       </div>
 
       <!-- Uang -->
@@ -602,7 +671,7 @@ async function maybeShowOnboarding() {
 }
 async function seedDemoData() {
   try {
-    await api('/api/demo', { method: 'POST', body: {} });
+    await api('/api/demo', { method: 'POST', body: { goal: selectedOnboardingGoal() } });
     const overlay = $('#onboardOverlay');
     if (overlay) { overlay.hidden = true; overlay.setAttribute('aria-hidden', 'true'); }
     toast('Data contoh dimuat. Membersihkan…');
@@ -630,12 +699,17 @@ function bindOnboarding() {
       return;
     }
     if (e.target.id === 'onboardFinish') {
-      api('/api/settings', { method: 'POST', body: { onboarded: '1' } }).then(() => { state.settings.onboarded = '1'; }).catch(() => {});
+      const goal = selectedOnboardingGoal();
+      api('/api/settings', { method: 'POST', body: { onboarded: '1', onboarding_goal: goal } }).then(() => { state.settings.onboarded = '1'; state.settings.onboarding_goal = goal; }).catch(() => {});
       overlay.hidden = true;
       overlay.setAttribute('aria-hidden', 'true');
       toast('Selamat menggunakan Harita');
     }
   });
+  overlay.addEventListener('change', (e) => {
+    if (e.target.name === 'onboarding_goal') syncOnboardingGoalCopy();
+  });
+  syncOnboardingGoalCopy();
 }
 
 async function checkDbHealth() {
@@ -769,6 +843,15 @@ function bindDbRecovery() {
   });
 }
 
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  toast('Harita terpasang sebagai aplikasi');
+});
+
 function bindGlobal() {
   const navEl = document.querySelector('nav.nav');
   if (navEl) navEl.addEventListener('click', (e) => {
@@ -814,6 +897,11 @@ function bindGlobal() {
   $('#modalClose').addEventListener('click', closeModal);
   $('#refreshWeather').addEventListener('click', () => loadWeather(state.weather.key, true));
   $('#heroAddTask').addEventListener('click', () => openTaskModal(null, state.today));
+  const dashboardModeToggle = $('#dashboardModeToggle');
+  if (dashboardModeToggle) dashboardModeToggle.addEventListener('click', toggleDashboardMode);
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#installHaritaButton')) promptInstallHarita();
+  });
 
   let lastFocusedTaskId = 0;
   document.addEventListener('focusin', (e) => {

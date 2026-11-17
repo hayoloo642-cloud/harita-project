@@ -315,6 +315,8 @@ DEFAULT_SETTINGS = {
     "hidden_views": "",
     "language": "id",
     "expense_budget": "0",
+    "onboarding_goal": "mixed",
+    "dashboard_mode": "minimal",
 }
 
 
@@ -1345,6 +1347,63 @@ def api_note_delete(handler: BaseHTTPRequestHandler, note_id: int) -> None:
         conn.close()
 
 
+def api_search(handler: BaseHTTPRequestHandler, query: dict) -> None:
+    q = clip(query.get("q") or "", 80).strip()
+    if len(q) < 2:
+        send_json(handler, 200, {"results": [], "query": q})
+        return
+    like = f"%{q}%"
+    conn = db_connect()
+    results: list[dict] = []
+    try:
+        task_rows = conn.execute(
+            "SELECT title, date FROM tasks WHERE deleted_at IS NULL AND title LIKE ? ORDER BY date DESC LIMIT 5",
+            (like,),
+        ).fetchall()
+        results += [{"type": "task", "label": r["title"], "hint": f"tugas · {r['date']}", "view": "tugas"} for r in task_rows]
+        event_rows = conn.execute(
+            "SELECT title, date FROM events WHERE deleted_at IS NULL AND title LIKE ? ORDER BY date DESC LIMIT 5",
+            (like,),
+        ).fetchall()
+        results += [{"type": "event", "label": r["title"], "hint": f"agenda · {r['date']}", "view": "kalender"} for r in event_rows]
+        note_rows = conn.execute(
+            "SELECT title FROM notes WHERE deleted_at IS NULL AND (title LIKE ? OR body LIKE ?) ORDER BY updated_at DESC LIMIT 5",
+            (like, like),
+        ).fetchall()
+        results += [{"type": "note", "label": r["title"] or "Tanpa judul", "hint": "catatan", "view": "catatan"} for r in note_rows]
+        expense_rows = conn.execute(
+            "SELECT note, category, amount, date FROM expenses WHERE deleted_at IS NULL AND (note LIKE ? OR category LIKE ?) ORDER BY date DESC LIMIT 5",
+            (like, like),
+        ).fetchall()
+        results += [{"type": "expense", "label": r["note"] or r["category"], "hint": f"pengeluaran · {format_rupiah_plain(r['amount'])}", "view": "pengeluaran"} for r in expense_rows]
+        card_rows = conn.execute(
+            "SELECT subject, front FROM flashcards WHERE subject LIKE ? OR front LIKE ? OR back LIKE ? ORDER BY id DESC LIMIT 5",
+            (like, like, like),
+        ).fetchall()
+        results += [{"type": "flashcard", "label": r["front"], "hint": f"flashcard · {r['subject']}", "view": "flashcard"} for r in card_rows]
+        comp_rows = conn.execute(
+            "SELECT title FROM competitions WHERE deleted_at IS NULL AND title LIKE ? ORDER BY deadline ASC LIMIT 5",
+            (like,),
+        ).fetchall()
+        results += [{"type": "competition", "label": r["title"], "hint": "lomba", "view": "lomba"} for r in comp_rows]
+        habit_rows = conn.execute(
+            "SELECT name FROM habits WHERE deleted_at IS NULL AND name LIKE ? ORDER BY name LIMIT 5",
+            (like,),
+        ).fetchall()
+        results += [{"type": "habit", "label": r["name"], "hint": "kebiasaan", "view": "streak"} for r in habit_rows]
+        send_json(handler, 200, {"results": results[:24], "query": q})
+    finally:
+        conn.close()
+
+
+def format_rupiah_plain(value) -> str:
+    try:
+        amount = int(value or 0)
+    except (TypeError, ValueError):
+        amount = 0
+    return f"Rp{amount:,.0f}".replace(",", ".")
+
+
 EXPENSE_CATEGORIES = ("makan", "transport", "belajar", "hiburan", "kesehatan", "belanja", "tagihan", "lainnya")
 EXPENSE_METHODS = ("tunai", "qris", "transfer", "kartu", "lainnya")
 
@@ -2053,6 +2112,11 @@ def _validate_setting(key: str, value) -> str:
         return s if s in ("expanded", "collapsed") else "expanded"
     if key == "language":
         return s if s in ("id", "en") else "id"
+    if key == "onboarding_goal":
+        allowed = {"study", "contest", "habit", "money", "mixed"}
+        return s if s in allowed else "mixed"
+    if key == "dashboard_mode":
+        return s if s in ("minimal", "full") else "minimal"
     if key == "expense_budget":
         try:
             return str(max(0, min(1_000_000_000_000, int(float(s)))))
@@ -3166,6 +3230,8 @@ class Handler(BaseHTTPRequestHandler):
                 api_notes(self)
             elif path == "/api/expenses":
                 api_expenses(self, query)
+            elif path == "/api/search":
+                api_search(self, query)
             elif path == "/api/schedule":
                 api_schedule(self, query)
             elif path == "/api/focus":

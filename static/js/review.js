@@ -7,6 +7,7 @@ async function loadWeeklyReview() {
     const d = await api('/api/weekly-review');
     const node = $('#weeklyReview');
     if (!node) return;
+    const minimal = (state.settings.dashboard_mode || 'minimal') !== 'full';
     const focusDays = d.focus_days || [];
     const focusTotal = focusMinutesOf(d);
     $('#wrFocus').textContent = focusTotal >= 60 ? `${Math.floor(focusTotal / 60)} jam ${focusTotal % 60}m` : `${focusTotal} menit`;
@@ -27,7 +28,8 @@ async function loadWeeklyReview() {
       stats.push(`<div class="wr-stat"><b>—</b><span>tidak ada deadline lomba</span></div>`);
     }
     $('#wrStats').innerHTML = stats.join('');
-    node.hidden = false;
+    node.hidden = minimal;
+    if (typeof applyDashboardMode === 'function') applyDashboardMode();
   } catch (err) {
     /* silent — review bukan kritikal */
     console.warn('weekly-review gagal:', err);

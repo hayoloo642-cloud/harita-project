@@ -41,6 +41,36 @@ function paletteCommands() {
 
 let paletteIndex = 0;
 let paletteMatches = [];
+let globalResults = [];
+let globalSearchTimer = null;
+let globalSearchToken = 0;
+
+function globalSearch(query, token) {
+  return api(`/api/search?q=${encodeURIComponent(query)}`).then((data) => {
+    if (token !== globalSearchToken) return;
+    globalResults = (data.results || []).map((item) => ({
+      ico: ({ task: 'check-square', event: 'calendar', note: 'note', expense: 'wallet', flashcard: 'book', competition: 'trophy', habit: 'flame' }[item.type]) || 'search',
+      label: item.label,
+      hint: item.hint,
+      keywords: `${item.type} ${item.label} ${item.hint}`,
+      run: () => setView(item.view),
+    }));
+    renderPaletteList(query);
+  }).catch(() => {
+    if (token !== globalSearchToken) return;
+    globalResults = [];
+    renderPaletteList(query);
+  });
+}
+
+function scheduleGlobalSearch(query) {
+  clearTimeout(globalSearchTimer);
+  const q = String(query || '').trim();
+  globalSearchToken += 1;
+  const token = globalSearchToken;
+  if (q.length < 2) { globalResults = []; return; }
+  globalSearchTimer = setTimeout(() => globalSearch(q, token), 220);
+}
 
 function paletteOpen() {
   const overlay = $('#paletteOverlay');
@@ -48,6 +78,8 @@ function paletteOpen() {
   overlay.hidden = false;
   const input = $('#paletteInput');
   input.value = '';
+  globalResults = [];
+  clearTimeout(globalSearchTimer);
   renderPaletteList('');
   setTimeout(() => input.focus(), 30);
 }
@@ -80,21 +112,27 @@ function renderPaletteList(query) {
     const hay = `${c.label} ${c.keywords || ''} ${c.hint || ''}`.toLowerCase();
     return q.split(/\s+/).every((term) => hay.includes(term));
   });
-  const results = q ? contentMatches(q) : [];
+  const localResults = q ? contentMatches(q) : [];
+  const remoteResults = q ? globalResults : [];
+  const results = [...localResults, ...remoteResults];
   paletteMatches = [...commandMatches, ...results];
   paletteIndex = 0;
 
   let html = '';
   let idx = 0;
-  if (commandMatches.length) {
-    html += commandMatches.map((c) => {
+  const renderSection = (title, items) => {
+    if (!items.length) return '';
+    return `<div class="palette-section">${esc(title)}</div>` + items.map((c) => {
       const i = idx++;
       return `
     <button class="palette-item ${i === 0 ? 'selected' : ''}" role="option" data-idx="${i}">
       <span class="ico">${iconSvg(c.ico)}</span><span>${esc(c.label)}</span>${c.hint ? `<span class="kbd">${esc(c.hint)}</span>` : ''}
     </button>`;
     }).join('');
-  }
+  };
+  if (commandMatches.length) html += renderSection('Perintah', commandMatches);
+  if (localResults.length) html += renderSection('Di layar ini', localResults);
+  if (remoteResults.length) html += renderSection('Semua data', remoteResults);
   if (results.length) {
     html += `<div class="palette-section">Hasil pencarian</div>`;
     html += results.map((c) => {
@@ -128,7 +166,10 @@ function paletteRunSelected() {
 function bindPalette() {
   const overlay = $('#paletteOverlay');
   if (!overlay) return;
-  $('#paletteInput').addEventListener('input', (e) => renderPaletteList(e.target.value));
+  $('#paletteInput').addEventListener('input', (e) => {
+    scheduleGlobalSearch(e.target.value);
+    renderPaletteList(e.target.value);
+  });
   $('#paletteInput').addEventListener('keydown', (e) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); paletteMove(1); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); paletteMove(-1); }

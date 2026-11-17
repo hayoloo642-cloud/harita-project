@@ -180,8 +180,11 @@
 
       <!-- ============ BERANDA ============ -->
       <section class="view active" id="view-beranda">
+        <div class="dashboard-actions">
+          <button class="btn btn-ghost btn-sm" id="dashboardModeToggle" aria-pressed="false">Tampilkan mode lengkap</button>
+        </div>
         <div class="dash-grid">
-          <article class="card span-12 weekly-review" id="weeklyReview" hidden>
+          <article class="card span-12 weekly-review dash-optional" id="weeklyReview" hidden>
             <div class="wr-ring"><svg width="72" height="72" viewBox="0 0 72 72"><circle cx="36" cy="36" r="30" fill="none" stroke="var(--border)" stroke-width="8"/><circle id="wrRing" cx="36" cy="36" r="30" fill="none" stroke="var(--accent)" stroke-width="8" stroke-linecap="round" stroke-dasharray="188.5" stroke-dashoffset="188.5" transform="rotate(-90 36 36)" style="transition:stroke-dashoffset .8s ease"/></svg></div>
             <div>
               <p class="wr-label">Rekap minggu ini</p>
@@ -271,7 +274,7 @@
             <div class="mini-cal-foot" id="miniCalFoot"></div>
           </article>
 
-          <article class="card span-3 comp-mini" id="compMini">
+          <article class="card span-3 comp-mini dash-optional" id="compMini">
             <div class="card-head">
               <div>
                 <p class="eyebrow">Countdown</p>
@@ -283,7 +286,7 @@
           </article>
 
           <!-- Device Performance on Dashboard -->
-          <article class="card span-4 device-dashboard-card">
+          <article class="card span-4 device-dashboard-card dash-optional">
             <div class="card-head">
               <div>
                 <p class="eyebrow">Performa Device · Realtime</p>
@@ -299,7 +302,7 @@
             </div>
           </article>
 
-          <article class="card span-8 insight-card">
+          <article class="card span-8 insight-card dash-optional">
             <div class="card-head">
               <div>
                 <p class="eyebrow">Saran cerdas</p>
@@ -310,7 +313,7 @@
             <div class="insight-grid" id="insightGrid"></div>
           </article>
 
-          <article class="card span-4 note-mini" id="noteMini">
+          <article class="card span-4 note-mini dash-optional" id="noteMini">
             <div class="card-head">
               <div>
                 <p class="eyebrow">Disematkan</p>
@@ -965,30 +968,36 @@
   </div>
 </div>
 
-<div class="onboard-overlay" id="onboardOverlay" hidden role="dialog" aria-modal="true" aria-label="Selamat datang di Harita">
+<div class="onboard-overlay" id="onboardOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="onboardTitle">
   <div class="onboard-box">
     <div class="onboard-step" data-step="1">
-      <div class="onboard-ico"><span class="ico" data-icon="home"></span></div>
-      <h2>Selamat datang di Harita</h2>
-      <p>Dashboard harian kamu — cuaca, tugas, jadwal, lomba, fokus belajar. Semuanya di laptop ini, tanpa akun.</p>
-      <button class="btn btn-primary" data-onboard-next>Mulai</button>
+      <div class="onboard-ico"><span class="ico" data-icon="sparkles"></span></div>
+      <h2 id="onboardTitle">Harita untuk apa?</h2>
+      <p>Pilih fokus utama. Kami bisa menyesuaikan contoh dan halaman awalmu.</p>
+      <fieldset class="onboard-goals">
+        <legend class="sr-only">Fokus utama Harita</legend>
+        <label class="goal-card"><input type="radio" name="onboarding_goal" value="study" /><span class="goal-icon"><span class="ico" data-icon="book"></span></span><span><strong>Belajar &amp; ujian</strong><small>Jadwal, flashcard, nilai, fokus</small></span></label>
+        <label class="goal-card"><input type="radio" name="onboarding_goal" value="contest" /><span class="goal-icon"><span class="ico" data-icon="trophy"></span></span><span><strong>Lomba / proyek</strong><small>Deadline, checklist persiapan, riset</small></span></label>
+        <label class="goal-card"><input type="radio" name="onboarding_goal" value="habit" /><span class="goal-icon"><span class="ico" data-icon="flame"></span></span><span><strong>Kebiasaan</strong><small>Streak, rutin harian, heatmap</small></span></label>
+        <label class="goal-card"><input type="radio" name="onboarding_goal" value="money" /><span class="goal-icon"><span class="ico" data-icon="wallet"></span></span><span><strong>Uang jajan</strong><small>Catat pengeluaran &amp; anggaran</small></span></label>
+        <label class="goal-card"><input type="radio" name="onboarding_goal" value="mixed" checked /><span class="goal-icon"><span class="ico" data-icon="sparkles"></span></span><span><strong>Semua</strong><small>Campuran belajar, uang, dan kebiasaan</small></span></label>
+      </fieldset>
+      <button class="btn btn-primary" data-onboard-next>Lanjut</button>
     </div>
     <div class="onboard-step" data-step="2" hidden>
-      <div class="onboard-ico"><span class="ico" data-icon="check-square"></span></div>
-      <h2>Apa yang bisa kamu lakukan</h2>
+      <div class="onboard-ico"><span class="ico" data-icon="target"></span></div>
+      <h2 id="onboardHeadline">Ruangmu sudah siap</h2>
       <ul class="onboard-list">
-        <li><span class="ico" data-icon="check-square"></span>Tugas harian — reset tiap hari, yang belum selesai dibawa ke besok</li>
-        <li><span class="ico" data-icon="timer"></span>Fokus pomodoro dengan statistik per mapel</li>
-        <li><span class="ico" data-icon="flame"></span>Streak kebiasaan — jaga konsistensi tiap hari</li>
-        <li><span class="ico" data-icon="star"></span>Catat nilai dan pantau KKM</li>
-        <li><span class="ico" data-icon="book"></span>Flashcard SM-2 — ulangi sebelum lupa</li>
+        <li><span class="ico" data-icon="check-square"></span><span id="onboardGoalHint">Campuran tugas, belajar, uang, dan kebiasaan.</span></li>
+        <li><span class="ico" data-icon="wallet"></span>Semua data tersimpan lokal — bisa dipakai offline.</li>
+        <li><span class="ico" data-icon="search"></span>Tekan <kbd>Ctrl</kbd> + <kbd>K</kbd> untuk mencari tugas, catatan, uang, dan lainnya.</li>
       </ul>
       <button class="btn btn-primary" data-onboard-next>Lanjut</button>
     </div>
     <div class="onboard-step" data-step="3" hidden>
       <div class="onboard-ico"><span class="ico" data-icon="keyboard"></span></div>
       <h2>Satu tips pamungkas</h2>
-      <p class="onboard-kbd-hint">Tekan <kbd>Ctrl</kbd> + <kbd>K</kbd> di mana pun — ketik apa saja ("tugas", "tema", "musik") dan langsung lompat ke sana.</p>
+      <p class="onboard-kbd-hint">Tekan <kbd>Ctrl</kbd> + <kbd>K</kbd> di mana pun — ketik apa saja (“tugas”, “tema”, “musik”) dan langsung lompat ke sana.</p>
       <div class="onboard-actions">
         <button class="btn btn-ghost" id="onboardDemo">Isi data contoh</button>
         <button class="btn btn-primary" id="onboardFinish">Selesai — mulai sekarang</button>

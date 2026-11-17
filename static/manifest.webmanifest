@@ -9,7 +9,79 @@
   "theme_color": "#06080c",
   "lang": "id",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "id": "/",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "categories": [
+    "productivity",
+    "education",
+    "utilities"
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/beranda.png",
+      "sizes": "1440x900",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Beranda Harita"
+    },
+    {
+      "src": "/screenshots/fokus.png",
+      "sizes": "1440x900",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Ruang fokus Harita"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Tugas hari ini",
+      "short_name": "Tugas",
+      "url": "/#/tugas",
+      "description": "Buka checklist tugas hari ini",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Fokus Pomodoro",
+      "short_name": "Fokus",
+      "url": "/#/fokus",
+      "description": "Mulai sesi fokus",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Pengeluaran",
+      "short_name": "Uang",
+      "url": "/#/pengeluaran",
+      "description": "Catat uang keluar",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
   ]
 }

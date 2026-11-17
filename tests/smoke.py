@@ -219,6 +219,11 @@ def main() -> int:
         status, res = request(base, "/api/settings", "POST", {"expense_budget": "500000"})
         check("expense budget saved", status == 200 and res.get("settings", {}).get("expense_budget") == "500000", str(res)[:140])
 
+        print("global search")
+        status, found = request(base, "/api/search?q=Smoke")
+        check("global search returns results", status == 200 and len(found.get("results", [])) >= 2, str(found)[:200])
+        check("global search has expected type", any(x.get("type") in ("task", "note", "expense") for x in found.get("results", [])), str(found)[:200])
+
         print("backup preview & import")
         status, status_payload = request(base, "/api/db/status")
         check("db status 200", status == 200 and "backups" in status_payload, str(status_payload)[:120])

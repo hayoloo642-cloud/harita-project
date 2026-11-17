@@ -91,7 +91,7 @@ function renderTasksView() {
     };
     html = query
       ? `<div class="task-empty">${iconSvg('search')}<span><b>Tidak ada tugas yang cocok.</b><br>Coba kata kunci lain atau hapus pencarian.</span></div>`
-      : `<div class="task-empty">${iconSvg('check-square')}<span>${messages[state.taskFilter] || messages.all}</span></div>`;
+      : `<div class="task-empty">${iconSvg('check-square')}<span>${messages[state.taskFilter] || messages.all}</span>${state.taskFilter === 'all' ? '<button class="btn btn-primary btn-sm" data-focus-quickadd>Tambah tugas pertama</button>' : ''}</div>`;
   }
   listNode.innerHTML = html;
 
@@ -321,6 +321,9 @@ function bindTaskQuickActions() {
   });
   $('#quickAddForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('[data-focus-quickadd]')) $('#quickAddInput')?.focus();
+    });
     const input = $('#quickAddInput');
     try {
       const added = await addQuickTask(input.value, $('#quickAddPriority').value);

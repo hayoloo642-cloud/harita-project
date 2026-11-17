@@ -4,6 +4,8 @@
 
 ![Harita demo](docs/demo.gif)
 
+**Website:** https://hayoloo642-cloud.github.io/harita-project/
+
 ![Harita — Beranda](docs/screenshots/beranda.png)
 
 ---

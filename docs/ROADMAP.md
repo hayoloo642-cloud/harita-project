@@ -10,8 +10,11 @@ Status: **v1.2.0** — fitur inti + kualitas rilis sudah berjalan lokal. Berikut
 - [x] **Sematkan halaman favorit** di sidebar + sembunyikan item jarang
 - [x] **Checklist sub-tugas** di dalam satu tugas
 - [x] **Aksi massal** di daftar tugas (selesaikan/pindah/hapus + Undo)
-- [ ] Terjemahan penuh untuk teks dinamis di semua view (toast, empty state, modal tugas)
+- [~] Terjemahan teks dinamis: tanggal, sapaan, modal, dan empty state dasar sudah; toast & sebagian teks turunan masih Indonesia
+- [x] Impor backup JSON dengan pratinjau per tabel + snapshot otomatis
 - [ ] Fuzz test import/export JSON dan `.ics`
+- [ ] Enkripsi database/backup opsional
+- [ ] Pagination/virtualisasi untuk data ribuan baris
 
 ## Kualitas & pengujian
 

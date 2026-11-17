@@ -1,4 +1,4 @@
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 /* ============================================================
    App bootstrap, navigation, realtime tick, settings
    ============================================================ */
@@ -261,6 +261,7 @@ function openSettingsModal() {
       <p class="eyebrow" style="margin:22px 0 12px">${esc(t('settings.data'))}</p>
       <div class="field full" style="display:flex; gap:10px; flex-wrap:wrap">
         <a class="btn btn-ghost btn-sm" href="/api/export" download>${ico('download')} ${esc(t('settings.backup'))}</a>
+        <button type="button" class="btn btn-ghost btn-sm" id="importDataBtn">${ico('upload')} Impor backup</button>
         <button type="button" class="btn btn-ghost btn-sm" id="demoDataBtn">${ico('sparkles')} ${esc(t('settings.demo'))}</button>
         <button type="button" class="btn btn-ghost btn-sm" id="swResetBtn">${ico('refresh')} ${esc(t('settings.clearCache'))}</button>
         <button type="button" class="btn btn-ghost btn-sm" id="diagCopyBtn">${ico('copy')} ${esc(t('settings.diagnostics'))}</button>
@@ -393,6 +394,8 @@ function openSettingsModal() {
         toast('Gagal membersihkan cache: ' + err.message, 'error');
       }
     });
+    const importBtn = document.getElementById('importDataBtn');
+    if (importBtn) importBtn.addEventListener('click', importBackupFile);
     const demoBtn = document.getElementById('demoDataBtn');
     if (demoBtn) demoBtn.addEventListener('click', () => {
       confirmDialog({
@@ -641,10 +644,88 @@ async function checkDbHealth() {
   } catch { /* status endpoint tidak tersedia — diabaikan */ }
 }
 
-function restoreDbFromBackup(name) {
+const TABLE_LABELS = {
+  settings: 'Pengaturan', tasks: 'Tugas', task_templates: 'Rutinitas tugas', events: 'Agenda',
+  competitions: 'Lomba', competition_tasks: 'Checklist lomba', notes: 'Catatan', schedule: 'Jadwal',
+  focus_sessions: 'Sesi fokus', music_tracks: 'Musik', music_state: 'Status musik', streak: 'Streak',
+  habits: 'Kebiasaan', habit_log: 'Log kebiasaan', grades: 'Nilai', flashcards: 'Flashcard', reminder: 'Pengingat',
+};
+
+function importTableLabel(table) {
+  return TABLE_LABELS[table] || table;
+}
+
+function importSummaryText(preview) {
+  return (preview.tables || [])
+    .map((item) => `${importTableLabel(item.table)}: ${item.rows} baris`)
+    .join(' · ');
+}
+
+function openImportPreview(payload, sourceName) {
+  let preview = null;
+  api('/api/db/preview', { method: 'POST', body: { data: payload } })
+    .then((data) => {
+      preview = data;
+      const rows = (data.tables || []).map((item) => {
+        const current = (data.current || {})[item.table] ?? 0;
+        return `<label class="check-line compact import-row"><input type="checkbox" data-import-table="${esc(item.table)}" ${item.table === 'settings' ? '' : 'checked'} />
+          <span><strong>${esc(importTableLabel(item.table))}</strong> ${item.rows} baris di backup · ${current} sekarang</span></label>`;
+      }).join('');
+      const body = `
+        <div class="import-preview">
+          <p class="hint" style="margin-top:0">Sumber: <strong>${esc(sourceName || 'file JSON')}</strong>${data.exported_at ? ` · diekspor ${esc(data.exported_at)}` : ''}</p>
+          <p class="hint">Pilih tabel yang diganti. Snapshot database saat ini dibuat otomatis sebelum impor.</p>
+          <div class="import-tables">${rows || '<p class="hint">Tidak ada tabel yang dikenali.</p>'}</div>
+          <p class="hint" style="margin-bottom:0">PIN dan status kunci tidak pernah diimpor, meskipun “Pengaturan” dicentang.</p>
+        </div>`;
+      openModal({
+        title: 'Impor backup JSON',
+        eyebrow: 'Pratinjau',
+        body,
+        wide: true,
+        submitLabel: 'Impor tabel terpilih',
+        onSubmit: async (form) => {
+          const selected = [...form.querySelectorAll('[data-import-table]:checked')].map((el) => el.dataset.importTable);
+          if (!selected.length) throw new Error('Pilih minimal satu tabel');
+          const res = await api('/api/db/import', { method: 'POST', body: { data: payload, tables: selected } });
+          toast(`Impor selesai: ${res.rows || 0} baris${res.snapshot ? ` · snapshot ${res.snapshot}` : ''}`);
+          setTimeout(() => window.location.reload(), 1200);
+        },
+      });
+    })
+    .catch((err) => toast(`Backup tidak valid: ${err.message}`, 'error', 7000));
+}
+
+function importBackupFile() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.addEventListener('change', async () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (file.size > 25_000_000) { toast('File terlalu besar (maks 25 MB)', 'error'); return; }
+    try {
+      const payload = JSON.parse(await file.text());
+      openImportPreview(payload, file.name);
+    } catch (err) {
+      toast(`File bukan JSON yang valid: ${err.message}`, 'error', 6000);
+    }
+  });
+  input.click();
+}
+
+async function restoreDbFromBackup(name) {
+  let summary = '';
+  try {
+    const preview = await api('/api/db/preview', { method: 'POST', body: name ? { name } : {} });
+    summary = importSummaryText(preview);
+  } catch (err) {
+    toast(`Tidak bisa membaca backup: ${err.message}`, 'error', 6000);
+    return;
+  }
   confirmDialog({
     title: 'Pulihkan dari backup?',
-    message: `Data saat ini akan disalin dulu ke folder backup, lalu isi database diganti dengan <strong>${esc(name || 'backup terbaru')}</strong>. Pengaturan, tema, dan PIN tetap dipertahankan.`,
+    message: `Snapshot database saat ini dibuat otomatis, lalu tabel diganti dengan <strong>${esc(name || 'backup terbaru')}</strong>.<br><br><span class="hint">${esc(summary || 'Ringkasan tidak tersedia.')}</span><br><br>Pengaturan, tema, bahasa, dan PIN tetap dipertahankan.`,
     confirmLabel: 'Pulihkan data',
     onConfirm: async () => {
       const res = await api('/api/db/restore', { method: 'POST', body: name ? { name } : {} });

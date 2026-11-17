@@ -26,7 +26,7 @@
 - **Tugas lebih cepat** — pencarian per view, selesaikan semua + undo, edit judul inline (tugas & catatan), checklist sub-tugas, aksi massal, drag & drop urutan
 - **Kalender fleksibel** — agenda berulang mingguan/bulanan, pencarian agenda, unduh `.ics`
 - **Sidebar adaptif** — sematkan halaman favorit, sembunyikan item yang jarang dipakai
-- **Arsip & pemulihan** — soft-delete + Undo, backup JSON otomatis, restore database dari backup, deteksi database korup, bersihkan cache file dari Pengaturan
+- **Arsip & pemulihan** — soft-delete + Undo, backup JSON otomatis, impor backup JSON dengan pratinjau per tabel, snapshot otomatis sebelum impor/restore, restore database dari backup, deteksi database korup, bersihkan cache file dari Pengaturan
 - **Uji & distribusi** — smoke/stress test, Playwright E2E, skrip paket PyInstaller/AppImage/Windows/macOS, landing page offline di `docs/landing/`
 - **Privasi penuh** — semua data tersimpan lokal di SQLite; tidak ada akun atau cloud
 

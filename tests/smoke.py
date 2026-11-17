@@ -139,6 +139,48 @@ def main() -> int:
         check("settings persisted", settings.get("accent") == "teal" and settings.get("contrast") == "high")
         status, res = request(base, "/api/settings", "POST", {"theme": "bogus", "accent": "bogus"})
         check("invalid settings coerced", status == 200 and res.get("settings", {}).get("theme") == "dark")
+        print("new task features")
+        status, task_a = request(base, "/api/tasks", "POST", {
+            "date": data["today"], "title": "Task A",
+            "subtasks": [{"title": "step one", "done": 1}, {"title": "step two", "done": 0}],
+        })
+        check("create task with subtasks", status in (200, 201), str(task_a)[:140])
+        tid_a = task_a.get("task", {}).get("id")
+        check("subtasks persisted", '"step one"' in (task_a.get("task", {}).get("subtasks") or ""))
+        status, task_b = request(base, "/api/tasks", "POST", {"date": data["today"], "title": "Task B"})
+        tid_b = task_b.get("task", {}).get("id")
+        if tid_a and tid_b:
+            status, res = request(base, "/api/tasks/reorder", "POST", {"ids": [tid_b, tid_a]})
+            check("reorder accepted", status == 200 and res.get("ok") is True, str(res))
+            status, listing = request(base, f"/api/tasks?date={data['today']}")
+            order = [t["id"] for t in listing.get("tasks", [])]
+            check("reorder applied", order.index(tid_b) < order.index(tid_a), str(order))
+        status, ev = request(base, "/api/events", "POST", {"title": "Weekly event", "date": data["today"], "repeat": "weekly"})
+        check("recurring event created", status in (200, 201) and ev.get("event", {}).get("repeat") == "weekly", str(ev)[:140])
+
+        print("new settings")
+        status, res = request(base, "/api/settings", "POST", {
+            "pinned_views": "tugas,nilai", "hidden_views": "music", "language": "en",
+        })
+        settings = res.get("settings", {})
+        check("pinned/hidden views saved", settings.get("pinned_views") == "tugas,nilai" and settings.get("hidden_views") == "music")
+        check("language saved", settings.get("language") == "en")
+        status, res = request(base, "/api/settings", "POST", {"pinned_views": "evil,__proto__"})
+        check("invalid views coerced", status == 200 and res.get("settings", {}).get("pinned_views") == "")
+
+        print("backup preview & import")
+        status, status_payload = request(base, "/api/db/status")
+        check("db status 200", status == 200 and "backups" in status_payload, str(status_payload)[:120])
+        status, exported = request(base, "/api/export")
+        check("export returns tables", status == 200 and "tables" in exported)
+        status, preview = request(base, "/api/db/preview", "POST", {"data": exported})
+        check("preview accepts upload", status == 200 and any(t["table"] == "tasks" for t in preview.get("tables", [])), str(preview)[:160])
+        status, imp = request(base, "/api/db/import", "POST", {"data": exported, "tables": ["tasks"]})
+        check("import selected tables", status == 200 and "tasks" in imp.get("imported", {}), str(imp)[:160])
+        check("import made snapshot", bool(imp.get("snapshot")), str(imp)[:160])
+        status, bad = request(base, "/api/db/preview", "POST", {"data": {"nope": 1}})
+        check("invalid backup rejected", status == 400, str(bad)[:120])
+
         status, _ = request(base, "/api/reset", "POST", {})
         check("reset all data", status == 200)
 

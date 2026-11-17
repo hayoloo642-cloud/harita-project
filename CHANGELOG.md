@@ -5,6 +5,22 @@ Semua perubahan penting pada proyek ini didokumentasikan di sini.
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] — 2026-11-17
+
+### Ditambahkan
+- **Impor backup JSON** dari file yang sudah diunduh (Pengaturan → Data), dengan pratinjau jumlah baris per tabel dan pilihan tabel yang diganti
+- i18n tahap 2: nama hari/bulan, label tanggal relatif, sapaan, “time ago”, header kalender, serta label dan tombol modal kini mengikuti bahasa Inggris
+- **Pratinjau sebelum restore** backup internal — nama file, waktu ekspor, dan jumlah baris tiap tabel ditampilkan sebelum konfirmasi
+- **Snapshot otomatis** (`export-<timestamp>-before-import.json`) sebelum setiap impor/restore, terpisah dari backup harian
+- Validasi payload impor: struktur `tables`, tipe baris, batas 25 MB, dan penolakan file yang tidak dikenali
+- Impor tidak pernah membawa `lock_pin_hash`/`lock_enabled` — PIN tetap milik perangkat
+- `tests/js/recurrence.test.js` — unit test clamp akhir bulan agenda berulang
+- Smoke test mencakup sub-tugas, reorder, agenda berulang, pin/sembunyi sidebar, bahasa, preview/impor backup
+- E2E baru: aksi massal + Undo, drag & drop, banner database korup, dan chrome bahasa Inggris
+
+### Catatan
+- Restore/impor bersifat *replace per tabel terpilih*, bukan merge. Snapshot otomatis tersedia untuk membatalkan.
+
 ## [1.2.0] — 2026-11-17
 
 ### Ditambahkan

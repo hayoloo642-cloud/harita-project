@@ -18,6 +18,8 @@ jobs:
           for f in static/js/*.js; do
             node --check "$f" || exit 1
           done
+      - name: Date/recurrence unit tests
+        run: node tests/js/recurrence.test.js
 
   test:
     runs-on: ubuntu-latest

@@ -23,7 +23,7 @@ from datetime import datetime, date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from zoneinfo import ZoneInfo
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 try:
     import psutil
@@ -468,12 +468,12 @@ def row_to_dict(row: sqlite3.Row) -> dict:
     return {k: row[k] for k in row.keys()}
 
 
-def parse_json_body(handler: BaseHTTPRequestHandler) -> dict:
+def parse_json_body(handler: BaseHTTPRequestHandler, max_bytes: int = 2_000_000) -> dict:
     length = int(handler.headers.get("Content-Length") or 0)
     if length <= 0:
         return {}
-    if length > 2_000_000:
-        raise ValueError("Payload terlalu besar")
+    if length > max_bytes:
+        raise ValueError(f"Payload terlalu besar (maks {max_bytes // 1_000_000} MB)")
     raw = handler.rfile.read(length)
     data = json.loads(raw.decode("utf-8"))
     if not isinstance(data, dict):
@@ -2038,32 +2038,113 @@ def api_db_status(handler: BaseHTTPRequestHandler) -> None:
     })
 
 
-def api_db_restore(handler: BaseHTTPRequestHandler) -> None:
-    body = parse_json_body(handler)
-    name = clip(body.get("name"), 200)
+IMPORT_MAX_BYTES = 25_000_000
+IMPORT_SKIP_SETTINGS = {"lock_pin_hash", "lock_enabled"}
+
+
+def _snapshot_backup(reason: str = "snapshot") -> str | None:
+    """Write a timestamped JSON snapshot before a destructive restore/import."""
     folder = _backup_dir()
-    if not name:
-        backups = _list_json_backups()
-        if not backups:
-            raise ValueError("Belum ada file backup JSON")
-        name = backups[0]["name"]
-    if os.path.basename(name) != name or not name.endswith(".json"):
-        raise ValueError("Nama backup tidak valid")
-    path = os.path.join(folder, name)
-    if not os.path.exists(path):
-        raise ValueError("File backup tidak ditemukan")
-    with open(path, encoding="utf-8") as fh:
-        payload = json.load(fh)
-    tables = payload.get("tables") or {}
-    if not isinstance(tables, dict):
+    try:
+        os.makedirs(folder, exist_ok=True)
+        stamp = datetime.now(TZ).strftime("%Y%m%d-%H%M%S")
+        target = os.path.join(folder, f"export-{stamp}-{reason}.json")
+        suffix = 1
+        while os.path.exists(target):
+            suffix += 1
+            target = os.path.join(folder, f"export-{stamp}-{reason}-{suffix}.json")
+        with open(target, "w", encoding="utf-8") as fh:
+            json.dump(export_all_tables(), fh, ensure_ascii=False, indent=1)
+        backups = sorted(f for f in os.listdir(folder) if f.startswith("export-") and f.endswith(".json"))
+        for old in backups[:-30]:
+            try:
+                os.remove(os.path.join(folder, old))
+            except OSError:
+                pass
+        return os.path.basename(target)
+    except Exception as exc:
+        print(f"PERINGATAN: gagal membuat snapshot sebelum impor ({exc})")
+        return None
+
+
+def _load_import_payload(body: dict) -> tuple[dict, str]:
+    name = clip(body.get("name"), 200)
+    if name:
+        if os.path.basename(name) != name or not name.endswith(".json"):
+            raise ValueError("Nama backup tidak valid")
+        path = os.path.join(_backup_dir(), name)
+        if not os.path.exists(path):
+            raise ValueError("File backup tidak ditemukan")
+        with open(path, encoding="utf-8") as fh:
+            payload = json.load(fh)
+        return payload, name
+    data = body.get("data")
+    if isinstance(data, dict):
+        return data, "upload"
+    raise ValueError("Kirim 'data' (objek backup) atau 'name' (file backup internal)")
+
+
+def _validate_import_payload(payload: dict) -> tuple[list[dict], list[str]]:
+    if not isinstance(payload, dict):
         raise ValueError("Format backup tidak dikenali")
-    backup_now()  # snapshot current state first
+    tables = payload.get("tables")
+    if not isinstance(tables, dict):
+        raise ValueError("Backup tidak punya objek 'tables'")
+    summary: list[dict] = []
+    unknown: list[str] = []
+    for table, rows in tables.items():
+        if table not in EXPORT_TABLES:
+            unknown.append(str(table))
+            continue
+        if not isinstance(rows, list):
+            raise ValueError(f"Tabel '{table}' harus berupa daftar baris")
+        summary.append({"table": table, "rows": len(rows)})
+    summary.sort(key=lambda item: EXPORT_TABLES.index(item["table"]))
+    if not summary:
+        raise ValueError("Backup tidak berisi tabel yang dikenali")
+    return summary, unknown
+
+
+def _current_row_counts() -> dict:
     conn = db_connect()
     try:
-        restored = 0
+        counts = {}
         for table in EXPORT_TABLES:
-            if table == "settings":
-                continue  # keep current prefs / PIN
+            try:
+                counts[table] = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            except Exception:
+                counts[table] = 0
+        return counts
+    finally:
+        conn.close()
+
+
+def api_db_preview(handler: BaseHTTPRequestHandler) -> None:
+    body = parse_json_body(handler, IMPORT_MAX_BYTES)
+    payload, source = _load_import_payload(body)
+    summary, unknown = _validate_import_payload(payload)
+    send_json(handler, 200, {
+        "ok": True,
+        "source": source,
+        "app": payload.get("app") or "",
+        "exported_at": payload.get("exported_at") or "",
+        "tables": summary,
+        "unknown_tables": unknown,
+        "current": _current_row_counts(),
+    })
+
+
+def _import_payload(payload: dict, selected: set[str], include_settings: bool) -> dict:
+    tables = payload.get("tables") or {}
+    snapshot = _snapshot_backup("before-import")
+    conn = db_connect()
+    try:
+        imported: dict[str, int] = {}
+        for table in EXPORT_TABLES:
+            if table not in selected:
+                continue
+            if table == "settings" and not include_settings:
+                continue
             rows = tables.get(table)
             if rows is None:
                 continue
@@ -2071,10 +2152,13 @@ def api_db_restore(handler: BaseHTTPRequestHandler) -> None:
             if not cols:
                 continue
             conn.execute(f"DELETE FROM {table}")
+            count = 0
             for row in rows:
                 if not isinstance(row, dict):
                     continue
                 keys = [k for k in row.keys() if k in cols]
+                if table == "settings":
+                    keys = [k for k in keys if k not in IMPORT_SKIP_SETTINGS]
                 if not keys:
                     continue
                 placeholders = ",".join("?" for _ in keys)
@@ -2082,15 +2166,55 @@ def api_db_restore(handler: BaseHTTPRequestHandler) -> None:
                     f"INSERT INTO {table} ({','.join(keys)}) VALUES ({placeholders})",
                     [row[k] for k in keys],
                 )
-                restored += 1
+                count += 1
+            imported[table] = count
         conn.commit()
-        try:
-            os.remove(os.path.join(DATA_DIR, ".corrupt-detected"))
-        except OSError:
-            pass
-        send_json(handler, 200, {"ok": True, "rows": restored, "backup": name})
+        return {"imported": imported, "rows": sum(imported.values()), "snapshot": snapshot}
     finally:
         conn.close()
+
+
+def api_db_import(handler: BaseHTTPRequestHandler) -> None:
+    body = parse_json_body(handler, IMPORT_MAX_BYTES)
+    payload, source = _load_import_payload(body)
+    summary, _unknown = _validate_import_payload(payload)
+    requested = body.get("tables")
+    available = {item["table"] for item in summary}
+    if isinstance(requested, list) and requested:
+        selected = {str(t) for t in requested if str(t) in available}
+    else:
+        selected = set(available)
+    if not selected:
+        raise ValueError("Tidak ada tabel yang dipilih untuk diimpor")
+    include_settings = bool(body.get("include_settings"))
+    result = _import_payload(payload, selected, include_settings)
+    try:
+        os.remove(os.path.join(DATA_DIR, ".corrupt-detected"))
+    except OSError:
+        pass
+    send_json(handler, 200, {"ok": True, "source": source, **result})
+
+
+def api_db_restore(handler: BaseHTTPRequestHandler) -> None:
+    body = parse_json_body(handler)
+    name = clip(body.get("name"), 200)
+    if not name:
+        backups = _list_json_backups()
+        if not backups:
+            raise ValueError("Belum ada file backup JSON")
+        name = backups[0]["name"]
+    body = {"name": name}
+    payload, source = _load_import_payload(body)
+    summary, _unknown = _validate_import_payload(payload)
+    selected = {item["table"] for item in summary if item["table"] != "settings"}
+    if not selected:
+        raise ValueError("Backup tidak berisi data yang bisa dipulihkan")
+    result = _import_payload(payload, selected, include_settings=False)
+    try:
+        os.remove(os.path.join(DATA_DIR, ".corrupt-detected"))
+    except OSError:
+        pass
+    send_json(handler, 200, {"ok": True, "backup": source, **result})
 
 
 def api_db_corrupt_download(handler: BaseHTTPRequestHandler, query: dict) -> None:
@@ -2861,6 +2985,10 @@ class Handler(BaseHTTPRequestHandler):
                 api_reset(self)
             elif path == "/api/db/restore":
                 api_db_restore(self)
+            elif path == "/api/db/preview":
+                api_db_preview(self)
+            elif path == "/api/db/import":
+                api_db_import(self)
             elif path == "/api/db/dismiss":
                 api_db_dismiss(self)
             elif path == "/api/events":

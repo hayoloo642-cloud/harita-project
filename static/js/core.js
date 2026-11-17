@@ -5,6 +5,15 @@ const DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 const DAYS_SHORT = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 const MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+const EN_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const EN_DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const EN_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const EN_MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const isEnglish = () => typeof currentLang === 'function' && currentLang() === 'en';
+const dayNames = () => (isEnglish() ? EN_DAYS : DAYS);
+const dayNamesShort = () => (isEnglish() ? EN_DAYS_SHORT : DAYS_SHORT);
+const monthNames = () => (isEnglish() ? EN_MONTHS : MONTHS);
+const monthNamesShort = () => (isEnglish() ? EN_MONTHS_SHORT : MONTHS_SHORT);
 const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
 const CATEGORY_LABEL = { lomba: 'Lomba', sekolah: 'Sekolah', tugas: 'Tugas', pribadi: 'Pribadi', ujian: 'Ujian', lain: 'Lainnya' };
 const PRIORITY_LABEL = { 1: 'Penting', 2: 'Normal', 3: 'Santai' };
@@ -33,22 +42,22 @@ function dayOfWeek(str) { return parseYMD(str).getUTCDay(); }
 function monthKey(str) { return String(str).slice(0, 7); }
 function fmtLong(str) {
   const d = parseYMD(str);
-  return `${DAYS[d.getUTCDay()]}, ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  return `${dayNames()[d.getUTCDay()]}, ${d.getUTCDate()} ${monthNames()[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 function fmtMedium(str) {
   const d = parseYMD(str);
-  return `${DAYS_SHORT[d.getUTCDay()]}, ${d.getUTCDate()} ${MONTHS_SHORT[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  return `${dayNamesShort()[d.getUTCDay()]}, ${d.getUTCDate()} ${monthNamesShort()[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 function fmtShort(str) {
   const d = parseYMD(str);
-  return `${d.getUTCDate()} ${MONTHS_SHORT[d.getUTCMonth()]}`;
+  return `${d.getUTCDate()} ${monthNamesShort()[d.getUTCMonth()]}`;
 }
-function fmtMonth(year, month) { return `${MONTHS[month]} ${year}`; }
+function fmtMonth(year, month) { return `${monthNames()[month]} ${year}`; }
 function relDayLabel(str) {
-  if (str === todayStr()) return 'Hari ini';
-  if (str === todayStr(1)) return 'Besok';
-  if (str === todayStr(-1)) return 'Kemarin';
-  return DAYS[dayOfWeek(str)];
+  if (str === todayStr()) return isEnglish() ? 'Today' : 'Hari ini';
+  if (str === todayStr(1)) return isEnglish() ? 'Tomorrow' : 'Besok';
+  if (str === todayStr(-1)) return isEnglish() ? 'Yesterday' : 'Kemarin';
+  return dayNames()[dayOfWeek(str)];
 }
 function parseLocalDT(value) {
   if (!value) return NaN;
@@ -67,6 +76,11 @@ function fmtDeadline(value) {
 }
 function greeting() {
   const h = localTimeParts().h;
+  if (isEnglish()) {
+    if (h < 12) return 'Good morning';
+    if (h < 18) return 'Good afternoon';
+    return 'Good evening';
+  }
   if (h < 11) return 'Selamat pagi';
   if (h < 15) return 'Selamat siang';
   if (h < 18) return 'Selamat sore';
@@ -77,6 +91,13 @@ function timeAgo(iso) {
   const then = Date.parse(iso);
   const diff = Math.max(0, Date.now() - then);
   const mins = Math.floor(diff / 60000);
+  if (isEnglish()) {
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins} min ago`;
+    const hoursEn = Math.floor(mins / 60);
+    if (hoursEn < 24) return `${hoursEn} h ago`;
+    return `${Math.floor(hoursEn / 24)} d ago`;
+  }
   if (mins < 1) return 'baru saja';
   if (mins < 60) return `${mins} menit lalu`;
   const hours = Math.floor(mins / 60);
@@ -312,22 +333,25 @@ let modalState = { onSubmit: null, onDelete: null };
 
 function openModal(opts) {
   const {
-    title, eyebrow = 'MyAct', body = '', submitLabel = 'Simpan', onSubmit = null,
-    onDelete = null, deleteLabel = 'Hapus', wide = false, hideSubmit = false, danger = false,
+    title, eyebrow = 'MyAct', body = '', submitLabel = null, onSubmit = null,
+    onDelete = null, deleteLabel = null, wide = false, hideSubmit = false, danger = false,
   } = opts;
   const overlay = $('#modalOverlay');
+  const saveLabel = submitLabel || t('common.save', 'Simpan');
+  const delText = deleteLabel || t('common.delete', 'Hapus');
   overlay.hidden = false;
   $('.modal').classList.toggle('wide', !!wide);
   $('#modalEyebrow').textContent = eyebrow;
   $('#modalTitle').textContent = title;
   $('#modalBody').innerHTML = `<form id="modalForm" novalidate>${body}<div class="form-error" id="modalError"></div></form>`;
   $('#modalFoot').innerHTML = `
-    ${onDelete ? `<button class="btn btn-danger-ghost" type="button" id="modalDelete">${ico('trash')} ${deleteLabel}</button>` : ''}
+    ${onDelete ? `<button class="btn btn-danger-ghost" type="button" id="modalDelete">${ico('trash')} ${delText}</button>` : ''}
     <span style="flex:1"></span>
-    <button class="btn btn-ghost" type="button" id="modalCancel">Batal</button>
-    ${hideSubmit ? '' : `<button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" type="submit" form="modalForm" id="modalSubmit">${submitLabel}</button>`}
+    <button class="btn btn-ghost" type="button" id="modalCancel">${t('common.cancel', 'Batal')}</button>
+    ${hideSubmit ? '' : `<button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" type="submit" form="modalForm" id="modalSubmit">${saveLabel}</button>`}
   `;
   modalState = { onSubmit, onDelete };
+  if (typeof localizeStatic === 'function') localizeStatic();
   const close = () => closeModal();
   $('#modalCancel').addEventListener('click', close);
   overlay.onclick = (e) => { if (e.target === overlay) close(); };

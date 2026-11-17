@@ -1665,3 +1665,11 @@ html[data-contrast="high"] .card { border-width: 1.5px; }
 .check-line.compact { display: inline-flex; gap: 5px; align-items: center; font-size: 10.5px; margin: 0; }
 .check-line.compact span { display: inline; font-size: 10.5px; color: var(--muted); }
 .check-line.compact input { width: 14px; height: 14px; }
+
+/* ---------- batch I: JSON import preview ---------- */
+.import-preview .hint { font-size: 11px; }
+.import-tables { display: flex; flex-direction: column; gap: 2px; max-height: 300px; overflow-y: auto; margin: 10px 0; padding: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
+.import-row { display: flex; align-items: flex-start; gap: 8px; padding: 5px 2px; }
+.import-row input { margin-top: 2px; }
+.import-row span { display: inline; font-size: 11px; line-height: 1.5; }
+.import-row strong { color: var(--text); }

@@ -155,3 +155,111 @@ test('settings: modal opens with Pengaturan and closes via Batal', async ({ page
   await page.locator('#modalCancel').click();
   await expect(page.locator('#modalOverlay')).toBeHidden();
 });
+
+test('tasks: bulk select, complete, and undo', async ({ page }) => {
+  await gotoApp(page);
+  await openView(page, 'tugas');
+
+  const stamp = Date.now();
+  const titles = [`E2E Bulk A ${stamp}`, `E2E Bulk B ${stamp}`];
+  for (const title of titles) await addQuickTask(page, title);
+
+  await page.locator('#taskBulk').click();
+  await expect(page.locator('#taskBulkBar')).toBeVisible();
+
+  const rows = page.locator('#taskList .task-item').filter({ hasText: `E2E Bulk` });
+  await expect(rows).toHaveCount(2);
+  for (const box of await rows.locator('[data-task-select]').all()) await box.check();
+  await expect(page.locator('#bulkCount')).toHaveText('2 dipilih');
+
+  await page.locator('#bulkDone').click();
+  await expect(page.locator('#taskList .task-item.done').filter({ hasText: `E2E Bulk` })).toHaveCount(2);
+
+  // Single-toggle / bulk undo lives in the toast.
+  const undo = page.locator('.toast.undo .toast-undo-btn').last();
+  await expect(undo).toBeVisible();
+  await undo.click();
+  await expect(page.locator('#taskList .task-item.done').filter({ hasText: `E2E Bulk` })).toHaveCount(0);
+
+  const bootstrapRes = await page.request.get('/api/bootstrap');
+  const { today } = await bootstrapRes.json();
+  const tasksRes = await page.request.get(`/api/tasks?date=${encodeURIComponent(today)}`);
+  const { tasks } = await tasksRes.json();
+  for (const task of tasks.filter((t) => titles.includes(t.title))) {
+    await page.request.delete(`/api/tasks/${task.id}`);
+  }
+});
+
+test('tasks: drag & drop reorders the list and persists', async ({ page }) => {
+  await gotoApp(page);
+  await openView(page, 'tugas');
+
+  const stamp = Date.now();
+  const firstTitle = `E2E Drag First ${stamp}`;
+  const secondTitle = `E2E Drag Second ${stamp}`;
+  await addQuickTask(page, firstTitle);
+  await addQuickTask(page, secondTitle);
+
+  const first = page.locator('#taskList .task-item').filter({ hasText: firstTitle });
+  const second = page.locator('#taskList .task-item').filter({ hasText: secondTitle });
+  await first.dragTo(second);
+
+  const titlesInOrder = await page.locator('#taskList .task-item .task-title').allTextContents();
+  expect(titlesInOrder.indexOf(secondTitle)).toBeLessThan(titlesInOrder.indexOf(firstTitle));
+
+  await page.reload();
+  await expect(page.locator('#splash')).toBeHidden({ timeout: 15_000 });
+  await openView(page, 'tugas');
+  const afterReload = await page.locator('#taskList .task-item .task-title').allTextContents();
+  expect(afterReload.indexOf(secondTitle)).toBeLessThan(afterReload.indexOf(firstTitle));
+
+  const bootstrapRes = await page.request.get('/api/bootstrap');
+  const { today } = await bootstrapRes.json();
+  const tasksRes = await page.request.get(`/api/tasks?date=${encodeURIComponent(today)}`);
+  const { tasks } = await tasksRes.json();
+  for (const task of tasks.filter((t) => t.title === firstTitle || t.title === secondTitle)) {
+    await page.request.delete(`/api/tasks/${task.id}`);
+  }
+});
+
+test('recovery: corrupt database banner offers restore and download', async ({ page }) => {
+  await page.route('**/api/db/status', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      ok: true,
+      corrupt_detected: 'test.db.corrupt-1.bak',
+      corrupt_files: ['test.db.corrupt-1.bak'],
+      backups: [{ name: 'export-2026-01-01.json', size: 100, modified: '2026-01-01T00:00:00' }],
+      db_path: 'data/test.db',
+    }),
+  }));
+  await page.route('**/api/db/dismiss', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ ok: true }),
+  }));
+
+  await page.goto(APP_URL);
+  await expect(page.locator('#splash')).toBeHidden({ timeout: 15_000 });
+  await expect(page.locator('#dbRecovery')).toBeVisible();
+  await expect(page.locator('#dbRecoveryText')).toContainText('corrupt-1.bak');
+  await expect(page.locator('#dbRestoreBtn')).toBeEnabled();
+  await expect(page.locator('#dbCorruptBtn')).toBeEnabled();
+
+  await page.locator('#dbDismissBtn').click();
+  await expect(page.locator('#dbRecovery')).toBeHidden();
+});
+
+test('i18n: English chrome switches navigation and page title', async ({ page }) => {
+  await page.request.post('/api/settings', { data: { language: 'en' } });
+  try {
+    await page.goto(APP_URL);
+    await expect(page.locator('#splash')).toBeHidden({ timeout: 15_000 });
+    await expect(page.locator('#pageTitle')).toHaveText('Home');
+    await expect(page.locator('.nav-item[data-view="tugas"] span[data-i18n]')).toHaveText('Tasks');
+    await expect(page.locator('#openSettings')).toContainText('Settings');
+  } finally {
+    await page.request.post('/api/settings', { data: { language: 'id' } });
+  }
+});

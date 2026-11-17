@@ -26,7 +26,7 @@ cp -a README.md LICENSE CHANGELOG.md static packaging "$PKGDIR/" 2>/dev/null || 
 tar -C "$WORK" -czf "$WORK/harita-$VERSION.tar.gz" "harita-$VERSION"
 
 RPMBUILD_DIR="$ROOT/dist/rpmbuild"
-mkdir -p "$RPMBUILD_DIR"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+mkdir -p "$RPMBUILD_DIR"/BUILD "$RPMBUILD_DIR"/BUILDROOT "$RPMBUILD_DIR"/RPMS "$RPMBUILD_DIR"/SOURCES "$RPMBUILD_DIR"/SPECS "$RPMBUILD_DIR"/SRPMS
 cp "$WORK/harita-$VERSION.tar.gz" "$RPMBUILD_DIR/SOURCES/"
 cp packaging/rpm/harita.spec "$RPMBUILD_DIR/SPECS/"
 

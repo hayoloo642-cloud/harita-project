@@ -11,10 +11,12 @@ if (-not $Version) {
 if (-not (Test-Path dist\Harita.exe)) { throw 'dist\Harita.exe tidak ditemukan. Jalankan packaging\build-windows.bat dulu.' }
 
 $iscc = Get-Command ISCC.exe -ErrorAction SilentlyContinue
-if (-not $iscc) {
+if ($iscc) {
+  $isccPath = $iscc.Source
+} else {
   $candidate = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
-  if (Test-Path $candidate) { $iscc = Get-Item $candidate } else { throw 'Inno Setup tidak ditemukan. Install dengan: choco install innosetup --no-progress -y' }
+  if (Test-Path $candidate) { $isccPath = $candidate } else { throw 'Inno Setup tidak ditemukan. Install dengan: choco install innosetup --no-progress -y' }
 }
 
-& $iscc.FullName "/DMyAppVersion=$Version" packaging\windows\installer.iss
+& $isccPath "/DMyAppVersion=$Version" packaging\windows\installer.iss
 Write-Host "OK - installer: dist\Harita-Setup-$Version.exe"

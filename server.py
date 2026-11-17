@@ -630,7 +630,7 @@ def fetch_weather(key: str) -> dict:
     }
     url = "https://api.open-meteo.com/v1/forecast?" + urllib.parse.urlencode(params)
     req = urllib.request.Request(url, headers={"User-Agent": "Harita/1.0 (local)"})
-    with urllib.request.urlopen(req, timeout=15) as resp:
+    with urllib.request.urlopen(req, timeout=8) as resp:
         payload = json.loads(resp.read().decode("utf-8"))
     payload["location_key"] = key
     payload["location_name"] = loc["name"]

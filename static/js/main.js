@@ -101,8 +101,8 @@ async function refreshAll() {
       loadExpenses(),
       loadSchedule(),
       loadFocus(),
-      loadWeather(state.weather.key, true),
     ]);
+    loadWeather(state.weather.key, true); // weather may be slow; do not block UI
     renderAll();
     toast('Semua data diperbarui');
   } catch (err) {
@@ -1126,8 +1126,8 @@ async function init() {
       loadExpenses(),
       loadSchedule(),
       loadFocus(),
-      loadWeather(state.weather.key),
     ]);
+    loadWeather(state.weather.key); // weather may be slow; do not block boot
     state.booted = true;
     renderAll();
     checkDbHealth();

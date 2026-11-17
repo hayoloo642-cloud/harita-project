@@ -1761,3 +1761,36 @@ html[data-contrast="high"] .card { border-width: 1.5px; }
   .dashboard-actions { justify-content: stretch; }
   .dashboard-actions .btn { width: 100%; }
 }
+
+/* ---------- Phase 2: inbox, weekly goal, nightly review, presets ---------- */
+.inbox-modal { display: flex; flex-direction: column; gap: 10px; }
+.inbox-input { min-height: 110px; resize: vertical; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel); color: var(--text); padding: 12px; font: inherit; font-size: 14px; line-height: 1.5; }
+.inbox-input:focus { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+.inbox-preview { margin: 0; font-size: 11px; color: var(--muted); }
+.inbox-preview strong { color: var(--text); font-weight: 600; }
+.inbox-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--border); border-radius: 999px; background: var(--panel); color: var(--muted); padding: 6px 10px; font: inherit; font-size: 10.5px; cursor: pointer; }
+.chip:hover, .chip:focus-visible { border-color: var(--accent); color: var(--text); }
+.weekly-goal-form { display: flex; gap: 8px; align-items: center; }
+.weekly-goal-form input { flex: 1; min-width: 0; }
+#weeklyGoalDone.active { background: color-mix(in srgb, var(--success) 18%, var(--panel)); color: var(--success); border-color: color-mix(in srgb, var(--success) 45%, var(--border)); }
+.nightly-review { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, var(--panel)), var(--panel)); }
+.nightly-review-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.nightly-review-form label { display: flex; flex-direction: column; gap: 6px; font-size: 10.5px; color: var(--muted); font-weight: 600; }
+.nightly-review-form label:last-of-type { grid-column: 1 / -1; }
+.nightly-review-form textarea, .nightly-review-form input { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel); color: var(--text); padding: 9px 10px; font: inherit; font-size: 12px; }
+.nightly-review-form textarea:focus, .nightly-review-form input:focus { outline: 2px solid var(--accent-2); outline-offset: 1px; }
+.nightly-review-actions { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.preset-list { display: flex; flex-direction: column; gap: 8px; }
+.preset-card { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; text-align: left; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel); color: var(--text); padding: 12px; cursor: pointer; }
+.preset-card:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
+.preset-card strong, .preset-card small { display: block; }
+.preset-card strong { font-size: 12px; }
+.preset-card small { color: var(--muted); font-size: 10.5px; margin-top: 3px; }
+.preset-action { color: var(--accent-2-ink, var(--accent)); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.install-help p { font-size: 12px; line-height: 1.65; color: var(--muted); }
+.install-help strong { color: var(--text); }
+@media (max-width: 1000px) {
+  .nightly-review-form { grid-template-columns: 1fr; }
+  .nightly-review-form label:last-of-type { grid-column: auto; }
+}

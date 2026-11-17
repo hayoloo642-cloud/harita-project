@@ -219,6 +219,18 @@ def main() -> int:
         status, res = request(base, "/api/settings", "POST", {"expense_budget": "500000"})
         check("expense budget saved", status == 200 and res.get("settings", {}).get("expense_budget") == "500000", str(res)[:140])
 
+        print("weekly goal & nightly review")
+        status, goal = request(base, "/api/weekly-goal", "POST", {"title": "Smoke weekly target", "done": False})
+        check("save weekly goal", status == 200 and goal.get("goal", {}).get("title") == "Smoke weekly target", str(goal)[:160])
+        status, goal = request(base, "/api/weekly-goal", "POST", {"title": "Smoke weekly target", "done": True})
+        check("weekly goal toggling", status == 200 and int(goal.get("goal", {}).get("done") or 0) == 1, str(goal)[:160])
+        status, review = request(base, "/api/daily-review", "POST", {
+            "date": data["today"], "wins": "Smoke win", "carried": "", "tomorrow": "Smoke tomorrow",
+        })
+        check("save nightly review", status == 200 and review.get("review", {}).get("wins") == "Smoke win", str(review)[:160])
+        status, review = request(base, f"/api/daily-review?date={data['today']}")
+        check("reload nightly review", status == 200 and review.get("review", {}).get("tomorrow") == "Smoke tomorrow", str(review)[:160])
+
         print("global search")
         status, found = request(base, "/api/search?q=Smoke")
         check("global search returns results", status == 200 and len(found.get("results", [])) >= 2, str(found)[:200])
@@ -229,6 +241,7 @@ def main() -> int:
         check("db status 200", status == 200 and "backups" in status_payload, str(status_payload)[:120])
         status, exported = request(base, "/api/export")
         check("export returns tables", status == 200 and "tables" in exported)
+        check("export includes weekly review tables", all(t in exported.get("tables", {}) for t in ("daily_reviews", "weekly_goals")))
         check("export includes expenses", "expenses" in exported.get("tables", {}))
         status, preview = request(base, "/api/db/preview", "POST", {"data": exported})
         check("preview accepts upload", status == 200 and any(t["table"] == "tasks" for t in preview.get("tables", [])), str(preview)[:160])

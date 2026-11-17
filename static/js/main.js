@@ -96,6 +96,8 @@ async function refreshAll() {
     await loadBootstrap();
     await Promise.allSettled([
       loadTasks(state.taskDate, { silent: true }),
+      loadWeeklyGoal(),
+      loadNightlyReview(),
       loadEvents(),
       loadCompetitions(),
       loadNotes(),
@@ -878,6 +880,9 @@ function bindGlobal() {
   }
   $('#topWeather').addEventListener('click', () => setView('cuaca'));
   bindDbRecovery();
+  bindInbox();
+  if (typeof bindWeeklyGoal === 'function') bindWeeklyGoal();
+  if (typeof bindNightlyReview === 'function') bindNightlyReview();
   const bindViewSearch = (id, key, render) => {
     const el = $(id);
     if (!el) return;
@@ -1208,6 +1213,8 @@ async function init() {
     renderChrome();
     await Promise.allSettled([
       loadTasks(state.today),
+      loadWeeklyGoal(),
+      loadNightlyReview(),
       loadEvents(),
       loadCompetitions(),
       loadNotes(),

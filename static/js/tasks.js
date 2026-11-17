@@ -293,11 +293,78 @@ async function carryTasks() {
   toast(data.copied > 0 ? `${data.copied} tugas dibawa ke tanggal ini` : 'Tidak ada tugas belum selesai dari hari sebelumnya');
 }
 
+
+const ROUTINE_PRESETS = [
+  {
+    id: 'exam', name: 'Persiapan ujian 14 hari', desc: 'Latihan soal harian + review catatan + simulasi mingguan',
+    templates: [
+      { title: 'Latihan soal 20 menit', priority: 1, frequency: 'daily' },
+      { title: 'Review catatan 15 menit', priority: 2, frequency: 'daily' },
+      { title: 'Simulasi ujian 60 menit', priority: 1, frequency: 'weekly', weekday: 0 },
+    ],
+    oneOff: ['Petakan materi ujian dan target nilai'],
+  },
+  {
+    id: 'kti', name: 'Lomba karya tulis ilmiah', desc: 'Tulis 300 kata setiap hari, cari sumber, revisi bertahap',
+    templates: [
+      { title: 'Tulis 300 kata KTI', priority: 1, frequency: 'daily' },
+      { title: 'Cari 2 sumber ilmiah', priority: 2, frequency: 'weekday' },
+      { title: 'Revisi & rapikan daftar pustaka', priority: 2, frequency: 'weekly', weekday: 0 },
+    ],
+    oneOff: ['Susun outline KTI', 'Daftar lomba dan catat deadline'],
+  },
+  {
+    id: 'reading', name: 'Baca buku harian', desc: 'Bangun kebiasaan membaca tanpa target muluk',
+    templates: [
+      { title: 'Baca 20 halaman', priority: 2, frequency: 'daily' },
+      { title: 'Rangkum 1 bab', priority: 2, frequency: 'weekly', weekday: 0 },
+    ],
+    oneOff: ['Pilih buku yang ingin dibaca'],
+  },
+  {
+    id: 'focus', name: 'Fokus & kebiasaan', desc: 'Sesi fokus pendek dan review minggu',
+    templates: [
+      { title: 'Fokus 25 menit tanpa HP', priority: 1, frequency: 'daily' },
+      { title: 'Review progres minggu ini', priority: 2, frequency: 'weekly', weekday: 0 },
+    ],
+    oneOff: ['Tentukan 3 prioritas minggu ini'],
+  },
+];
+
+function openRoutinePresets() {
+  const body = `<div class="preset-list">${ROUTINE_PRESETS.map((preset) => `
+    <button class="preset-card" type="button" data-preset-apply="${esc(preset.id)}">
+      <span><strong>${esc(preset.name)}</strong><small>${esc(preset.desc)}</small></span>
+      <span class="preset-action">Pakai</span>
+    </button>`).join('')}</div>`;
+  openModal({ title: 'Template rutin belajar', eyebrow: 'Buat sekali, muncul otomatis', body, hideSubmit: true });
+  setTimeout(() => {
+    document.querySelectorAll('[data-preset-apply]').forEach((button) => button.addEventListener('click', () => {
+      const preset = ROUTINE_PRESETS.find((item) => item.id === button.dataset.presetApply);
+      if (!preset) return;
+      closeModal();
+      confirmDialog({
+        title: `Pakai template?`,
+        message: `<strong>${esc(preset.name)}</strong> akan menambahkan rutinitas otomatis dan tugas contoh. Kamu bisa menghapusnya kapan saja.`,
+        confirmLabel: 'Terapkan template',
+        onConfirm: async () => {
+          for (const tpl of preset.templates) await api('/api/templates', { method: 'POST', body: tpl });
+          for (const title of preset.oneOff) await api('/api/tasks', { method: 'POST', body: { date: state.today, title, priority: 2 } });
+          await loadTasks(state.taskDate || state.today);
+          toast('Template rutin diterapkan');
+        },
+      });
+    }));
+  }, 50);
+}
+
 function bindTaskQuickActions() {
   $('#taskPrev').addEventListener('click', () => loadTasks(addDays(state.taskDate, -1)));
   $('#taskNext').addEventListener('click', () => loadTasks(addDays(state.taskDate, 1)));
   $('#taskTodayBtn').addEventListener('click', () => loadTasks(state.today));
   $('#taskAdd').addEventListener('click', () => openTaskModal());
+  const presetsButton = $('#taskPresets');
+  if (presetsButton) presetsButton.addEventListener('click', openRoutinePresets);
   $('#taskCarry').addEventListener('click', () => {
     confirmDialog({
       title: 'Bawa tugas dari kemarin?',

@@ -39,3 +39,101 @@ async function loadWeeklyReview() {
 function focusMinutesOf(d) {
   return d.focus_total || 0;
 }
+
+async function loadWeeklyGoal() {
+  try {
+    const data = await api('/api/weekly-goal');
+    state.weeklyGoal = data.goal || null;
+    state.weeklyGoalLoaded = true;
+    renderWeeklyGoal(data.week_start);
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function renderWeeklyGoal(weekStart) {
+  const input = $('#weeklyGoalInput');
+  const hint = $('#weeklyGoalHint');
+  const doneButton = $('#weeklyGoalDone');
+  if (!input) return;
+  const goal = state.weeklyGoal;
+  input.value = goal ? goal.title : '';
+  if (doneButton) {
+    doneButton.classList.toggle('active', !!(goal && Number(goal.done)));
+    doneButton.setAttribute('aria-pressed', goal && Number(goal.done) ? 'true' : 'false');
+    doneButton.title = goal && Number(goal.done) ? 'Tandai belum selesai' : 'Tandai selesai';
+  }
+  if (hint) {
+    const start = weekStart || (goal ? goal.week_start : null);
+    hint.textContent = start ? `Minggu mulai ${fmtShort(start)} · satu target besar saja` : 'Tentukan satu target utama sampai akhir minggu ini.';
+  }
+}
+
+async function bindWeeklyGoal() {
+  const form = $('#weeklyGoalForm');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = $('#weeklyGoalInput');
+      const title = input ? input.value.trim() : '';
+      if (!title) { toast('Tulis target mingguan dulu', 'error'); input?.focus(); return; }
+      const data = await api('/api/weekly-goal', { method: 'POST', body: { title, done: !!(state.weeklyGoal && Number(state.weeklyGoal.done)) } });
+      state.weeklyGoal = data.goal;
+      renderWeeklyGoal(data.week_start);
+      toast('Target minggu ini disimpan');
+    });
+  }
+  const doneButton = $('#weeklyGoalDone');
+  if (doneButton) doneButton.addEventListener('click', async () => {
+    const current = state.weeklyGoal;
+    const title = current ? current.title : ($('#weeklyGoalInput')?.value.trim() || '');
+    if (!title) { toast('Isi target mingguan dulu', 'error'); return; }
+    const data = await api('/api/weekly-goal', { method: 'POST', body: { title, done: !(current && Number(current.done)) } });
+    state.weeklyGoal = data.goal;
+    renderWeeklyGoal(data.week_start);
+    toast(Number(data.goal.done) ? 'Target minggu ini selesai' : 'Target dibuka lagi');
+  });
+}
+
+async function loadNightlyReview() {
+  try {
+    const data = await api(`/api/daily-review?date=${encodeURIComponent(state.today)}`);
+    state.nightlyReview = data.review || null;
+    state.nightlyReviewLoaded = true;
+    renderNightlyReview();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function renderNightlyReview() {
+  const section = $('#nightlyReview');
+  if (!section) return;
+  const hour = localTimeParts().h;
+  const saved = state.nightlyReview;
+  section.hidden = hour < 17 && !saved;
+  const form = $('#nightlyReviewForm');
+  if (!form) return;
+  form.elements.wins.value = saved ? saved.wins || '' : '';
+  form.elements.carried.value = saved ? saved.carried || '' : '';
+  form.elements.tomorrow.value = saved ? saved.tomorrow || '' : '';
+  const status = $('#nightlyReviewStatus');
+  if (status) status.textContent = saved ? 'Review malam sudah tersimpan.' : 'Otomatis muncul setelah pukul 17.00.';
+}
+
+function bindNightlyReview() {
+  const form = $('#nightlyReviewForm');
+  if (form) form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      date: state.today,
+      wins: form.elements.wins.value.trim(),
+      carried: form.elements.carried.value.trim(),
+      tomorrow: form.elements.tomorrow.value.trim(),
+    };
+    if (!payload.wins && !payload.carried && !payload.tomorrow) { toast('Isi minimal satu bagian review', 'error'); return; }
+    const data = await api('/api/daily-review', { method: 'POST', body: payload });
+    state.nightlyReview = data.review;
+    renderNightlyReview();
+    toast('Review malam tersimpan');
+  });
+  const dismiss = $('#nightlyReviewDismiss');
+  if (dismiss) dismiss.addEventListener('click', () => { const section = $('#nightlyReview'); if (section) section.hidden = true; });
+}
+

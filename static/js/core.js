@@ -168,6 +168,10 @@ const state = {
   expenseMonth: '',
   expenseQuery: '',
   expenseSummary: { total: 0, count: 0 },
+  weeklyGoal: null,
+  weeklyGoalLoaded: false,
+  nightlyReview: null,
+  nightlyReviewLoaded: false,
   cal: { year: +todayStr().slice(0, 4), month: +todayStr().slice(5, 7) - 1, selected: todayStr() },
   mini: { year: +todayStr().slice(0, 4), month: +todayStr().slice(5, 7) - 1 },
 };

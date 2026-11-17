@@ -20,7 +20,7 @@ import urllib.parse
 import urllib.request
 import subprocess
 import webbrowser
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from zoneinfo import ZoneInfo
 
@@ -211,6 +211,21 @@ CREATE TABLE IF NOT EXISTS expenses (
     updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
+CREATE TABLE IF NOT EXISTS daily_reviews (
+    date TEXT PRIMARY KEY,
+    wins TEXT NOT NULL DEFAULT '',
+    carried TEXT NOT NULL DEFAULT '',
+    tomorrow TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS weekly_goals (
+    week_start TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    done INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS schedule (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     weekday INTEGER NOT NULL,
@@ -1404,6 +1419,81 @@ def format_rupiah_plain(value) -> str:
     return f"Rp{amount:,.0f}".replace(",", ".")
 
 
+def _week_start_local(day: str | None = None) -> str:
+    try:
+        ref = date.fromisoformat((day or today_local())[:10])
+    except ValueError:
+        ref = date.fromisoformat(today_local())
+    return (ref - timedelta(days=ref.weekday())).isoformat()
+
+
+def api_daily_review(handler: BaseHTTPRequestHandler, query: dict) -> None:
+    day = (query.get("date") or today_local()).strip()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
+        raise ValueError("Tanggal review tidak valid")
+    conn = db_connect()
+    try:
+        row = conn.execute("SELECT * FROM daily_reviews WHERE date = ?", (day,)).fetchone()
+        send_json(handler, 200, {"review": row_to_dict(row) if row else None, "date": day})
+    finally:
+        conn.close()
+
+
+def api_daily_review_save(handler: BaseHTTPRequestHandler) -> None:
+    body = parse_json_body(handler)
+    day = (body.get("date") or today_local()).strip()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
+        raise ValueError("Tanggal review tidak valid")
+    wins = clip(body.get("wins"), 1000)
+    carried = clip(body.get("carried"), 1000)
+    tomorrow = clip(body.get("tomorrow"), 1000)
+    now = now_local()
+    conn = db_connect()
+    try:
+        conn.execute(
+            "INSERT INTO daily_reviews(date, wins, carried, tomorrow, created_at, updated_at) VALUES(?,?,?,?,?,?) "
+            "ON CONFLICT(date) DO UPDATE SET wins = excluded.wins, carried = excluded.carried, tomorrow = excluded.tomorrow, updated_at = excluded.updated_at",
+            (day, wins, carried, tomorrow, now, now),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM daily_reviews WHERE date = ?", (day,)).fetchone()
+        send_json(handler, 200, {"review": row_to_dict(row)})
+    finally:
+        conn.close()
+
+
+def api_weekly_goal(handler: BaseHTTPRequestHandler, query: dict) -> None:
+    week = _week_start_local(query.get("week") or None)
+    conn = db_connect()
+    try:
+        row = conn.execute("SELECT * FROM weekly_goals WHERE week_start = ?", (week,)).fetchone()
+        send_json(handler, 200, {"week_start": week, "goal": row_to_dict(row) if row else None})
+    finally:
+        conn.close()
+
+
+def api_weekly_goal_save(handler: BaseHTTPRequestHandler) -> None:
+    body = parse_json_body(handler)
+    week = _week_start_local(body.get("week") or None)
+    title = clip(body.get("title"), 240)
+    if not title:
+        raise ValueError("Isi target mingguan dulu")
+    done = 1 if body.get("done") else 0
+    now = now_local()
+    conn = db_connect()
+    try:
+        conn.execute(
+            "INSERT INTO weekly_goals(week_start, title, done, created_at, updated_at) VALUES(?,?,?,?,?) "
+            "ON CONFLICT(week_start) DO UPDATE SET title = excluded.title, done = excluded.done, updated_at = excluded.updated_at",
+            (week, title, done, now, now),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM weekly_goals WHERE week_start = ?", (week,)).fetchone()
+        send_json(handler, 200, {"goal": row_to_dict(row), "week_start": week})
+    finally:
+        conn.close()
+
+
 EXPENSE_CATEGORIES = ("makan", "transport", "belajar", "hiburan", "kesehatan", "belanja", "tagihan", "lainnya")
 EXPENSE_METHODS = ("tunai", "qris", "transfer", "kartu", "lainnya")
 
@@ -2214,6 +2304,8 @@ EXPORT_TABLES = (
     "competition_tasks",
     "notes",
     "expenses",
+    "daily_reviews",
+    "weekly_goals",
     "schedule",
     "focus_sessions",
     "music_tracks",
@@ -2279,7 +2371,7 @@ def api_reset(handler: BaseHTTPRequestHandler) -> None:
     try:
         for table in (
             "tasks", "task_templates", "events", "competitions", "competition_tasks",
-            "notes", "expenses", "schedule", "focus_sessions", "music_tracks", "music_state",
+            "notes", "expenses", "daily_reviews", "weekly_goals", "schedule", "focus_sessions", "music_tracks", "music_state",
             "streak", "habits", "habit_log", "grades", "flashcards", "reminder",
         ):
             conn.execute(f"DELETE FROM {table}")
@@ -3230,6 +3322,10 @@ class Handler(BaseHTTPRequestHandler):
                 api_notes(self)
             elif path == "/api/expenses":
                 api_expenses(self, query)
+            elif path == "/api/daily-review":
+                api_daily_review(self, query)
+            elif path == "/api/weekly-goal":
+                api_weekly_goal(self, query)
             elif path == "/api/search":
                 api_search(self, query)
             elif path == "/api/schedule":
@@ -3344,6 +3440,10 @@ class Handler(BaseHTTPRequestHandler):
                 api_note_create(self)
             elif path == "/api/expenses":
                 api_expense_create(self)
+            elif path == "/api/daily-review":
+                api_daily_review_save(self)
+            elif path == "/api/weekly-goal":
+                api_weekly_goal_save(self)
             elif path == "/api/schedule":
                 api_schedule_create(self)
             elif path == "/api/focus":

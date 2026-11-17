@@ -35,72 +35,126 @@
 
 ## Instalasi
 
-**Prasyarat:** Python 3.10 atau lebih baru, tanpa dependency eksternal.
-psutil opsional hanya untuk monitor perangkat (`install.sh` memasangnya).
+**Prasyarat**
 
-### Linux / macOS / Windows (dengan Python 3)
+- Python 3.10 atau lebih baru.
+- Windows installer tidak butuh Git atau admin.
+- Instalasi dari source membutuhkan Git (atau download ZIP).
+- Tidak ada dependency Python/JS eksternal; server memakai Python standar dan data tersimpan di SQLite lokal.
 
-```bash
-git clone https://github.com/hayoloo642-cloud/harita-project.git
-cd harita-project
-./run.sh      # atau di Windows: double-click run.bat
-```
+---
 
-Buka `http://127.0.0.1:8777` di browser (Chrome/Chromium direkomendasikan untuk mode app standalone).
+### Opsi 1 — Windows CMD / PowerShell (direkomendasikan)
 
-### Windows lewat CMD / PowerShell (satu perintah)
+Cara tercepat untuk install Harita di laptop Windows lain: installer otomatis mengunduh source, memasang ke `%LOCALAPPDATA%\Programs\Harita`, membuat shortcut Desktop, dan menjalankan aplikasi.
 
-Install tanpa Git, otomatis download source, buat desktop shortcut, dan jalankan Harita.
-Tidak butuh admin. Pastikan Python sudah ada; kalau belum, installer akan memberi instruksi.
+**Command Prompt**
 
-Command Prompt:
 ```bat
 curl.exe -L -o harita-install.ps1 https://raw.githubusercontent.com/hayoloo642-cloud/harita-project/master/install.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\harita-install.ps1
 ```
 
-PowerShell:
+**PowerShell**
+
 ```powershell
 iwr -UseBasicParsing https://raw.githubusercontent.com/hayoloo642-cloud/harita-project/master/install.ps1 -OutFile harita-install.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\harita-install.ps1
 ```
 
-Atau langsung dari folder repo:
+**Uninstall**
+
 ```powershell
-.\install.ps1
+.\uninstall.ps1          # hapus shortcut saja; data tetap tersimpan
+.\uninstall.ps1 -RemoveData  # hapus aplikasi dan seluruh data lokal
 ```
 
-Uninstall (shortcut saja, data tetap):
-```powershell
-.\uninstall.ps1
+> Jika kamu tidak nyaman menjalankan script dari internet, buka URL installer di atas dan baca isinya sebelum menjalankannya.
+
+---
+
+### Opsi 2 — Linux (Ubuntu/Debian/Fedora)
+
+```bash
+sudo apt update && sudo apt install python3 git curl   # Ubuntu/Debian
+# atau: sudo dnf install python3 git curl              # Fedora
+
+git clone https://github.com/hayoloo642-cloud/harita-project.git
+cd harita-project
+./run.sh
 ```
 
-> Tips: kalau kamu tidak nyaman menjalankan script download, buka URL installer di atas dulu dan baca isinya sebelum menjalankannya.
+Buka `http://127.0.0.1:8777`.
 
-### Windows tanpa Git (paling mudah)
+Opsional, buat shortcut desktop Linux:
+
+```bash
+./install.sh
+```
+
+Uninstall shortcut (data tetap aman):
+
+```bash
+./uninstall.sh
+```
+
+---
+
+### Opsi 3 — macOS
+
+```bash
+brew install python git
+git clone https://github.com/hayoloo642-cloud/harita-project.git
+cd harita-project
+chmod +x run.sh
+./run.sh
+```
+
+Buka `http://127.0.0.1:8777`.
+
+---
+
+### Opsi 4 — Windows tanpa Git
 
 1. Install Python 3.10+ dari https://www.python.org/downloads/ dan centang **Add python.exe to PATH**.
 2. Download source: https://github.com/hayoloo642-cloud/harita-project/archive/refs/heads/master.zip
 3. Extract ZIP ke folder biasa.
-4. Double-click `run.bat`, atau buka Command Prompt di folder itu lalu jalankan:
-   ```bat
-   py server.py
-   ```
+4. Double-click `run.bat`, atau jalankan dari Command Prompt:
+
+```bat
+py server.py
+```
+
 5. Buka `http://127.0.0.1:8777`.
 
-Kalau muncul error `python` atau `py` tidak dikenali, install ulang Python dan pastikan **Add python.exe to PATH** dicentang.
+---
 
-### Atau jalankan manual
+### Update aplikasi
+
+**Windows installer:** jalankan ulang perintah installer dari opsi 1; file kode diperbarui, folder `data/` dipertahankan.
+
+**Clone source:**
 
 ```bash
-python3 server.py
+./stop.sh || true
+git pull
+./run.sh
 ```
+
+### Troubleshooting
+
+| Masalah | Solusi |
+|---|---|
+| `python` atau `py` tidak dikenali | Install ulang Python dan centang **Add python.exe to PATH** |
+| `permission denied` di Linux/macOS | Jalankan `chmod +x run.sh && ./run.sh` |
+| Port `8777` sudah dipakai | `HARITA_PORT=8780 ./run.sh` (Windows: `set HARITA_PORT=8780 && run.bat`) |
+| Aplikasi terbuka tapi kosong/404 | Jalankan dari folder `harita-project`; pastikan folder `static/` ikut ada |
+| Ingin lihat log | `data/server.log` di folder aplikasi |
+| Ingin pindah lokasi data | Set `HARITA_DATA`, contoh: `HARITA_DATA=/tmp/harita ./run.sh` |
 
 ### Paket biner (opsional)
 
-Release biner dibuat dari folder [`packaging/`](packaging/README.md). Frozen build
-menyimpan data di folder user yang persisten (bukan folder temporer) dan membuka
-browser otomatis. Lihat [docs/RELEASE.md](docs/RELEASE.md) untuk checklist rilis.
+Release biner dibuat dari folder [`packaging/`](packaging/README.md). Frozen build menyimpan data di folder user yang persisten dan membuka browser otomatis. Lihat [docs/RELEASE.md](docs/RELEASE.md) untuk checklist rilis.
 
 ---
 

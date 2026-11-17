@@ -227,16 +227,17 @@
           <p class="eyebrow">Mulai cepat</p>
           <h2 id="mulai-title">Dari nol ke dashboard dalam satu menit</h2>
           <p class="section-lede">
-            Butuh Python 3 dan Git. Tidak ada dependency pihak ketiga, tidak ada proses build.
+            Windows hanya butuh Python 3 dan satu baris installer. Linux/macOS bisa clone source langsung.
+            Tidak ada dependency pihak ketiga atau proses build.
           </p>
           <ol class="steps">
-            <li><span>Kloning repositori</span></li>
-            <li><span>Jalankan <code>./run.sh</code></span></li>
+            <li><span>Install lewat terminal (atau kloning repo)</span></li>
+            <li><span>Jalankan Harita</span></li>
             <li><span>Buka <code>http://127.0.0.1:8777</code></span></li>
           </ol>
           <p class="note">
-            Di Windows, jalankan <code>run.bat</code>. Port bisa diubah lewat
-            <code>HARITA_PORT</code>, misalnya <code>HARITA_PORT=8780 ./run.sh</code>.
+            Installer Windows membuat shortcut desktop. Untuk Linux/macOS, gunakan <code>./run.sh</code>.
+            Port bisa diubah lewat <code>HARITA_PORT</code>, misalnya <code>HARITA_PORT=8780 ./run.sh</code>.
           </p>
         </div>
 
@@ -245,14 +246,16 @@
             <span class="code-dots" aria-hidden="true"><i></i><i></i><i></i></span>
             <span class="code-title">terminal</span>
           </div>
-          <pre tabindex="0" role="region" aria-label="Perintah untuk menjalankan Harita"><code><span class="c-comment"># 1. Kloning repositori</span>
-git clone &lt;url-repo-ini&gt; harita
-cd harita
+          <pre tabindex="0" role="region" aria-label="Perintah instalasi Harita"><code><span class="c-comment"># Windows PowerShell / CMD (tanpa Git)</span>
+iwr -UseBasicParsing https://raw.githubusercontent.com/hayoloo642-cloud/harita-project/master/install.ps1 -OutFile harita-install.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\harita-install.ps1
 
-<span class="c-comment"># 2. Jalankan server lokal</span>
+<span class="c-comment"># Linux / macOS</span>
+git clone https://github.com/hayoloo642-cloud/harita-project.git
+cd harita-project
 ./run.sh
 
-<span class="c-comment"># 3. Buka di browser</span>
+<span class="c-comment"># Buka di browser</span>
 http://127.0.0.1:8777</code></pre>
         </div>
       </div>

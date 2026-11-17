@@ -5,6 +5,18 @@ Semua perubahan penting pada proyek ini didokumentasikan di sini.
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/).
 
+## [1.6.0] — 2026-11-17
+
+### Ditambahkan (Tahap 4 — Retensi)
+- Backup terenkripsi AES-256-GCM (`.harita`) langsung dari Pengaturan — password tidak pernah disimpan
+- Impor backup terenkripsi dengan pratinjau tabel seperti backup JSON biasa
+- Laporan minggu ini: ringkasan fokus, tugas, kebiasaan, streak, target mingguan, dan pengeluaran; bisa dicetak / disimpan sebagai PDF dari browser
+- Tombol “Kirim notifikasi percobaan” di Pengaturan untuk memastikan izin dan delivery notifikasi browser
+
+### Catatan
+- Enkripsi memakai Web Crypto API (PBKDF2 + AES-256-GCM) dan berjalan sepenuhnya di perangkat — tanpa server tambahan atau layanan pihak ketiga.
+- Backup JSON biasa dan backup terenkripsi `.harita` sama-sama memakai pratinjau/impor yang sama setelah file didekripsi.
+
 ## [1.5.0] — 2026-11-17
 
 ### Diubah

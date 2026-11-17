@@ -1,6 +1,6 @@
 # Roadmap Harita
 
-Status: **v1.5.0** — fitur inti + kualitas rilis sudah berjalan lokal. Berikut rencana berikutnya.
+Status: **v1.6.0** — fitur inti + kualitas rilis sudah berjalan lokal. Berikut rencana berikutnya.
 
 ## Sedang dikerjakan / berikutnya
 

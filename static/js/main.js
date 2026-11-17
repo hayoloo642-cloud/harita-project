@@ -1,4 +1,4 @@
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 /* ============================================================
    App bootstrap, navigation, realtime tick, settings
    ============================================================ */
@@ -185,6 +185,213 @@ async function promptInstallHarita() {
   deferredInstallPrompt = null;
 }
 
+
+async function encryptBackupBytes(bytes, password) {
+  if (!window.crypto || !crypto.subtle) throw new Error('Browser tidak mendukung enkripsi Web Crypto');
+  const encoder = new TextEncoder();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const material = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' },
+    material,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt']
+  );
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, bytes);
+  const magic = new Uint8Array([72, 65, 82, 73, 84, 65, 49, 0]); // "HARITA1\0"
+  const output = new Uint8Array(magic.length + salt.length + iv.length + encrypted.byteLength);
+  output.set(magic, 0);
+  output.set(salt, magic.length);
+  output.set(iv, magic.length + salt.length);
+  output.set(new Uint8Array(encrypted), magic.length + salt.length + iv.length);
+  return output;
+}
+
+async function decryptBackupBytes(bytes, password) {
+  if (!window.crypto || !crypto.subtle) throw new Error('Browser tidak mendukung enkripsi Web Crypto');
+  const magic = new Uint8Array(bytes.slice(0, 8));
+  const magicText = String.fromCharCode(magic[0], magic[1], magic[2], magic[3], magic[4], magic[5], magic[6]);
+  if (magicText !== 'HARITA1' || magic[7] !== 0 || bytes.length < 37) {
+    throw new Error('File bukan backup Harita terenkripsi atau sudah rusak');
+  }
+  const salt = bytes.slice(8, 24);
+  const iv = bytes.slice(24, 36);
+  const data = bytes.slice(36);
+  const encoder = new TextEncoder();
+  const material = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' },
+    material,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['decrypt']
+  );
+  try {
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+    return JSON.parse(new TextDecoder().decode(plain));
+  } catch {
+    throw new Error('Password salah atau file rusak');
+  }
+}
+
+function downloadBlob(name, blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function openExportEncryptedBackup() {
+  openModal({
+    title: 'Enkripsi backup',
+    eyebrow: 'AES-256-GCM · lokal',
+    body: `<div class="form-grid">
+      <div class="field full">
+        <label>Password backup</label>
+        <input name="backup_password" type="password" minlength="8" required autocomplete="new-password" placeholder="Minimal 8 karakter" />
+      </div>
+      <div class="field full">
+        <label>Ulangi password</label>
+        <input name="backup_password_confirm" type="password" minlength="8" required autocomplete="new-password" placeholder="Ulangi password" />
+      </div>
+      <p class="help full">Backup terenkripsi tidak bisa dibuka tanpa password. Harita tidak menyimpan password ini.</p>
+    </div>`,
+    submitLabel: 'Enkripsi & unduh',
+    onSubmit: async (form) => {
+      const password = formValue(form, 'backup_password');
+      const confirm = formValue(form, 'backup_password_confirm');
+      if (password.length < 8) throw new Error('Password minimal 8 karakter');
+      if (password !== confirm) throw new Error('Password tidak sama');
+      const payload = await api('/api/export');
+      const bytes = new TextEncoder().encode(JSON.stringify(payload));
+      const encrypted = await encryptBackupBytes(bytes, password);
+      downloadBlob(`harita-backup-${todayStr()}.harita`, new Blob([encrypted], { type: 'application/octet-stream' }));
+      toast('Backup terenkripsi diunduh');
+    },
+  });
+}
+
+function openEncryptedImportPassword(file) {
+  const sizeKb = Math.max(1, Math.round(file.size / 1024));
+  openModal({
+    title: 'Impor backup terenkripsi',
+    eyebrow: 'Password dibutuhkan',
+    body: `<div class="form-grid">
+      <p class="help full">File: <strong>${esc(file.name)}</strong> · ${sizeKb} KB</p>
+      <div class="field full">
+        <label>Password backup</label>
+        <input name="backup_password" type="password" required autocomplete="current-password" placeholder="Password saat backup dibuat" />
+      </div>
+    </div>`,
+    submitLabel: 'Dekripsi & pratinjau',
+    onSubmit: async (form) => {
+      const password = formValue(form, 'backup_password');
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const payload = await decryptBackupBytes(bytes, password);
+      closeModal();
+      setTimeout(() => openImportPreview(payload, file.name), 80);
+    },
+  });
+}
+
+function importEncryptedBackupFile() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.harita,application/octet-stream';
+  input.addEventListener('change', () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (file.size > 25_000_000) { toast('File terlalu besar (maks 25 MB)', 'error'); return; }
+    openEncryptedImportPassword(file);
+  });
+  input.click();
+}
+
+function weekBoundsLocal() {
+  const now = new Date();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const iso = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  return { start: iso(monday), end: todayStr(), label: `${fmtMedium(iso(monday))} – ${fmtMedium(todayStr())}` };
+}
+
+function nowLocalString() {
+  const d = new Date();
+  return `${pad2(d.getDate())} ${monthNames()[d.getMonth()]} ${d.getFullYear()}, ${pad2(d.getHours())}.${pad2(d.getMinutes())}`;
+}
+
+async function buildWeeklyReportData() {
+  const { start, end, label } = weekBoundsLocal();
+  const [review, goal, expenses] = await Promise.all([
+    api('/api/weekly-review'),
+    api('/api/weekly-goal'),
+    api(`/api/expenses?from=${encodeURIComponent(start)}&to=${encodeURIComponent(end)}`),
+  ]);
+  return { period: label, review, goal: goal.goal || null, expenses: expenses || { total: 0, count: 0 }, generatedAt: nowLocalString() };
+}
+
+function renderPrintableReport(data) {
+  document.querySelector('#weeklyReportPrint')?.remove();
+  const review = data.review || {};
+  const goal = data.goal;
+  const focus = focusMinutesOf(review);
+  const done = Number(review.tasks_done) || 0;
+  const total = Number(review.tasks_total) || 0;
+  const habitsDone = Number(review.habits_done_today) || 0;
+  const habitsTotal = Number(review.habits_total) || 0;
+  const node = document.createElement('div');
+  node.id = 'weeklyReportPrint';
+  node.innerHTML = `
+    <header>
+      <h1>Harita</h1>
+      <p>Laporan minggu ini · ${esc(data.period)}</p>
+    </header>
+    <main>
+      <section><h2>Fokus</h2><strong>${focus >= 60 ? `${Math.floor(focus / 60)} jam ${focus % 60} menit` : `${focus} menit`}</strong><span>waktu fokus sepanjang minggu berjalan</span></section>
+      <section><h2>Tugas</h2><strong>${done}/${total}</strong><span>tugas selesai</span></section>
+      <section><h2>Kebiasaan</h2><strong>${habitsDone}/${habitsTotal}</strong><span>kebiasaan hari ini</span></section>
+      <section><h2>Streak</h2><strong>${Number(review.streak) || 0} hari</strong><span>konsistensi sampai hari ini</span></section>
+      <section><h2>Target minggu ini</h2><strong>${goal ? esc(goal.title) : 'Belum diisi'}</strong><span>${goal && Number(goal.done) ? 'selesai' : 'belum selesai'}</span></section>
+      <section><h2>Pengeluaran</h2><strong>${formatRupiah(data.expenses.total || 0)}</strong><span>${Number(data.expenses.count) || 0} transaksi</span></section>
+    </main>
+    <footer>Dibuat oleh Harita · ${esc(data.generatedAt)} · data tersimpan lokal di perangkat ini</footer>`;
+  document.body.appendChild(node);
+  document.body.classList.add('printing-report');
+  setTimeout(() => window.print(), 150);
+}
+
+async function openWeeklyReport() {
+  try {
+    const data = await buildWeeklyReportData();
+    const review = data.review || {};
+    const goal = data.goal;
+    const focus = focusMinutesOf(review);
+    const body = `<div class="report-preview">
+      <p class="hint">${esc(data.period)} · dibuat ${esc(data.generatedAt)}</p>
+      <div class="report-grid">
+        <div><span>Fokus</span><strong>${focus >= 60 ? `${Math.floor(focus / 60)}j ${focus % 60}m` : `${focus} menit`}</strong></div>
+        <div><span>Tugas</span><strong>${Number(review.tasks_done) || 0}/${Number(review.tasks_total) || 0}</strong></div>
+        <div><span>Kebiasaan</span><strong>${Number(review.habits_done_today) || 0}/${Number(review.habits_total) || 0}</strong></div>
+        <div><span>Pengeluaran</span><strong>${formatRupiah(data.expenses.total || 0)}</strong></div>
+      </div>
+      <p><strong>Target minggu ini:</strong> ${goal ? esc(goal.title) : 'Belum diisi'}</p>
+      <p class="help">Saat dicetak, Harita hanya mencetak laporan — bukan seluruh aplikasi.</p>
+    </div>`;
+    openModal({ title: 'Laporan minggu ini', eyebrow: 'Cetak / PDF', body, submitLabel: 'Cetak / Simpan PDF', onSubmit: async () => { renderPrintableReport(data); } });
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+window.addEventListener('afterprint', () => {
+  document.body.classList.remove('printing-report');
+  document.querySelector('#weeklyReportPrint')?.remove();
+});
+
 function openSettingsModal() {
   const name = esc(state.settings.name || '');
   const locOptions = Object.entries(state.locations).map(([key, locName]) =>
@@ -321,6 +528,10 @@ function openSettingsModal() {
           <span><strong>${esc(t('settings.notifyBrowser'))}</strong>Pengingat agenda/tugas sebelum dimulai, dan deadline lomba 24 jam sebelumnya.</span>
         </label>
       </div>
+      <div class="field full">
+        <button type="button" class="btn btn-ghost btn-sm" id="testNotificationBtn">${ico('bell')} Kirim notifikasi percobaan</button>
+        <span class="help">Memastikan izin browser dan Harita bisa menampilkan pengingat.</span>
+      </div>
       <div class="field">
         <label>${esc(t('settings.reminderLead'))}</label>
         <input name="reminder_lead" type="number" min="1" max="120" step="1" value="${Number(state.settings.reminder_lead) || 10}" />
@@ -343,7 +554,10 @@ function openSettingsModal() {
       <p class="eyebrow" style="margin:22px 0 12px">${esc(t('settings.data'))}</p>
       <div class="field full" style="display:flex; gap:10px; flex-wrap:wrap">
         <a class="btn btn-ghost btn-sm" href="/api/export" download>${ico('download')} ${esc(t('settings.backup'))}</a>
+        <button type="button" class="btn btn-ghost btn-sm" id="weeklyReportSettingsBtn">${ico('printer')} Laporan minggu ini</button>
         <button type="button" class="btn btn-ghost btn-sm" id="importDataBtn">${ico('upload')} Impor backup</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="exportEncryptedBtn">${ico('lock')} Enkripsi backup</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="importEncryptedBtn">${ico('lock')} Impor terenkripsi</button>
         <button type="button" class="btn btn-ghost btn-sm" id="demoDataBtn">${ico('sparkles')} ${esc(t('settings.demo'))}</button>
         <button type="button" class="btn btn-ghost btn-sm" id="swResetBtn">${ico('refresh')} ${esc(t('settings.clearCache'))}</button>
         <button type="button" class="btn btn-ghost btn-sm" id="diagCopyBtn">${ico('copy')} ${esc(t('settings.diagnostics'))}</button>
@@ -479,6 +693,18 @@ function openSettingsModal() {
     });
     const importBtn = document.getElementById('importDataBtn');
     if (importBtn) importBtn.addEventListener('click', importBackupFile);
+    const exportEncryptedBtn = document.getElementById('exportEncryptedBtn');
+    if (exportEncryptedBtn) exportEncryptedBtn.addEventListener('click', openExportEncryptedBackup);
+    const importEncryptedBtn = document.getElementById('importEncryptedBtn');
+    if (importEncryptedBtn) importEncryptedBtn.addEventListener('click', importEncryptedBackupFile);
+    const testNotificationBtn = document.getElementById('testNotificationBtn');
+    if (testNotificationBtn) testNotificationBtn.addEventListener('click', async () => {
+      const granted = await requestNotifications();
+      if (!granted) { toast('Izin notifikasi ditolak atau tidak tersedia', 'error'); return; }
+      try { new Notification('Harita', { body: 'Notifikasi berfungsi. Kamu akan diingatkan sebelum agenda/tugas dimulai.', icon: '/icon.png' }); toast('Notifikasi percobaan dikirim'); } catch (err) { toast(err.message, 'error'); }
+    });
+    const weeklyReportSettingsBtn = document.getElementById('weeklyReportSettingsBtn');
+    if (weeklyReportSettingsBtn) weeklyReportSettingsBtn.addEventListener('click', openWeeklyReport);
     const demoBtn = document.getElementById('demoDataBtn');
     if (demoBtn) demoBtn.addEventListener('click', () => {
       confirmDialog({
@@ -902,6 +1128,8 @@ function bindGlobal() {
   $('#modalClose').addEventListener('click', closeModal);
   $('#refreshWeather').addEventListener('click', () => loadWeather(state.weather.key, true));
   $('#heroAddTask').addEventListener('click', () => openTaskModal(null, state.today));
+  const weeklyReportBtn = $('#weeklyReportBtn');
+  if (weeklyReportBtn) weeklyReportBtn.addEventListener('click', openWeeklyReport);
   const dashboardModeToggle = $('#dashboardModeToggle');
   if (dashboardModeToggle) dashboardModeToggle.addEventListener('click', toggleDashboardMode);
   document.addEventListener('click', (e) => {

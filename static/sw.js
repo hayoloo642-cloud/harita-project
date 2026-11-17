@@ -1,5 +1,5 @@
 /* Harita service worker — network-first (fresh assets online, fallback offline) */
-const CACHE = 'harita-v9';
+const CACHE = 'harita-v10';
 const SHELL = [
   '/',
   '/index.html',

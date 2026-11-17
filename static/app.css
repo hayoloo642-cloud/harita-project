@@ -1794,3 +1794,24 @@ html[data-contrast="high"] .card { border-width: 1.5px; }
   .nightly-review-form { grid-template-columns: 1fr; }
   .nightly-review-form label:last-of-type { grid-column: auto; }
 }
+
+/* ---------- Stage 4: encrypted backup & printable weekly report ---------- */
+.report-preview { display: flex; flex-direction: column; gap: 12px; }
+.report-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.report-grid div { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; background: var(--panel); }
+.report-grid span, .report-grid strong { display: block; }
+.report-grid span { font-size: 9.5px; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; }
+.report-grid strong { font-size: 18px; margin-top: 3px; color: var(--text); font-variant-numeric: tabular-nums; }
+.wr-report-btn { align-self: flex-end; }
+#weeklyReportPrint { display: none; }
+@media print {
+  body.printing-report > *:not(#weeklyReportPrint) { display: none !important; }
+  body.printing-report #weeklyReportPrint { display: block !important; color: #111; background: #fff; font-family: system-ui, sans-serif; padding: 18mm; }
+  #weeklyReportPrint header { border-bottom: 2px solid #64242F; padding-bottom: 12px; margin-bottom: 18px; }
+  #weeklyReportPrint h1 { font-size: 30px; margin: 0; color: #64242F; letter-spacing: -.03em; }
+  #weeklyReportPrint h2 { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: #6b5b58; margin: 18px 0 4px; }
+  #weeklyReportPrint section { page-break-inside: avoid; display: block; border-bottom: 1px solid #ddd4d2; padding: 10px 0; }
+  #weeklyReportPrint section strong { display: block; font-size: 20px; color: #111; }
+  #weeklyReportPrint section span { display: block; color: #555; font-size: 11px; margin-top: 2px; }
+  #weeklyReportPrint footer { margin-top: 24px; color: #777; font-size: 9px; border-top: 1px solid #ddd4d2; padding-top: 8px; }
+}

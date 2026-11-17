@@ -38,4 +38,5 @@ rpmbuild -bb "$RPMBUILD_DIR/SPECS/harita.spec" \
 OUT=$(find "$RPMBUILD_DIR/RPMS/$ARCH" -maxdepth 1 -type f -name "harita-$VERSION-*.rpm" | head -1)
 [ -n "$OUT" ] || die "RPM hasil build tidak ditemukan"
 cp "$OUT" "$ROOT/dist/harita-$VERSION-linux-$ARCH.rpm"
+rm -rf "$RPMBUILD_DIR"
 say "OK — RPM: $ROOT/dist/harita-$VERSION-linux-$ARCH.rpm"

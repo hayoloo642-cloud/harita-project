@@ -41,8 +41,8 @@ psutil opsional hanya untuk monitor perangkat (`install.sh` memasangnya).
 ### Linux / macOS / Windows (dengan Python 3)
 
 ```bash
-git clone <url-repo-ini>
-cd myact
+git clone https://github.com/hayoloo642-cloud/myact-project.git
+cd myact-project
 ./run.sh      # atau di Windows: double-click run.bat
 ```
 

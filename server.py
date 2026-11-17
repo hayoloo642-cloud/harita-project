@@ -222,6 +222,7 @@ DEFAULT_SETTINGS = {
     "font_size": "normal",
     "contrast": "normal",
     "sidebar": "expanded",
+    "reminder_lead": "10",
     "default_view": "beranda",
 }
 
@@ -1729,6 +1730,11 @@ def _validate_setting(key: str, value) -> str:
         return s if s in ("small", "normal", "large") else "normal"
     if key == "contrast":
         return s if s in ("normal", "high") else "normal"
+    if key == "reminder_lead":
+        try:
+            return str(max(1, min(120, int(float(s)))))
+        except ValueError:
+            return "10"
     if key == "sidebar":
         return s if s in ("expanded", "collapsed") else "expanded"
     if key == "default_view":

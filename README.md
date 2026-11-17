@@ -64,6 +64,10 @@ MYACT_TZ=Asia/Makassar MYACT_PORT=8780 ./run.sh
 
 ---
 
+## Roadmap
+
+Lihat [docs/ROADMAP.md](docs/ROADMAP.md) untuk rencana fitur dan status pengujian.
+
 ## Struktur
 
 ```

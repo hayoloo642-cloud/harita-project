@@ -208,8 +208,13 @@ function openSettingsModal() {
       </div>
       <div class="field full">
         <label class="check-line"><input type="checkbox" name="notifications" ${state.settings.notifications === '1' ? 'checked' : ''} />
-          <span><strong>Notifikasi browser</strong>Pengingat agenda/tugas 10 menit sebelum dimulai, dan deadline lomba 24 jam sebelumnya.</span>
+          <span><strong>Notifikasi browser</strong>Pengingat agenda/tugas sebelum dimulai, dan deadline lomba 24 jam sebelumnya.</span>
         </label>
+      </div>
+      <div class="field">
+        <label>Ingatkan berapa menit sebelumnya</label>
+        <input name="reminder_lead" type="number" min="1" max="120" step="1" value="${Number(state.settings.reminder_lead) || 10}" />
+        <span class="help">Berlaku untuk agenda dan tugas yang punya jam mulai (1–120 menit).</span>
       </div>
 
       <!-- Keamanan -->
@@ -266,6 +271,7 @@ function openSettingsModal() {
         theme: formValue(form, 'theme') || 'dark',
         font_size: formValue(form, 'font_size') || 'normal',
         contrast: formValue(form, 'contrast') || 'normal',
+        reminder_lead: formValue(form, 'reminder_lead') || '10',
         default_view: formValue(form, 'default_view') || 'beranda',
         accent: document.querySelector('.accent-swatch.active')?.dataset.accent || 'terracotta',
       };
@@ -407,13 +413,16 @@ function checkReminders() {
   const notified = storage.get('notified', {});
   let changed = false;
   const now = Date.now();
+  const leadMin = Math.max(1, Math.min(120, Number(state.settings.reminder_lead) || 10));
+  const leadMs = leadMin * 60000;
+  const leadLabel = leadMin === 1 ? '1 menit' : `${leadMin} menit`;
   eventsForDay(state.today).forEach((ev) => {
     if (!ev.time || ev.pseudo) return;
     const key = `ev-${ev.id}-${state.today}`;
     const start = parseLocalDT(`${state.today}T${String(ev.time).slice(0, 5)}`);
     const diff = start - now;
-    if (diff > 0 && diff <= 10 * 60000 && !notified[key]) {
-      notifyFallback('Agenda 10 menit lagi', `${ev.title} · ${String(ev.time).slice(0, 5)} WITA`);
+    if (diff > 0 && diff <= leadMs && !notified[key]) {
+      notifyFallback(`Agenda ${leadLabel} lagi`, `${ev.title} · ${String(ev.time).slice(0, 5)}`);
       notified[key] = now; changed = true;
     }
   });
@@ -422,8 +431,8 @@ function checkReminders() {
     const key = `task-${task.id}-${state.today}`;
     const start = parseLocalDT(`${state.today}T${String(task.start_time).slice(0, 5)}`);
     const diff = start - now;
-    if (diff > 0 && diff <= 10 * 60000 && !notified[key]) {
-      notifyFallback('Tugas dalam 10 menit', `${task.title} · ${String(task.start_time).slice(0, 5)} WITA`);
+    if (diff > 0 && diff <= leadMs && !notified[key]) {
+      notifyFallback(`Tugas dalam ${leadLabel}`, `${task.title} · ${String(task.start_time).slice(0, 5)}`);
       notified[key] = now; changed = true;
     }
   });
@@ -866,6 +875,9 @@ async function init() {
     if (vNode) vNode.textContent = `v${APP_VERSION}`;
 
     if (typeof bindPalette === 'function') bindPalette();
+    if (new URLSearchParams(window.location.search).get('open') === 'settings') {
+      setTimeout(() => openSettingsModal(), 500);
+    }
     maybeShowOnboarding();
     if (typeof loadWeeklyReview === 'function') loadWeeklyReview();
     registerServiceWorker();

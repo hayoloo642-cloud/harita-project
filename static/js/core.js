@@ -176,14 +176,24 @@ async function api(path, options = {}) {
     timer = setTimeout(() => controller.abort(), 15000);
   }
   let res;
-  try {
-    res = await fetch(path, config);
-  } catch (err) {
-    if (err && err.name === 'AbortError') throw new Error('Server tidak merespons (15 detik). Coba lagi atau cek apakah MyAct masih berjalan.');
-    throw new Error('Tidak dapat terhubung ke server MyAct. Pastikan aplikasi masih berjalan.');
-  } finally {
-    if (timer) clearTimeout(timer);
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      res = await fetch(path, config);
+      break;
+    } catch (err) {
+      if (err && err.name === 'AbortError') {
+        if (timer) clearTimeout(timer);
+        throw new Error('Server tidak merespons (15 detik). Coba lagi atau cek apakah MyAct masih berjalan.');
+      }
+      const canRetry = attempt === 0 && (!config.method || String(config.method).toUpperCase() === 'GET');
+      if (!canRetry) {
+        if (timer) clearTimeout(timer);
+        throw new Error('Tidak dapat terhubung ke server MyAct. Pastikan aplikasi masih berjalan.');
+      }
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
   }
+  if (timer) clearTimeout(timer);
   let data = null;
   try { data = await res.json(); } catch { data = null; }
   if (res.status === 401 && data && data.code === 'locked') {

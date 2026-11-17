@@ -6,7 +6,7 @@ Terima kasih sudah mempertimbangkan! MyAct dibangun dengan prinsip: **lokal-firs
 
 1. Fork repo → clone di lokal
 2. Jalankan: `./run.sh` → buka `http://127.0.0.1:8777`
-3. Database lokal dibuat otomatis di `data/myact.db` — jangan commit file ini
+3. Database lokal dibuat otomatis di `data/myact.db` — jangan commit file ini (Python 3.10+ direkomendasikan)
 4. Buat branch fitur: `git checkout -b fitur/nama-fitur`
 
 ## Prinsip kode
@@ -14,13 +14,14 @@ Terima kasih sudah mempertimbangkan! MyAct dibangun dengan prinsip: **lokal-firs
 - **Frontend: vanilla JS, tanpa framework, tanpa build step.** Jangan tambah dependency NPM.
 - **Backend: Python stdlib only.** Jangan tambah `requests`, `flask`, `fastapi`, dsb.
 - **SQLite untuk persistensi.** Query lewat `db_connect()` helper.
-- **Bahasa UI: Bahasa Indonesia.** Komponen baru harus pakai Bahasa Indonesia yang natural.
+- **Bahasa UI: Indonesia & Inggris.** Default Indonesia; teks baru tambahkan juga kunci `id`/`en` di `static/js/i18n.js`.
 - **Theme:** gunakan CSS variables (`var(--accent)`, dll.) — jangan hardcode hex di komponen baru.
 
 ## Sebelum kirim PR
 
 - [ ] App jalan (`./run.sh`) tanpa error di console
-- [ ] Fitur kamu teruji manual (tidak ada test otomatis, tapi harus jalan di dark & light mode)
+- [ ] Jalankan `python3 tests/smoke.py --stress` dan `node tests/js/recurrence.test.js`
+- [ ] Fitur kamu teruji manual di dark & light mode (dan, bila relevan, E2E)
 - [ ] Tidak ada secrets/kredensial/token di commit
 - [ ] File berikut TIDAK di-commit: `data/`, `backups/`, `*.log`, `__pycache__/`, `docs/screenshots/*` (kecuali diminta)
 

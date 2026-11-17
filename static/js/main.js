@@ -284,7 +284,7 @@ function openSettingsModal() {
 
       <p style="font-size:9.5px;color:var(--faint);line-height:1.7;margin-top:16px">
         Semua data tersimpan lokal di <code>data/myact.db</code> (SQLite). Cuaca memakai Open-Meteo tanpa API key.<br>
-        MyAct v${APP_VERSION} · <a class="link-btn" href="https://github.com/MyAct/myact/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a> · <a class="link-btn" href="https://github.com/MyAct/myact/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Kontribusi</a>
+        MyAct v${APP_VERSION} · MIT · Changelog &amp; kontribusi tersedia di paket source repository.
       </p>
     </div>`;
 

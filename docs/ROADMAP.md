@@ -13,6 +13,7 @@ Status: **v1.4.0** — fitur inti + kualitas rilis sudah berjalan lokal. Berikut
 - [~] Terjemahan teks dinamis: tanggal, sapaan, modal, dan empty state dasar sudah; toast & sebagian teks turunan masih Indonesia
 - [x] Impor backup JSON dengan pratinjau per tabel + snapshot otomatis
 - [x] **Pencatatan pengeluaran** — CRUD, filter bulan, rincian kategori, anggaran bulanan, ekspor/impor
+- [x] Kesiapan rilis: frozen build data persisten, auto-open browser, hardening header/path/origin, `release-check.sh`, source archive, `docs/RELEASE.md`
 - [ ] Fuzz test import/export JSON dan `.ics`
 - [ ] Enkripsi database/backup opsional
 - [ ] Pagination/virtualisasi untuk data ribuan baris

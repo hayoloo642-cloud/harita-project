@@ -18,6 +18,14 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/).
 - Smoke test mencakup CRUD pengeluaran, filter bulan, soft-delete/restore, anggaran, dan ekspor; E2E baru untuk alur pengeluaran
 - Terjemahan Indonesia/Inggris untuk label halaman, kategori, metode bayar, dan pengaturan anggaran
 
+### Keamanan & kesiapan rilis
+- Header keamanan di API/static/music: CSP, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`
+- Origin/Referer cross-origin kini dibandingkan persis (skema, host, port) — bukan `startswith` lagi
+- Path traversal static/music ditolak dengan boundary `realpath` + prefix `root/`
+- Frozen build (PyInstaller) menyimpan data di folder user persisten (Linux/macOS/Windows), musik memakai `MYACT_MUSIC`, dan membuka browser otomatis (`MYACT_NO_OPEN=1` untuk mematikan)
+- `MYACT_PORT` divalidasi; smoke test menambah cek header keamanan, Origin palsu, dan traversal
+- `docs/RELEASE.md`, `packaging/release-check.sh`, `packaging/build-source.sh`, dan `.gitattributes` untuk proses rilis yang dapat diulang
+
 ### Catatan
 - Nominal disimpan sebagai bilangan bulat rupiah; batas wajar 1 triliun per transaksi.
 - Tombol hapus di baris pengeluaran langsung membuka dialog konfirmasi (dengan Undo setelahnya).

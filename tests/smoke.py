@@ -97,9 +97,33 @@ def main() -> int:
             print("server did not boot")
             return 1
 
-        print("health & bootstrap")
+        print("health & release hardening")
         status, data = request(base, "/api/health")
         check("health 200", status == 200 and data.get("ok") is True, str(data))
+        health_req = urllib.request.Request(base + "/api/health", headers={"Origin": base})
+        with urllib.request.urlopen(health_req, timeout=10) as res:
+            check("security headers on API", res.headers.get("X-Content-Type-Options") == "nosniff" and "default-src" in (res.headers.get("Content-Security-Policy") or ""), str(res.headers.keys()))
+        home_req = urllib.request.Request(base + "/", headers={"Origin": base})
+        with urllib.request.urlopen(home_req, timeout=10) as res:
+            check("security headers on static", res.headers.get("X-Content-Type-Options") == "nosniff" and res.headers.get("X-Frame-Options") == "DENY", str(res.headers.keys()))
+        evil = urllib.request.Request(
+            base + "/api/tasks",
+            data=json.dumps({"date": data.get("today") if isinstance(data, dict) else "", "title": "csrf"}).encode(),
+            headers={"Origin": base + ".evil", "Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            urllib.request.urlopen(evil, timeout=10).read()
+            check("cross-origin POST rejected", False, "request was accepted")
+        except urllib.error.HTTPError as err:
+            check("cross-origin POST rejected", err.code == 403, f"got {err.code}")
+        for bad_path in ("/..//server.py", "/%2e%2e/server.py"):
+            try:
+                urllib.request.urlopen(base + bad_path, timeout=10).read()
+                bad_status = 200
+            except urllib.error.HTTPError as err:
+                bad_status = err.code
+            check(f"static traversal rejected ({bad_path})", bad_status in (400, 404), str(bad_status))
         status, data = request(base, "/api/bootstrap")
         check("bootstrap 200", status == 200 and "settings" in data, str(data)[:120])
         check("fresh install has no tasks", not data["settings"].get("name") == "" and True)

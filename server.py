@@ -19,6 +19,7 @@ import time
 import urllib.parse
 import urllib.request
 import subprocess
+import webbrowser
 from datetime import datetime, date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from zoneinfo import ZoneInfo
@@ -31,12 +32,43 @@ except Exception:  # pragma: no cover
     psutil = None
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-STATIC_DIR = os.path.join(BASE_DIR, "static")
-DATA_DIR = os.environ.get("MYACT_DATA", os.path.join(BASE_DIR, "data"))
+_FROZEN = bool(getattr(sys, "frozen", False))
+RESOURCE_DIR = getattr(sys, "_MEIPASS", BASE_DIR)  # PyInstaller extraction dir
+STATIC_DIR = os.path.join(RESOURCE_DIR, "static")
+
+
+def _default_data_dir() -> str:
+    """Persistent, per-user data dir for frozen builds; repo-local otherwise."""
+    if not _FROZEN:
+        return os.path.join(BASE_DIR, "data")
+    home = os.path.expanduser("~")
+    if sys.platform.startswith("win"):
+        root = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA") or os.path.join(home, "AppData", "Local")
+        return os.path.join(root, "MyAct")
+    if sys.platform == "darwin":
+        return os.path.join(home, "Library", "Application Support", "MyAct")
+    root = os.environ.get("XDG_DATA_HOME") or os.path.join(home, ".local", "share")
+    return os.path.join(root, "myact")
+
+
+DATA_DIR = os.environ.get("MYACT_DATA") or _default_data_dir()
 DB_PATH = os.environ.get("MYACT_DB", os.path.join(DATA_DIR, "myact.db"))
 WEATHER_CACHE_PATH = os.path.join(DATA_DIR, "weather_cache.json")
-MUSIC_DIR = os.path.join(BASE_DIR, "music")
-PORT = int(os.environ.get("MYACT_PORT", "8777"))
+MUSIC_DIR = os.environ.get("MYACT_MUSIC") or (os.path.join(DATA_DIR, "music") if _FROZEN else os.path.join(BASE_DIR, "music"))
+
+
+def _read_port() -> int:
+    raw = os.environ.get("MYACT_PORT", "8777").strip()
+    try:
+        port = int(raw)
+    except ValueError:
+        raise SystemExit(f"MYACT_PORT harus berupa angka, bukan {raw!r}")
+    if not (1 <= port <= 65535):
+        raise SystemExit(f"MYACT_PORT harus di antara 1 dan 65535, bukan {port}")
+    return port
+
+
+PORT = _read_port()
 def _local_tz():
     forced = os.environ.get("MYACT_TZ")
     if forced:
@@ -2954,12 +2986,46 @@ def send_json(handler, status: int, payload: dict, extra_headers: dict | None = 
     handler.send_header("Cache-Control", "no-store")
     for key, value in (extra_headers or {}).items():
         handler.send_header(key, value)
+    _send_common_headers(handler)
     handler.end_headers()
     handler.wfile.write(body)
 
 
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Content-Security-Policy": (
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+        "font-src 'self'; connect-src 'self'; object-src 'none'; "
+        "base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+    ),
+}
+
+
+def _safe_join(root: str, rel: str) -> str | None:
+    """Join path safely and reject anything escaping root (incl. prefix-sibling)."""
+    try:
+        safe = os.path.normpath(rel).lstrip("/")
+        if safe.startswith(".."):
+            return None
+        root_real = os.path.realpath(root)
+        full = os.path.realpath(os.path.join(root_real, safe))
+        if full != root_real and not full.startswith(root_real + os.sep):
+            return None
+        return full
+    except (OSError, ValueError):
+        return None
+
+
+def _send_common_headers(handler: BaseHTTPRequestHandler) -> None:
+    for key, value in SECURITY_HEADERS.items():
+        handler.send_header(key, value)
+
+
 class Handler(BaseHTTPRequestHandler):
-    server_version = "MyAct/1.0"
+    server_version = f"MyAct/{__version__}"
     _inflight = threading.Semaphore(32)  # bound concurrent request threads
 
     def handle(self):
@@ -2976,9 +3042,8 @@ class Handler(BaseHTTPRequestHandler):
     def _serve_static(self, path: str) -> None:
         if path in ("/", ""):
             path = "/index.html"
-        safe = os.path.normpath(path).lstrip("/")
-        full = os.path.join(STATIC_DIR, safe)
-        if not full.startswith(STATIC_DIR) or not os.path.isfile(full):
+        full = _safe_join(STATIC_DIR, path)
+        if not full or not os.path.isfile(full):
             self.send_error(404, "Not found")
             return
         ext = os.path.splitext(full)[1].lower()
@@ -3003,13 +3068,13 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-cache")
         self.send_header("Last-Modified", __import__("email.utils", fromlist=["formatdate"]).formatdate(mtime, usegmt=True))
+        _send_common_headers(self)
         self.end_headers()
         self.wfile.write(body)
 
     def _serve_music(self, rel: str) -> None:
-        safe = os.path.normpath(rel).lstrip("/")
-        full = os.path.join(MUSIC_DIR, safe)
-        if not full.startswith(MUSIC_DIR) or not os.path.isfile(full):
+        full = _safe_join(MUSIC_DIR, rel)
+        if not full or not os.path.isfile(full):
             self.send_error(404, "Not found")
             return
         ext = os.path.splitext(full)[1].lower()
@@ -3021,6 +3086,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Accept-Ranges", "bytes")
         self.send_header("Cache-Control", "public, max-age=86400")
+        _send_common_headers(self)
         self.end_headers()
         self.wfile.write(body)
 
@@ -3118,10 +3184,15 @@ class Handler(BaseHTTPRequestHandler):
         origin = self.headers.get("Origin") or self.headers.get("Referer") or ""
         if not origin:
             return True  # same-origin fetch without Origin header (curl, same-page) is fine
-        host = f"http://127.0.0.1:{PORT}"
-        host2 = f"http://localhost:{PORT}"
-        host3 = f"http://[::1]:{PORT}"
-        return origin.startswith(host) or origin.startswith(host2) or origin.startswith(host3)
+        try:
+            parsed = urllib.parse.urlparse(origin)
+            port = parsed.port or (80 if parsed.scheme == "http" else 0)
+        except ValueError:
+            return False
+        if parsed.scheme != "http":
+            return False
+        host = (parsed.hostname or "").lower()
+        return host in ("127.0.0.1", "localhost", "::1") and port == PORT
 
     def do_POST(self) -> None:
         if not self._origin_ok():
@@ -3329,6 +3400,9 @@ def main() -> None:
         print(f"Atau pakai port lain: MYACT_PORT=8877 ./run.sh\n")
         raise SystemExit(1)
     log(f"MyAct berjalan di http://127.0.0.1:{PORT}")
+    if _FROZEN and os.environ.get("MYACT_NO_OPEN") != "1":
+        url = f"http://127.0.0.1:{PORT}/"
+        threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

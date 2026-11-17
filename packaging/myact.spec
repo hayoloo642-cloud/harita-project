@@ -8,14 +8,12 @@ Build from the repository root:
 The bundle contains:
   - server.py              (entry point)
   - static/                (HTML, CSS, JS, fonts, icons)
-  - music/                 (placeholder folder; user audio is not bundled)
   - LICENSE
 
-server.py resolves its asset paths from ``__file__``. Under a PyInstaller
-one-file build that path points inside the temporary extraction directory,
-so the data files below are found at runtime. Data the app writes (SQLite,
-backups) also lands in that temporary directory unless MYACT_DATA is set.
-See packaging/README.md before shipping a build.
+server.py resolves ``static/`` via ``sys._MEIPASS`` under a PyInstaller
+one-file build, so the data files below are found at runtime. Frozen builds write SQLite and
+backups to a persistent per-user directory by default (see packaging/README.md);
+set MYACT_DATA to override.
 """
 
 import os
@@ -23,7 +21,6 @@ import os
 ROOT = os.path.abspath(os.path.join(SPECPATH, os.pardir))
 STATIC_DIR = os.path.join(ROOT, "static")
 LICENSE_PATH = os.path.join(ROOT, "LICENSE")
-MUSIC_PLACEHOLDER = os.path.join(SPECPATH, "assets", "music")
 ENTRY_POINT = os.path.join(ROOT, "server.py")
 
 for required in (ENTRY_POINT, STATIC_DIR):
@@ -41,12 +38,8 @@ else:
     print("MyAct spec: WARNING — LICENSE tidak ditemukan, dilewati.")
 
 # The repository's music/ folder is intentionally not bundled (audio can be
-# large and is user-owned). A placeholder keeps the runtime folder present.
-if os.path.isdir(MUSIC_PLACEHOLDER):
-    datas.append((MUSIC_PLACEHOLDER, "music"))
-else:
-    print("MyAct spec: WARNING — packaging/assets/music tidak ditemukan.")
-
+# large and is user-owned). Frozen builds use a persistent per-user music
+# directory instead: <user data>/music, or MYACT_MUSIC when set.
 a = Analysis(
     [ENTRY_POINT],
     pathex=[ROOT],

@@ -35,6 +35,9 @@
 
 ## Instalasi
 
+**Prasyarat:** Python 3.10 atau lebih baru, tanpa dependency eksternal.
+psutil opsional hanya untuk monitor perangkat (`install.sh` memasangnya).
+
 ### Linux / macOS / Windows (dengan Python 3)
 
 ```bash
@@ -51,16 +54,24 @@ Buka `http://127.0.0.1:8777` di browser (Chrome/Chromium direkomendasikan untuk 
 python3 server.py
 ```
 
+### Paket biner (opsional)
+
+Release biner dibuat dari folder [`packaging/`](packaging/README.md). Frozen build
+menyimpan data di folder user yang persisten (bukan folder temporer) dan membuka
+browser otomatis. Lihat [docs/RELEASE.md](docs/RELEASE.md) untuk checklist rilis.
+
 ---
 
 ## Konfigurasi environment
 
 | Variabel | Default | Keterangan |
 |----------|---------|------------|
-| `MYACT_PORT` | `8777` | Port HTTP lokal |
+| `MYACT_PORT` | `8777` | Port HTTP lokal (1–65535) |
 | `MYACT_TZ` | timezone sistem | Contoh: `Asia/Jakarta`, `Asia/Makassar` |
-| `MYACT_DATA` | `./data` | Folder data (database, music, cache, backup) |
+| `MYACT_DATA` | `./data` | Folder data (database, cache, backup). Frozen build memakai folder data user |
 | `MYACT_DB` | `$MYACT_DATA/myact.db` | Lokasi database SQLite |
+| `MYACT_MUSIC` | `./music` | Folder musik lokal. Frozen build memakai `$MYACT_DATA/music` |
+| `MYACT_NO_OPEN` | unset | Set `1` agar frozen build tidak membuka browser |
 
 Contoh:
 ```bash
@@ -72,6 +83,10 @@ MYACT_TZ=Asia/Makassar MYACT_PORT=8780 ./run.sh
 ## Roadmap
 
 Lihat [docs/ROADMAP.md](docs/ROADMAP.md) untuk rencana fitur dan status pengujian.
+
+## Rilis
+
+Checklist penerbitan ada di [docs/RELEASE.md](docs/RELEASE.md); build source archive dan verifikasi lokal ada di `packaging/`.
 
 ## Struktur
 
@@ -85,6 +100,8 @@ myact/
 │   ├── fonts/             # Bricolage Grotesque & Space Grotesk (OFL)
 │   ├── icon.svg           # logo
 │   └── manifest.webmanifest
+├── docs/RELEASE.md        # checklist rilis (tidak mem-publish apa pun)
+├── packaging/              # PyInstaller spec + build/check scripts
 ├── data/                  # SQLite + cache cuaca + backups (auto-dibuat)
 └── run.sh / stop.sh       # helper start/stop (Linux)
 ```

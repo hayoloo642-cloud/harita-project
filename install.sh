@@ -26,10 +26,10 @@ cat > "$DESKTOP_DIR/myact.desktop" <<DEOF
 [Desktop Entry]
 Type=Application
 Name=$APP_NAME
-GenericName=MyAction — Dashboard Harian
-Comment=Konsisten & rajin setiap hari — todo, kalender, cuaca, lomba, fokus
+GenericName=MyAct — Dashboard Harian
+Comment=Konsisten & rajin setiap hari — tugas, kalender, cuaca, lomba, fokus
 Exec=$APP_DIR/run.sh
-Icon=$APP_DIR/static/icon.svg
+Icon=$APP_DIR/static/icon.png
 Terminal=false
 Categories=Office;Productivity;
 StartupWMClass=$APP_NAME

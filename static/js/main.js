@@ -70,24 +70,27 @@ async function refreshApp() {
   }
   toast('Menyegarkan aplikasi…');
 
-  // 1. nuke every Cache Storage bucket
+  // Reload must not depend on cache/SW cleanup succeeding — some browsers can hang there.
+  const cleanup = (async () => {
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.allSettled(keys.map((k) => caches.delete(k)));
+      }
+    } catch { /* ignore */ }
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.allSettled(regs.map((r) => r.unregister()));
+      }
+    } catch { /* ignore */ }
+  })();
+
   try {
-    if ('caches' in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map((k) => caches.delete(k)));
-    }
+    await Promise.race([cleanup, new Promise((resolve) => setTimeout(resolve, 1200))]);
   } catch { /* ignore */ }
 
-  // 2. unregister every service worker so it can't serve stale assets
-  try {
-    if ('serviceWorker' in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map((r) => r.unregister()));
-    }
-  } catch { /* ignore */ }
-
-  // 3. hard navigate with a unique query to bypass the HTTP cache entirely
-  const fresh = window.location.pathname + '?_=' + Date.now();
+  const fresh = window.location.pathname + '?nosw=1&_=' + Date.now();
   window.location.replace(fresh);
 }
 

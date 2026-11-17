@@ -1815,3 +1815,24 @@ html[data-contrast="high"] .card { border-width: 1.5px; }
   #weeklyReportPrint section span { display: block; color: #555; font-size: 11px; margin-top: 2px; }
   #weeklyReportPrint footer { margin-top: 24px; color: #777; font-size: 9px; border-top: 1px solid #ddd4d2; padding-top: 8px; }
 }
+
+/* ---------- Modal ergonomics: more air, modern spacing ---------- */
+html[data-theme="dark"] { color-scheme: dark; }
+html[data-theme="light"] { color-scheme: light; }
+.modal-head { padding: 24px 26px 0; }
+.modal-body { padding: 20px 26px 8px; }
+.modal-foot { padding: 18px 26px 22px; gap: 10px; }
+.form-grid { gap: 16px; }
+.field { gap: 7px; }
+.field label { letter-spacing: .07em; margin-bottom: 1px; }
+.field input, .field select, .field textarea { padding: 11px 12px; border-radius: 10px; }
+.form-error { margin-top: 12px; }
+.clock-wrap { gap: 24px; }
+.clock-date { padding-bottom: 14px; }
+@media (max-width: 640px) {
+  .modal-head { padding: 20px 18px 0; }
+  .modal-body { padding: 16px 18px 4px; }
+  .modal-foot { padding: 14px 18px 18px; }
+  .form-grid { gap: 12px; }
+  .clock-wrap { gap: 10px; }
+}

@@ -4,14 +4,14 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="theme-color" content="#16090e" />
-<title>MyAct — Konsisten & Rajin Setiap Hari</title>
+<title>Harita — Konsisten & Rajin Setiap Hari</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml" />
 <link rel="apple-touch-icon" href="/icon-192.png" />
 <link rel="manifest" href="/manifest.webmanifest" />
 <link rel="stylesheet" href="/app.css" />
 </head>
 <body>
-<div class="splash" id="splash" role="status" aria-label="MyAct sedang dimuat">
+<div class="splash" id="splash" role="status" aria-label="Harita sedang dimuat">
   <svg class="splash-logo" viewBox="0 0 64 64" fill="none" aria-hidden="true">
     <defs>
       <linearGradient id="splashBg" x1="0" y1="0" x2="64" y2="64">
@@ -34,7 +34,7 @@
     <circle cx="48" cy="49" r="2.1" fill="#FC8F8F" opacity=".90"/>
     <circle cx="55" cy="49" r="2.1" fill="#FC8F8F"/>
   </svg>
-  <h1>MyAct</h1>
+  <h1>Harita</h1>
   <p>Konsisten &amp; rajin setiap hari</p>
   <div class="splash-spinner" aria-hidden="true"><span class="splash-dot"></span><span class="splash-dot"></span><span class="splash-dot"></span></div>
 </div>
@@ -73,7 +73,7 @@
         </svg>
       </div>
       <div class="brand-text">
-        <strong>MyAct</strong>
+        <strong>Harita</strong>
         <span>Konsisten &amp; rajin</span>
       </div>
       <button class="icon-btn sidebar-collapse" id="sidebarToggle" title="Ciutkan sidebar" aria-label="Ciutkan sidebar" aria-expanded="true"><span class="ico" data-icon="chevron-left"></span></button>
@@ -135,7 +135,7 @@
       <button class="btn btn-ghost btn-sm full" id="openSettings">
         <span class="ico" data-icon="settings"></span> <span data-i18n="top.settings">Pengaturan</span>
       </button>
-      <p style="font-size:9px;color:var(--faint);text-align:center;margin:4px 0 0">MyAct <span id="appVersion">v1.0.0</span></p>
+      <p style="font-size:9px;color:var(--faint);text-align:center;margin:4px 0 0">Harita <span id="appVersion">v1.0.0</span></p>
     </div>
   </aside>
 
@@ -169,7 +169,7 @@
       <div class="recovery-banner card" id="dbRecovery" hidden role="alert">
         <div class="recovery-copy">
           <strong>Database lama terdeteksi rusak</strong>
-          <p class="hint" id="dbRecoveryText">MyAct sudah memulai database baru supaya aplikasi tetap jalan. Kamu bisa memulihkan data dari backup JSON terakhir.</p>
+          <p class="hint" id="dbRecoveryText">Harita sudah memulai database baru supaya aplikasi tetap jalan. Kamu bisa memulihkan data dari backup JSON terakhir.</p>
         </div>
         <div class="recovery-actions">
           <button class="btn btn-primary btn-sm" id="dbRestoreBtn"><span class="ico" data-icon="refresh"></span> Pulihkan dari backup</button>
@@ -686,7 +686,7 @@
         <div class="view-head">
           <div>
             <h2>Music Player</h2>
-            <p>Putar musik lokal di laptop. Taruh file audio di folder <code>music/</code> di dalam folder MyAct.</p>
+            <p>Putar musik lokal di laptop. Taruh file audio di folder <code>music/</code> di dalam folder Harita.</p>
           </div>
           <div class="view-actions">
             <button class="btn btn-ghost btn-sm" id="musicRescan"><span class="ico" data-icon="refresh"></span> Rescan</button>
@@ -884,7 +884,7 @@
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <header class="modal-head">
       <div>
-        <p class="eyebrow" id="modalEyebrow">MyAct</p>
+        <p class="eyebrow" id="modalEyebrow">Harita</p>
         <h2 id="modalTitle">Judul</h2>
       </div>
       <button class="icon-btn" id="modalClose" aria-label="Tutup"><span class="ico" data-icon="x"></span></button>
@@ -938,7 +938,7 @@
   <div class="lock-box">
     <div class="lock-ico"><span class="ico" data-icon="flame"></span></div>
     <h2>Aplikasi terkunci</h2>
-    <p>Masukkan PIN untuk membuka data MyAct kamu.</p>
+    <p>Masukkan PIN untuk membuka data Harita kamu.</p>
     <form id="lockForm">
       <input type="password" id="lockPin" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="off" placeholder="••••" aria-label="PIN" />
       <div class="form-error" id="lockError"></div>
@@ -951,7 +951,7 @@
   <div class="crash-box">
     <div class="empty-state-ico" style="margin:0 auto"><span class="ico" data-icon="alert"></span></div>
     <h2>Ups!</h2>
-    <p>MyAct menemukan masalah. Data kamu aman — tersimpan lokal di SQLite.</p>
+    <p>Harita menemukan masalah. Data kamu aman — tersimpan lokal di SQLite.</p>
     <p class="hint" id="crashDetail" style="margin:8px 0 0;word-break:break-word"></p>
     <div style="display:flex;gap:10px;justify-content:center;margin-top:18px">
       <a class="btn btn-ghost" href="/api/export" download><span class="ico" data-icon="download"></span> Export data</a>
@@ -959,17 +959,17 @@
     </div>
     <div style="display:flex;gap:10px;justify-content:center;margin-top:10px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" id="crashCopy"><span class="ico" data-icon="copy"></span> Salin laporan</button>
-      <a class="btn btn-ghost btn-sm" href="https://github.com/MyAct/myact/issues/new" target="_blank" rel="noopener">Laporkan bug</a>
+      <a class="btn btn-ghost btn-sm" href="https://github.com/hayoloo642-cloud/harita-project/issues/new" target="_blank" rel="noopener">Laporkan bug</a>
     </div>
     <button class="link-btn" id="crashClose" style="margin:14px auto 0">Tetap di halaman ini</button>
   </div>
 </div>
 
-<div class="onboard-overlay" id="onboardOverlay" hidden role="dialog" aria-modal="true" aria-label="Selamat datang di MyAct">
+<div class="onboard-overlay" id="onboardOverlay" hidden role="dialog" aria-modal="true" aria-label="Selamat datang di Harita">
   <div class="onboard-box">
     <div class="onboard-step" data-step="1">
       <div class="onboard-ico"><span class="ico" data-icon="home"></span></div>
-      <h2>Selamat datang di MyAct</h2>
+      <h2>Selamat datang di Harita</h2>
       <p>Dashboard harian kamu — cuaca, tugas, jadwal, lomba, fokus belajar. Semuanya di laptop ini, tanpa akun.</p>
       <button class="btn btn-primary" data-onboard-next>Mulai</button>
     </div>

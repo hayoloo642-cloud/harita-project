@@ -1,5 +1,5 @@
-/* MyAct service worker — network-first (fresh assets online, fallback offline) */
-const CACHE = 'myact-v7';
+/* Harita service worker — network-first (fresh assets online, fallback offline) */
+const CACHE = 'harita-v8';
 const SHELL = [
   '/',
   '/index.html',

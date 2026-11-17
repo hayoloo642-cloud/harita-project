@@ -1,10 +1,10 @@
-# Rilis MyAct
+# Rilis Harita
 
 Dokumen ini adalah checklist untuk mempersiapkan dan menerbitkan rilis.
 Menerbitkan release adalah tindakan manual — jangan upload apa pun sebelum
 semua langkah di bawah hijau dan kamu memang memutuskan untuk publish.
 
-## Status target: v1.4.0
+## Status target: v1.5.0
 
 Versi harus konsisten di:
 
@@ -29,7 +29,7 @@ apa pun.
 - [ ] Tidak ada `data/`, `*.db`, backup, log, `node_modules/`, atau `build/`/`dist/` yang ter-track.
 - [ ] `LICENSE`, `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md` ada dan akurat.
 - [ ] `.gitignore` dan `.gitattributes` benar.
-- [ ] Semua environment variable terdokumentasi di `README.md` (`MYACT_PORT`, `MYACT_DATA`, `MYACT_DB`, `MYACT_TZ`, `MYACT_MUSIC`, `MYACT_NO_OPEN`).
+- [ ] Semua environment variable terdokumentasi di `README.md` (`HARITA_PORT`, `HARITA_DATA`, `HARITA_DB`, `HARITA_TZ`, `HARITA_MUSIC`, `HARITA_NO_OPEN`).
 - [ ] Tidak ada kredensial/token di history atau tree.
 - [ ] Screenshot utama di `docs/screenshots/` masih mewakili UI saat ini.
 - [ ] `docs/RELEASE.md` dan `CHANGELOG.md` diperbarui untuk rilis ini.
@@ -52,7 +52,7 @@ CI menjalankan langkah yang sama (kecuali `npm` hanya untuk job E2E).
 sh packaging/build-source.sh
 ```
 
-Hasil: `dist/myact-<versi>-source.zip` + file `.sha256`. Archive dibuat dari
+Hasil: `dist/harita-<versi>-source.zip` + file `.sha256`. Archive dibuat dari
 node `git archive HEAD`, jadi harus dijalankan setelah commit yang akan dirilis.
 
 Isi archive: source + docs + LICENSE + static assets.
@@ -73,11 +73,11 @@ Setelah build, jalankan binary hasil build dan periksa:
 1. `curl -fsS http://127.0.0.1:8777/` mengembalikan HTML, bukan 404.
 2. Buat satu tugas, tutup aplikasi, buka lagi — data harus tetap ada.
 3. Lokasi data default frozen build:
-   - Linux: `${XDG_DATA_HOME:-~/.local/share}/myact/`
-   - macOS: `~/Library/Application Support/MyAct/`
-   - Windows: `%LOCALAPPDATA%\MyAct\`
-4. Atur `MYACT_DATA` untuk redirect data jika perlu.
-5. `MYACT_NO_OPEN=1` mematikan auto-open browser pada frozen build.
+   - Linux: `${XDG_DATA_HOME:-~/.local/share}/harita/`
+   - macOS: `~/Library/Application Support/Harita/`
+   - Windows: `%LOCALAPPDATA%\Harita\`
+4. Atur `HARITA_DATA` untuk redirect data jika perlu.
+5. `HARITA_NO_OPEN=1` mematikan auto-open browser pada frozen build.
 
 Frozen build **belum ditandatangani**. Windows SmartScreen dan macOS Gatekeeper
 mungkin memperingatkan pengguna. Untuk rilis publik yang serius perlu code
@@ -87,10 +87,10 @@ signing/notarization.
 
 Setelah semua hijau, baru putuskan:
 
-1. Buat tag: `git tag -a v1.4.0 -m "MyAct v1.4.0"`
+1. Buat tag: `git tag -a v1.5.0 -m "Harita v1.5.0"`
 2. Push code + tag: `git push origin master --tags` (atau `main`)
 3. Buat GitHub Release dari tag tersebut
-4. Upload asset manual atau lewat `gh release create v1.4.0 dist/myact-*.zip`
+4. Upload asset manual atau lewat `gh release create v1.5.0 dist/harita-*.zip`
 5. Tempel isi `CHANGELOG.md` ke release notes
 
 Jangan otomatiskan langkah 1–4 sebelum kamu benar-benar ingin mem-publish.

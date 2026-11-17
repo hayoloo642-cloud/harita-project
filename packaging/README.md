@@ -1,6 +1,6 @@
-# Packaging MyAct
+# Packaging Harita
 
-Skrip di folder ini membuat distribusi **one-file** MyAct dengan
+Skrip di folder ini membuat distribusi **one-file** Harita dengan
 [PyInstaller](https://pyinstaller.org/). Tidak ada binary yang disimpan di
 repositori — build dilakukan di mesin masing-masing.
 
@@ -12,9 +12,9 @@ repositori — build dilakukan di mesin masing-masing.
 
 | File | Fungsi |
 |------|--------|
-| `myact.spec` | Spec PyInstaller one-file: `server.py` + `static/` + `LICENSE` |
+| `harita.spec` | Spec PyInstaller one-file: `server.py` + `static/` + `LICENSE` |
 | `build-linux.sh` | Build Linux, lalu AppImage jika `appimagetool` tersedia |
-| `build-windows.bat` | Build Windows → `dist\MyAct.exe` |
+| `build-windows.bat` | Build Windows → `dist\Harita.exe` |
 | `build-macos.sh` | Build macOS, lalu `.app` + `.dmg` jika `hdiutil` tersedia |
 | `assets/music/README.txt` | Placeholder agar folder `music/` ikut terbundel |
 
@@ -46,8 +46,8 @@ sh packaging/build-linux.sh
 
 Hasil:
 
-- `dist/MyAct` — binary one-file.
-- `dist/MyAct-<arch>.AppImage` — hanya jika `appimagetool` ada di `PATH`.
+- `dist/Harita` — binary one-file.
+- `dist/Harita-<arch>.AppImage` — hanya jika `appimagetool` ada di `PATH`.
 
 ### Windows
 
@@ -55,7 +55,7 @@ Hasil:
 packaging\build-windows.bat
 ```
 
-Hasil: `dist\MyAct.exe`.
+Hasil: `dist\Harita.exe`.
 
 ### macOS
 
@@ -65,23 +65,23 @@ sh packaging/build-macos.sh
 
 Hasil:
 
-- `dist/MyAct` — binary one-file.
-- `dist/MyAct.app` dan `dist/MyAct.dmg` — hanya jika `hdiutil` tersedia.
+- `dist/Harita` — binary one-file.
+- `dist/Harita.app` dan `dist/Harita.dmg` — hanya jika `hdiutil` tersedia.
 - `.app` di sini adalah pembungkus sederhana; belum ada notarization.
 
 Menjalankan binary:
 
 ```bash
-./dist/MyAct
+./dist/Harita
 ```
 
 Binary akan membuka `http://127.0.0.1:8777` di browser secara otomatis.
-Set `MYACT_NO_OPEN=1` untuk menonaktifkan auto-open, atau
-`MYACT_PORT=8780 ./dist/MyAct` untuk port lain.
+Set `HARITA_NO_OPEN=1` untuk menonaktifkan auto-open, atau
+`HARITA_PORT=8780 ./dist/Harita` untuk port lain.
 
 ## Yang ikut dibundel
 
-`myact.spec` memasukkan data berikut ke dalam executable:
+`harita.spec` memasukkan data berikut ke dalam executable:
 
 | Sumber | Tujuan di bundle | Alasan |
 |--------|------------------|--------|
@@ -90,7 +90,7 @@ Set `MYACT_NO_OPEN=1` untuk menonaktifkan auto-open, atau
 
 Audio pengguna di `music/` **tidak** ikut dibundel. Ini disengaja agar ukuran
 paket tetap kecil dan file pribadi tidak ikut tersebar. Pada frozen build,
-`MUSIC_DIR` default ke `<data user>/music`, atau `MYACT_MUSIC` bila diset.
+`MUSIC_DIR` default ke `<data user>/music`, atau `HARITA_MUSIC` bila diset.
 
 ## Verifikasi wajib setelah build
 
@@ -102,7 +102,7 @@ Jalankan binary hasil build, lalu periksa:
    `server.py` memakai `sys._MEIPASS` untuk menemukan `static/` pada frozen
    build, sehingga seharusnya cocok. **Jika aset 404, jangan ubah `server.py`
    secara diam-diam** — catat sebagai bug packaging dan sesuaikan `datas` di
-   `myact.spec`.
+   `harita.spec`.
 2. **Data tersimpan permanen.** Lihat bagian "Batasan" di bawah. Uji dengan
    membuat satu tugas, menutup aplikasi, lalu membukanya lagi.
 3. **Cuaca realtime** tampil (butuh internet; endpoint Open-Meteo).
@@ -120,15 +120,15 @@ curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8777/app.css
 ## Batasan dan catatan penting
 
 - **Data frozen build tersimpan permanen per-user** dengan default:
-  - Linux: `${XDG_DATA_HOME:-~/.local/share}/myact/`
-  - macOS: `~/Library/Application Support/MyAct/`
-  - Windows: `%LOCALAPPDATA%\MyAct\`
+  - Linux: `${XDG_DATA_HOME:-~/.local/share}/harita/`
+  - macOS: `~/Library/Application Support/Harita/`
+  - Windows: `%LOCALAPPDATA%\Harita\`
 
-  Override dengan `MYACT_DATA`, atau gunakan `MYACT_DB` bila ingin menaruh
+  Override dengan `HARITA_DATA`, atau gunakan `HARITA_DB` bila ingin menaruh
   database terpisah. Instalasi dari source tetap memakai folder `data/` di
   repo.
 - **Musik** memakai `MUSIC_DIR`: default `music/` di repo untuk source, atau
-  `<data user>/music` untuk frozen build. Override dengan `MYACT_MUSIC`.
+  `<data user>/music` untuk frozen build. Override dengan `HARITA_MUSIC`.
   Musik pengguna tidak ikut dibundel — salin file audio ke lokasi tersebut.
 - **Bukan build bertanda tangan.** Windows SmartScreen dan macOS Gatekeeper
   akan memperingatkan pengguna. Untuk distribusi publik perlu code signing,
@@ -137,7 +137,7 @@ curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8777/app.css
   gunakan mode `onedir` (ubah spec: tambahkan `COLLECT`).
 - **Ukuran dan startup.** One-file mengekstrak ke temp setiap kali dijalankan,
   sehingga startup sedikit lebih lambat dan butuh ruang disk sementara.
-- **Frozen build membuka browser otomatis.** Set `MYACT_NO_OPEN=1` bila tidak
+- **Frozen build membuka browser otomatis.** Set `HARITA_NO_OPEN=1` bila tidak
   ingin membuka browser (mis. saat membuat service atau men-debug).
 - **Data contoh, backup, dan SQLite** tetap berjalan seperti versi source,
   dengan data tersimpan di folder data per-user yang bisa ditulis.

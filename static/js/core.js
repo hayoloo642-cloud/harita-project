@@ -175,14 +175,22 @@ const state = {
 const storage = {
   get(key, fallback) {
     try {
-      const raw = localStorage.getItem(`myact:${key}`);
+      let raw = localStorage.getItem(`harita:${key}`);
+      if (raw === null) {
+        const legacy = localStorage.getItem(`myact:${key}`);
+        if (legacy !== null) {
+          localStorage.setItem(`harita:${key}`, legacy);
+          localStorage.removeItem(`myact:${key}`);
+          raw = legacy;
+        }
+      }
       if (raw === null) return fallback;
       const parsed = JSON.parse(raw);
       return parsed === null || parsed === undefined ? fallback : parsed;
     } catch { return fallback; }
   },
-  set(key, value) { try { localStorage.setItem(`myact:${key}`, JSON.stringify(value)); } catch { /* ignore */ } },
-  remove(key) { try { localStorage.removeItem(`myact:${key}`); } catch { /* ignore */ } },
+  set(key, value) { try { localStorage.setItem(`harita:${key}`, JSON.stringify(value)); } catch { /* ignore */ } },
+  remove(key) { try { localStorage.removeItem(`harita:${key}`); } catch { /* ignore */ } },
 };
 
 /* ---------- API ---------- */
@@ -223,12 +231,12 @@ async function api(path, options = {}) {
     } catch (err) {
       if (err && err.name === 'AbortError') {
         if (timer) clearTimeout(timer);
-        throw new Error('Server tidak merespons (15 detik). Coba lagi atau cek apakah MyAct masih berjalan.');
+        throw new Error('Server tidak merespons (15 detik). Coba lagi atau cek apakah Harita masih berjalan.');
       }
       const canRetry = attempt === 0 && (!config.method || String(config.method).toUpperCase() === 'GET');
       if (!canRetry) {
         if (timer) clearTimeout(timer);
-        throw new Error('Tidak dapat terhubung ke server MyAct. Pastikan aplikasi masih berjalan.');
+        throw new Error('Tidak dapat terhubung ke server Harita. Pastikan aplikasi masih berjalan.');
       }
       await new Promise((resolve) => setTimeout(resolve, 400));
     }
@@ -332,7 +340,7 @@ function beep(times = 2) {
 function notify(title, body) {
   if (state.settings.notifications !== '1') return;
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  try { new Notification(title, { body, icon: '/icon.svg', tag: `myact-${title}` }); } catch { /* ignore */ }
+  try { new Notification(title, { body, icon: '/icon.svg', tag: `harita-${title}` }); } catch { /* ignore */ }
 }
 
 async function requestNotifications() {
@@ -347,7 +355,7 @@ let modalState = { onSubmit: null, onDelete: null };
 
 function openModal(opts) {
   const {
-    title, eyebrow = 'MyAct', body = '', submitLabel = null, onSubmit = null,
+    title, eyebrow = 'Harita', body = '', submitLabel = null, onSubmit = null,
     onDelete = null, deleteLabel = null, wide = false, hideSubmit = false, danger = false,
   } = opts;
   const overlay = $('#modalOverlay');

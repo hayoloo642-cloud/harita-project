@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# MyAct — build distribusi macOS: PyInstaller one-file, lalu .app/.dmg opsional.
+# Harita — build distribusi macOS: PyInstaller one-file, lalu .app/.dmg opsional.
 # Jalankan di macOS: sh packaging/build-macos.sh
 set -eu
 
@@ -21,12 +21,12 @@ command -v "$PYTHON" >/dev/null 2>&1 \
 "$PYTHON" -m PyInstaller --version >/dev/null 2>&1 \
   || die "PyInstaller belum terpasang. Jalankan: $PYTHON -m pip install --user pyinstaller"
 
-say "==> MyAct: build macOS one-file (PyInstaller)"
+say "==> Harita: build macOS one-file (PyInstaller)"
 rm -rf "$ROOT/build" "$ROOT/dist"
-"$PYTHON" -m PyInstaller --clean --noconfirm packaging/myact.spec
+"$PYTHON" -m PyInstaller --clean --noconfirm packaging/harita.spec
 
-BIN="$ROOT/dist/MyAct"
-[ -x "$BIN" ] || die "Build selesai tanpa dist/MyAct yang bisa dieksekusi."
+BIN="$ROOT/dist/Harita"
+[ -x "$BIN" ] || die "Build selesai tanpa dist/Harita yang bisa dieksekusi."
 
 say ""
 say "OK — binary: $BIN"
@@ -38,13 +38,13 @@ say "Lalu buka: http://127.0.0.1:8777"
 # Finder. Untuk distribusi serius, gunakan py2app atau codesign + notarization.
 if command -v hdiutil >/dev/null 2>&1; then
   say ""
-  say "==> hdiutil ditemukan — membuat MyAct.app dan MyAct.dmg"
+  say "==> hdiutil ditemukan — membuat Harita.app dan Harita.dmg"
 
-  APP="$ROOT/dist/MyAct.app"
+  APP="$ROOT/dist/Harita.app"
   rm -rf "$APP"
   mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-  cp "$BIN" "$APP/Contents/MacOS/MyAct"
-  chmod +x "$APP/Contents/MacOS/MyAct"
+  cp "$BIN" "$APP/Contents/MacOS/Harita"
+  chmod +x "$APP/Contents/MacOS/Harita"
 
   cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -53,17 +53,17 @@ if command -v hdiutil >/dev/null 2>&1; then
 <plist version="1.0">
 <dict>
   <key>CFBundleName</key>
-  <string>MyAct</string>
+  <string>Harita</string>
   <key>CFBundleDisplayName</key>
-  <string>MyAct</string>
+  <string>Harita</string>
   <key>CFBundleIdentifier</key>
-  <string>local.myact.app</string>
+  <string>local.harita.app</string>
   <key>CFBundleVersion</key>
   <string>1.1.0</string>
   <key>CFBundleShortVersionString</key>
   <string>1.1.0</string>
   <key>CFBundleExecutable</key>
-  <string>MyAct</string>
+  <string>Harita</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>LSMinimumSystemVersion</key>
@@ -83,17 +83,17 @@ PLIST
     fi
   fi
 
-  rm -f "$ROOT/dist/MyAct.dmg"
-  if hdiutil create -volname "MyAct" -srcfolder "$APP" -ov -format UDZO \
-      "$ROOT/dist/MyAct.dmg" >/dev/null; then
-    say "OK — DMG: $ROOT/dist/MyAct.dmg"
+  rm -f "$ROOT/dist/Harita.dmg"
+  if hdiutil create -volname "Harita" -srcfolder "$APP" -ov -format UDZO \
+      "$ROOT/dist/Harita.dmg" >/dev/null; then
+    say "OK — DMG: $ROOT/dist/Harita.dmg"
   else
     say "PERINGATAN: hdiutil gagal membuat DMG; .app dan binary tetap ada."
   fi
 else
   say ""
   say "Info: hdiutil tidak ditemukan (bukan macOS?) — .app/.dmg dilewati."
-  say "      Binary dist/MyAct tetap bisa dijalankan dari Terminal."
+  say "      Binary dist/Harita tetap bisa dijalankan dari Terminal."
 fi
 
 say ""

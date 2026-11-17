@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MyAct — dashboard harian lokal.
+Harita — dashboard harian lokal.
 Server HTTP murni Python (tanpa dependency), SQLite untuk penyimpanan,
 dan proxy Open-Meteo untuk cuaca realtime.
 """
@@ -24,7 +24,7 @@ from datetime import datetime, date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from zoneinfo import ZoneInfo
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 
 try:
     import psutil
@@ -37,6 +37,15 @@ RESOURCE_DIR = getattr(sys, "_MEIPASS", BASE_DIR)  # PyInstaller extraction dir
 STATIC_DIR = os.path.join(RESOURCE_DIR, "static")
 
 
+def _env(new_key: str, legacy_key: str, default: str = "") -> str:
+    """Read HARITA_* first; HARITA_* stays supported for existing installs."""
+    value = os.environ.get(new_key)
+    if value not in (None, ""):
+        return value
+    value = os.environ.get(legacy_key)
+    return value if value not in (None, "") else default
+
+
 def _default_data_dir() -> str:
     """Persistent, per-user data dir for frozen builds; repo-local otherwise."""
     if not _FROZEN:
@@ -44,33 +53,66 @@ def _default_data_dir() -> str:
     home = os.path.expanduser("~")
     if sys.platform.startswith("win"):
         root = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA") or os.path.join(home, "AppData", "Local")
-        return os.path.join(root, "MyAct")
+        return os.path.join(root, "Harita")
     if sys.platform == "darwin":
-        return os.path.join(home, "Library", "Application Support", "MyAct")
+        return os.path.join(home, "Library", "Application Support", "Harita")
     root = os.environ.get("XDG_DATA_HOME") or os.path.join(home, ".local", "share")
-    return os.path.join(root, "myact")
+    return os.path.join(root, "harita")
 
 
-DATA_DIR = os.environ.get("MYACT_DATA") or _default_data_dir()
-DB_PATH = os.environ.get("MYACT_DB", os.path.join(DATA_DIR, "myact.db"))
+def _legacy_data_dir() -> str:
+    if not _FROZEN:
+        return os.path.join(BASE_DIR, "data")
+    home = os.path.expanduser("~")
+    if sys.platform.startswith("win"):
+        root = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA") or os.path.join(home, "AppData", "Local")
+        return os.path.join(root, "Harita")
+    if sys.platform == "darwin":
+        return os.path.join(home, "Library", "Application Support", "Harita")
+    root = os.environ.get("XDG_DATA_HOME") or os.path.join(home, ".local", "share")
+    return os.path.join(root, "harita")
+
+
+DATA_DIR = _env("HARITA_DATA", "MYACT_DATA") or _default_data_dir()
+
+# One-time migration of the default frozen data directory. Existing HARITA_DATA
+# overrides and source-tree data/ folders stay untouched.
+if not _env("HARITA_DATA", "MYACT_DATA"):
+    _new_dir, _old_dir = DATA_DIR, _legacy_data_dir()
+    if _new_dir != _old_dir and not os.path.exists(_new_dir) and os.path.isdir(_old_dir):
+        try:
+            os.rename(_old_dir, _new_dir)
+        except OSError:
+            pass
+
+os.makedirs(DATA_DIR, exist_ok=True)
+_legacy_db = os.path.join(DATA_DIR, "harita.db")  # legacy from pre-rename releases
+_default_db = os.path.join(DATA_DIR, "harita.db")
+if not _env("HARITA_DB", "MYACT_DB") and os.path.exists(_legacy_db) and not os.path.exists(_default_db):
+    try:
+        os.rename(_legacy_db, _default_db)
+    except OSError:
+        _default_db = _legacy_db
+
+DB_PATH = _env("HARITA_DB", "MYACT_DB") or _default_db
 WEATHER_CACHE_PATH = os.path.join(DATA_DIR, "weather_cache.json")
-MUSIC_DIR = os.environ.get("MYACT_MUSIC") or (os.path.join(DATA_DIR, "music") if _FROZEN else os.path.join(BASE_DIR, "music"))
+MUSIC_DIR = _env("HARITA_MUSIC", "MYACT_MUSIC") or (os.path.join(DATA_DIR, "music") if _FROZEN else os.path.join(BASE_DIR, "music"))
 
 
 def _read_port() -> int:
-    raw = os.environ.get("MYACT_PORT", "8777").strip()
+    raw = _env("HARITA_PORT", "MYACT_PORT", "8777").strip()
     try:
         port = int(raw)
     except ValueError:
-        raise SystemExit(f"MYACT_PORT harus berupa angka, bukan {raw!r}")
+        raise SystemExit(f"HARITA_PORT harus berupa angka, bukan {raw!r}")
     if not (1 <= port <= 65535):
-        raise SystemExit(f"MYACT_PORT harus di antara 1 dan 65535, bukan {port}")
+        raise SystemExit(f"HARITA_PORT harus di antara 1 dan 65535, bukan {port}")
     return port
 
 
 PORT = _read_port()
 def _local_tz():
-    forced = os.environ.get("MYACT_TZ")
+    forced = _env("HARITA_TZ", "MYACT_TZ")
     if forced:
         try:
             return ZoneInfo(forced)
@@ -84,7 +126,6 @@ def _local_tz():
 
 TZ = _local_tz()
 
-os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(MUSIC_DIR, exist_ok=True)
 
 # ----------------------------------------------------------------------------
@@ -588,7 +629,7 @@ def fetch_weather(key: str) -> dict:
         "wind_speed_unit": "kmh",
     }
     url = "https://api.open-meteo.com/v1/forecast?" + urllib.parse.urlencode(params)
-    req = urllib.request.Request(url, headers={"User-Agent": "MyAct/1.0 (local)"})
+    req = urllib.request.Request(url, headers={"User-Agent": "Harita/1.0 (local)"})
     with urllib.request.urlopen(req, timeout=15) as resp:
         payload = json.loads(resp.read().decode("utf-8"))
     payload["location_key"] = key
@@ -2125,7 +2166,7 @@ EXPORT_TABLES = (
 def export_all_tables() -> dict:
     conn = db_connect()
     try:
-        data = {"exported_at": now_local(), "app": "MyAct", "tables": {}}
+        data = {"exported_at": now_local(), "app": "Harita", "tables": {}}
         for table in EXPORT_TABLES:
             try:
                 rows = conn.execute(f"SELECT * FROM {table}").fetchall()
@@ -2152,10 +2193,10 @@ def backup_now() -> str | None:
                 os.remove(os.path.join(backup_dir, old))
             except OSError:
                 pass
-        # F9: also copy into ~/myact-backups (survives repo deletion)
+        # F9: also copy into ~/harita-backups (survives repo deletion)
         try:
             import shutil
-            second = os.path.join(os.path.expanduser("~"), "myact-backups")
+            second = os.path.join(os.path.expanduser("~"), "harita-backups")
             os.makedirs(second, exist_ok=True)
             second_target = os.path.join(second, f"export-{today_local()}.json")
             if not os.path.exists(second_target):
@@ -2447,7 +2488,7 @@ def api_export(handler: BaseHTTPRequestHandler) -> None:
         200,
         data,
         extra_headers={
-            "Content-Disposition": f'attachment; filename="myact-backup-{today_local()}.json"'
+            "Content-Disposition": f'attachment; filename="harita-backup-{today_local()}.json"'
         },
     )
 
@@ -2456,7 +2497,7 @@ def api_export(handler: BaseHTTPRequestHandler) -> None:
 # App lock (PIN) — B2/B4: optional password for local data
 # ----------------------------------------------------------------------------
 LOCK_SESSIONS: dict[str, float] = {}  # token -> expiry timestamp
-PIN_SALT = "myact-v1"
+PIN_SALT = "harita-v1"  # keep legacy PIN hashes valid
 
 
 def _pin_hash(pin: str) -> str:
@@ -2697,7 +2738,7 @@ def api_calendar_ics(handler: BaseHTTPRequestHandler) -> None:
     conn = db_connect()
     try:
         events = conn.execute("SELECT * FROM events WHERE deleted_at IS NULL ORDER BY date").fetchall()
-        lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//MyAct//ID", "CALSCALE:GREGORIAN"]
+        lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Harita//ID", "CALSCALE:GREGORIAN"]
         for ev in events:
             day = str(ev["date"]).replace("-", "")
             time_part = (ev["time"] or "08:00")[:5].replace(":", "") + "00"
@@ -2709,7 +2750,7 @@ def api_calendar_ics(handler: BaseHTTPRequestHandler) -> None:
                 dtstart = day
                 dtend = addDays(ev["date"], 1).replace("-", "")
             dtstamp = datetime.now(TZ).strftime("%Y%m%dT%H%M%SZ")
-            uid = f"myact-{ev['id']}@myact.local"
+            uid = f"harita-{ev['id']}@harita.local"
             summary = str(ev["title"]).replace("\\", "\\\\").replace(",", "\\,").replace(";", "\\;").replace("\n", "\\n")
             desc = str(ev["note"] or "").replace("\\", "\\\\").replace(",", "\\,").replace(";", "\\;").replace("\n", "\\n")
             lines += ["BEGIN:VEVENT", f"UID:{uid}", f"DTSTAMP:{dtstamp}", f"DTSTART:{dtstart}", f"DTEND:{dtend}", f"SUMMARY:{summary}"]
@@ -2720,7 +2761,7 @@ def api_calendar_ics(handler: BaseHTTPRequestHandler) -> None:
         body = "\r\n".join(lines) + "\r\n"
         handler.send_response(200)
         handler.send_header("Content-Type", "text/calendar; charset=utf-8")
-        handler.send_header("Content-Disposition", f'attachment; filename="myact-{today_local()}.ics"')
+        handler.send_header("Content-Disposition", f'attachment; filename="harita-{today_local()}.ics"')
         handler.send_header("Content-Length", str(len(body.encode("utf-8"))))
         handler.send_header("Cache-Control", "no-store")
         handler.end_headers()
@@ -3025,7 +3066,7 @@ def _send_common_headers(handler: BaseHTTPRequestHandler) -> None:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = f"MyAct/{__version__}"
+    server_version = f"Harita/{__version__}"
     _inflight = threading.Semaphore(32)  # bound concurrent request threads
 
     def handle(self):
@@ -3036,7 +3077,7 @@ class Handler(BaseHTTPRequestHandler):
             Handler._inflight.release()
 
     def log_message(self, fmt: str, *args) -> None:  # quieter logs
-        if os.environ.get("MYACT_DEBUG"):
+        if _env("HARITA_DEBUG", "MYACT_DEBUG"):
             super().log_message(fmt, *args)
 
     def _serve_static(self, path: str) -> None:
@@ -3396,11 +3437,11 @@ def main() -> None:
         server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     except OSError as exc:
         print(f"\nERROR: Port {PORT} sedang dipakai proses lain.")
-        print('Matikan dulu dengan: pkill -f "myact/server.py"')
-        print(f"Atau pakai port lain: MYACT_PORT=8877 ./run.sh\n")
+        print('Matikan dulu dengan: pkill -f "harita/server.py"')
+        print(f"Atau pakai port lain: HARITA_PORT=8877 ./run.sh\n")
         raise SystemExit(1)
-    log(f"MyAct berjalan di http://127.0.0.1:{PORT}")
-    if _FROZEN and os.environ.get("MYACT_NO_OPEN") != "1":
+    log(f"Harita berjalan di http://127.0.0.1:{PORT}")
+    if _FROZEN and _env("HARITA_NO_OPEN", "MYACT_NO_OPEN") != "1":
         url = f"http://127.0.0.1:{PORT}/"
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     try:

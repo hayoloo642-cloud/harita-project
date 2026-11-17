@@ -1,5 +1,5 @@
 @echo off
-REM MyAct - build distribusi Windows: PyInstaller one-file -> dist\MyAct.exe
+REM Harita - build distribusi Windows: PyInstaller one-file -> dist\Harita.exe
 REM Jalankan dari mana saja dengan double-click, atau: packaging\build-windows.bat
 setlocal
 cd /d "%~dp0.."
@@ -14,19 +14,19 @@ echo [1/2] Membersihkan build sebelumnya...
 if exist build rmdir /s /q build
 if exist dist rmdir /s /q dist
 
-echo [2/2] Membangun dist\MyAct.exe ...
-python -m PyInstaller --clean --noconfirm packaging\myact.spec
+echo [2/2] Membangun dist\Harita.exe ...
+python -m PyInstaller --clean --noconfirm packaging\harita.spec
 if errorlevel 1 goto :fail
 
-if not exist dist\MyAct.exe goto :fail
+if not exist dist\Harita.exe goto :fail
 
 echo.
-echo OK - executable: dist\MyAct.exe
-echo Jalankan: dist\MyAct.exe
+echo OK - executable: dist\Harita.exe
+echo Jalankan: dist\Harita.exe
 echo Lalu buka: http://127.0.0.1:8777
 echo.
-echo Catatan: set MYACT_DATA ke folder permanen agar data tidak hilang.
-echo   contoh: set MYACT_DATA=%LOCALAPPDATA%\MyAct
+echo Catatan: set HARITA_DATA ke folder permanen agar data tidak hilang.
+echo   contoh: set HARITA_DATA=%LOCALAPPDATA%\Harita
 exit /b 0
 
 :no_python

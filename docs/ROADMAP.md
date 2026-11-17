@@ -1,6 +1,6 @@
-# Roadmap MyAct
+# Roadmap Harita
 
-Status: **v1.4.0** — fitur inti + kualitas rilis sudah berjalan lokal. Berikut rencana berikutnya.
+Status: **v1.5.0** — fitur inti + kualitas rilis sudah berjalan lokal. Berikut rencana berikutnya.
 
 ## Sedang dikerjakan / berikutnya
 

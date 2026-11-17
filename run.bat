@@ -1,8 +1,8 @@
 @echo off
-REM MyAct — jalankan server lokal lalu buka dashboard (Windows)
+REM Harita — jalankan server lokal lalu buka dashboard (Windows)
 set "PORT=8777"
-if not "%MYACT_PORT%"=="" set "PORT=%MYACT_PORT%"
-if not "%MYACT_TAB%"=="" set "MYACT_TAB=%MYACT_TAB%"
+if not "%HARITA_PORT%"=="" set "PORT=%HARITA_PORT%"
+if "%HARITA_TAB%"=="" if not "%MYACT_TAB%"=="" set "HARITA_TAB=%MYACT_TAB%"
 
 where python >nul 2>nul
 if %errorlevel% neq 0 (

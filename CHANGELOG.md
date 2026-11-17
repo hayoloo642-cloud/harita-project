@@ -5,6 +5,21 @@ Semua perubahan penting pada proyek ini didokumentasikan di sini.
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] — 2026-11-17
+
+### Diubah
+- **Rebrand MyAct → Harita** di UI, dokumen, manifest PWA, service worker, dan binary/paket distribusi
+- Variabel environment utama menjadi `HARITA_*`; `MYACT_*` lama tetap didukung untuk kompatibilitas
+- Database default menjadi `harita.db`; `data/myact.db` lama dimigrasikan otomatis bila memungkinkan
+- Frozen build memakai folder data `Harita`/`harita`; folder data MyAct lama dimigrasikan otomatis bila memungkinkan
+- localStorage memakai prefix `harita:`; preferensi `myact:` lama dimigrasikan otomatis
+- Referensi repo GitHub menjadi `hayoloo642-cloud/harita-project`
+
+### Kompatibilitas
+- PIN hash lama tetap valid; salt sengaja tidak diubah
+- Backup JSON lama (metadata `app: "MyAct"`) tetap bisa diimpor
+- Instalasi dari source tetap memakai folder `data/`
+
 ## [1.4.0] — 2026-11-17
 
 ### Ditambahkan
@@ -22,8 +37,8 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/).
 - Header keamanan di API/static/music: CSP, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`
 - Origin/Referer cross-origin kini dibandingkan persis (skema, host, port) — bukan `startswith` lagi
 - Path traversal static/music ditolak dengan boundary `realpath` + prefix `root/`
-- Frozen build (PyInstaller) menyimpan data di folder user persisten (Linux/macOS/Windows), musik memakai `MYACT_MUSIC`, dan membuka browser otomatis (`MYACT_NO_OPEN=1` untuk mematikan)
-- `MYACT_PORT` divalidasi; smoke test menambah cek header keamanan, Origin palsu, dan traversal
+- Frozen build (PyInstaller) menyimpan data di folder user persisten (Linux/macOS/Windows), musik memakai `HARITA_MUSIC`, dan membuka browser otomatis (`HARITA_NO_OPEN=1` untuk mematikan)
+- `HARITA_PORT` divalidasi; smoke test menambah cek header keamanan, Origin palsu, dan traversal
 - `docs/RELEASE.md`, `packaging/release-check.sh`, `packaging/build-source.sh`, dan `.gitattributes` untuk proses rilis yang dapat diulang
 
 ### Catatan
@@ -69,7 +84,7 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/).
 ## [1.1.0] — 2026-11-17
 
 ### Ditambahkan
-- Splash screen dengan logo MyAct dan tagline
+- Splash screen dengan logo Harita dan tagline
 - Pengaturan lengkap: tema (gelap/terang/sistem), 8 aksen warna, ukuran teks, kontras tinggi, halaman awal, sidebar ciut
 - Data contoh sekali klik (onboarding & Pengaturan) — dataset kecil siap jelajah
 - Tombol Beranda di topbar + shortcut `Alt + H` dan `Ctrl/Cmd + N` untuk tugas baru
@@ -97,7 +112,7 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/).
 - Command palette (Ctrl/Cmd + K) — navigasi + pencarian isi
 - Keyboard shortcuts (Ctrl/Cmd + / untuk bantuan)
 - Soft-delete + Undo untuk tugas, agenda, catatan, lomba, kebiasaan, nilai
-- Backup otomatis harian ke `data/backups/` + `~/myact-backups/`
+- Backup otomatis harian ke `data/backups/` + `~/harita-backups/`
 - Notifikasi deadline (dengan fallback toast jika izin browser tidak diberikan)
 - Import/export `.ics`, export CSV nilai
 - PWA: installable, service worker network-first
@@ -108,7 +123,7 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/).
 - Installer Linux/macOS (`install.sh`), uninstaller (`uninstall.sh`)
 
 ### Perubahan ibarat rilis publik pertama
-- Nama aplikasi: **MyAct** — sebelumnya hanya didistribusikan di komputer pribadi
+- Nama aplikasi: **Harita** — sebelumnya hanya didistribusikan di komputer pribadi
 - Default name: "Kamu", bukan nama pemilik asli
 - Cuaca: 16 kota Indonesia sebagai default (Jakarta default)
 - Timezone: ikut sistem, bukan lagi hardcoded WITA

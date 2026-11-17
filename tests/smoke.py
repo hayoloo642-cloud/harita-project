@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MyAct smoke test — boots the server on a throwaway database and exercises the API.
+"""Harita smoke test — boots the server on a throwaway database and exercises the API.
 
 Usage:
     python3 tests/smoke.py            # normal API checks
@@ -69,13 +69,13 @@ def main() -> int:
     stress = "--stress" in sys.argv
     port = free_port()
     base = f"http://127.0.0.1:{port}"
-    tmp = tempfile.mkdtemp(prefix="myact-smoke-")
+    tmp = tempfile.mkdtemp(prefix="harita-smoke-")
     env = {
         **os.environ,
-        "MYACT_PORT": str(port),
-        "MYACT_DATA": tmp,
-        "MYACT_DB": os.path.join(tmp, "test.db"),
-        "MYACT_TZ": "Asia/Jakarta",
+        "HARITA_PORT": str(port),
+        "HARITA_DATA": tmp,
+        "HARITA_DB": os.path.join(tmp, "test.db"),
+        "HARITA_TZ": "Asia/Jakarta",
     }
     proc = subprocess.Popen(
         [sys.executable, str(ROOT / "server.py")],

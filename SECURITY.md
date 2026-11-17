@@ -18,7 +18,7 @@ Kami akan merespons dalam 72 jam. Setelah perbaikan dirilis, kami akan mengumumk
 
 - Server lokal berjalan di `127.0.0.1` secara default — tidak terekspos ke internet
 - PIN lock adalah proteksi kasual, bukan enkripsi data at-rest
-- File `data/myact.db` harus dilindungi OS-level permission
+- File `data/harita.db` harus dilindungi OS-level permission
 - Jangan expose port ke jaringan publik tanpa lapisan auth tambahan (reverse proxy + auth)
 
 ## Versi yang didukung

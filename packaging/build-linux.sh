@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# MyAct — build distribusi Linux: PyInstaller one-file + AppImage opsional.
+# Harita — build distribusi Linux: PyInstaller one-file + AppImage opsional.
 # POSIX shell, jalankan dari mana saja: sh packaging/build-linux.sh
 set -eu
 
@@ -18,12 +18,12 @@ command -v "$PYTHON" >/dev/null 2>&1 \
 "$PYTHON" -m PyInstaller --version >/dev/null 2>&1 \
   || die "PyInstaller belum terpasang. Jalankan: $PYTHON -m pip install --user pyinstaller"
 
-say "==> MyAct: build Linux one-file (PyInstaller)"
+say "==> Harita: build Linux one-file (PyInstaller)"
 rm -rf "$ROOT/build" "$ROOT/dist"
-"$PYTHON" -m PyInstaller --clean --noconfirm packaging/myact.spec
+"$PYTHON" -m PyInstaller --clean --noconfirm packaging/harita.spec
 
-BIN="$ROOT/dist/MyAct"
-[ -x "$BIN" ] || die "Build selesai tanpa dist/MyAct yang bisa dieksekusi."
+BIN="$ROOT/dist/Harita"
+[ -x "$BIN" ] || die "Build selesai tanpa dist/Harita yang bisa dieksekusi."
 
 say ""
 say "OK — binary: $BIN"
@@ -35,19 +35,19 @@ if command -v appimagetool >/dev/null 2>&1; then
   say ""
   say "==> appimagetool ditemukan — membuat AppImage"
 
-  APPDIR="$ROOT/dist/MyAct.AppDir"
+  APPDIR="$ROOT/dist/Harita.AppDir"
   ARCH_NAME=$(uname -m)
   rm -rf "$APPDIR"
   mkdir -p "$APPDIR/usr/bin" \
            "$APPDIR/usr/share/applications" \
            "$APPDIR/usr/share/icons/hicolor/512x512/apps"
 
-  cp "$BIN" "$APPDIR/usr/bin/MyAct"
-  chmod +x "$APPDIR/usr/bin/MyAct"
+  cp "$BIN" "$APPDIR/usr/bin/Harita"
+  chmod +x "$APPDIR/usr/bin/Harita"
 
   if [ -f "$ROOT/static/icon.png" ]; then
-    cp "$ROOT/static/icon.png" "$APPDIR/usr/share/icons/hicolor/512x512/apps/myact.png"
-    cp "$ROOT/static/icon.png" "$APPDIR/myact.png"
+    cp "$ROOT/static/icon.png" "$APPDIR/usr/share/icons/hicolor/512x512/apps/harita.png"
+    cp "$ROOT/static/icon.png" "$APPDIR/harita.png"
     cp "$ROOT/static/icon.png" "$APPDIR/.DirIcon"
   fi
 
@@ -55,27 +55,27 @@ if command -v appimagetool >/dev/null 2>&1; then
 #!/bin/sh
 set -eu
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-exec "$HERE/usr/bin/MyAct" "$@"
+exec "$HERE/usr/bin/Harita" "$@"
 APPRUN
   chmod +x "$APPDIR/AppRun"
 
-  cat > "$APPDIR/myact.desktop" <<'DESKTOP'
+  cat > "$APPDIR/harita.desktop" <<'DESKTOP'
 [Desktop Entry]
 Type=Application
-Name=MyAct
+Name=Harita
 Comment=Dashboard harian lokal: tugas, fokus, kebiasaan, cuaca
-Exec=MyAct
-Icon=myact
+Exec=Harita
+Icon=harita
 Categories=Utility;Office;
 Terminal=true
 DESKTOP
-  cp "$APPDIR/myact.desktop" "$APPDIR/usr/share/applications/myact.desktop"
+  cp "$APPDIR/harita.desktop" "$APPDIR/usr/share/applications/harita.desktop"
 
-  if ARCH="$ARCH_NAME" appimagetool "$APPDIR" "$ROOT/dist/MyAct-$ARCH_NAME.AppImage"; then
-    say "OK — AppImage: $ROOT/dist/MyAct-$ARCH_NAME.AppImage"
+  if ARCH="$ARCH_NAME" appimagetool "$APPDIR" "$ROOT/dist/Harita-$ARCH_NAME.AppImage"; then
+    say "OK — AppImage: $ROOT/dist/Harita-$ARCH_NAME.AppImage"
     rm -rf "$APPDIR"
   else
-    say "PERINGATAN: appimagetool gagal; binary dist/MyAct tetap bisa dipakai."
+    say "PERINGATAN: appimagetool gagal; binary dist/Harita tetap bisa dipakai."
   fi
 else
   say ""

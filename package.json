@@ -1,8 +1,8 @@
 {
-  "name": "myact-e2e",
+  "name": "harita-e2e",
   "private": true,
   "version": "1.0.0",
-  "description": "Playwright end-to-end tests for the MyAct local dashboard",
+  "description": "Playwright end-to-end tests for the Harita local dashboard",
   "scripts": {
     "test:e2e": "playwright test --project=chromium",
     "test:e2e:headed": "playwright test --headed",

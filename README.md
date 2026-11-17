@@ -1,8 +1,8 @@
-# MyAct
+# Harita
 
-**Konsisten & rajin setiap hari.** MyAct adalah dashboard harian lokal untuk produktivitas dan kebiasaan — todo list, kalender, cuaca Indonesia realtime, lomba, pomodoro, flashcard, nilai & KKM, streak harian, dan pemantau device. Jalan sepenuhnya di laptop kamu — tanpa akun, tanpa cloud, tanpa subscription.
+**Konsisten & rajin setiap hari.** Harita adalah dashboard harian lokal untuk produktivitas dan kebiasaan — todo list, kalender, cuaca Indonesia realtime, lomba, pomodoro, flashcard, nilai & KKM, streak harian, dan pemantau device. Jalan sepenuhnya di laptop kamu — tanpa akun, tanpa cloud, tanpa subscription.
 
-![MyAct — Beranda](docs/screenshots/beranda.png)
+![Harita — Beranda](docs/screenshots/beranda.png)
 
 ---
 
@@ -41,8 +41,8 @@ psutil opsional hanya untuk monitor perangkat (`install.sh` memasangnya).
 ### Linux / macOS / Windows (dengan Python 3)
 
 ```bash
-git clone https://github.com/hayoloo642-cloud/myact-project.git
-cd myact-project
+git clone https://github.com/hayoloo642-cloud/harita-project.git
+cd harita-project
 ./run.sh      # atau di Windows: double-click run.bat
 ```
 
@@ -66,16 +66,16 @@ browser otomatis. Lihat [docs/RELEASE.md](docs/RELEASE.md) untuk checklist rilis
 
 | Variabel | Default | Keterangan |
 |----------|---------|------------|
-| `MYACT_PORT` | `8777` | Port HTTP lokal (1–65535) |
-| `MYACT_TZ` | timezone sistem | Contoh: `Asia/Jakarta`, `Asia/Makassar` |
-| `MYACT_DATA` | `./data` | Folder data (database, cache, backup). Frozen build memakai folder data user |
-| `MYACT_DB` | `$MYACT_DATA/myact.db` | Lokasi database SQLite |
-| `MYACT_MUSIC` | `./music` | Folder musik lokal. Frozen build memakai `$MYACT_DATA/music` |
-| `MYACT_NO_OPEN` | unset | Set `1` agar frozen build tidak membuka browser |
+| `HARITA_PORT` | `8777` | Port HTTP lokal (1–65535) |
+| `HARITA_TZ` | timezone sistem | Contoh: `Asia/Jakarta`, `Asia/Makassar` |
+| `HARITA_DATA` | `./data` | Folder data (database, cache, backup). Frozen build memakai folder data user |
+| `HARITA_DB` | `$HARITA_DATA/harita.db` | Lokasi database SQLite |
+| `HARITA_MUSIC` | `./music` | Folder musik lokal. Frozen build memakai `$HARITA_DATA/music` |
+| `HARITA_NO_OPEN` | unset | Set `1` agar frozen build tidak membuka browser |
 
 Contoh:
 ```bash
-MYACT_TZ=Asia/Makassar MYACT_PORT=8780 ./run.sh
+HARITA_TZ=Asia/Makassar HARITA_PORT=8780 ./run.sh
 ```
 
 ---
@@ -91,7 +91,7 @@ Checklist penerbitan ada di [docs/RELEASE.md](docs/RELEASE.md); build source arc
 ## Struktur
 
 ```
-myact/
+harita/
 ├── server.py              # HTTP server + SQLite (tanpa dependency)
 ├── static/                # Frontend (HTML + CSS + vanilla JS)
 │   ├── index.html

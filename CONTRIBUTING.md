@@ -1,12 +1,12 @@
-# Berkontribusi ke MyAct
+# Berkontribusi ke Harita
 
-Terima kasih sudah mempertimbangkan! MyAct dibangun dengan prinsip: **lokal-first, tanpa cloud, tanpa akun, tanpa dependency JS.** Kalau PR kamu melanggar prinsip itu, kemungkinan besar ditolak.
+Terima kasih sudah mempertimbangkan! Harita dibangun dengan prinsip: **lokal-first, tanpa cloud, tanpa akun, tanpa dependency JS.** Kalau PR kamu melanggar prinsip itu, kemungkinan besar ditolak.
 
 ## Cara mulai
 
 1. Fork repo → clone di lokal
 2. Jalankan: `./run.sh` → buka `http://127.0.0.1:8777`
-3. Database lokal dibuat otomatis di `data/myact.db` — jangan commit file ini (Python 3.10+ direkomendasikan)
+3. Database lokal dibuat otomatis di `data/harita.db` — jangan commit file ini (Python 3.10+ direkomendasikan)
 4. Buat branch fitur: `git checkout -b fitur/nama-fitur`
 
 ## Prinsip kode

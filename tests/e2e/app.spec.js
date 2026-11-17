@@ -1,4 +1,4 @@
-// End-to-end smoke tests for MyAct (CommonJS so `node --check` works).
+// End-to-end smoke tests for Harita (CommonJS so `node --check` works).
 // These tests only use the running UI/API and never modify application code.
 
 const { test, expect } = require('@playwright/test');

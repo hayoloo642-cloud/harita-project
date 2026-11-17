@@ -11,11 +11,11 @@ VERSION=$(sed -n 's/^__version__ = "\([^"]*\)".*$/\1/p' server.py | head -1)
 [ -n "$VERSION" ] || { echo "ERROR: versi tidak ditemukan." >&2; exit 1; }
 
 OUT_DIR="$ROOT/dist"
-OUT="$OUT_DIR/myact-$VERSION-source.zip"
+OUT="$OUT_DIR/harita-$VERSION-source.zip"
 mkdir -p "$OUT_DIR"
 
 echo "==> git archive HEAD -> $OUT"
-git archive --format=zip --prefix="myact-$VERSION/" -o "$OUT" HEAD
+git archive --format=zip --prefix="harita-$VERSION/" -o "$OUT" HEAD
 
 (cd "$OUT_DIR" && sha256sum "$(basename "$OUT")" > "$(basename "$OUT").sha256")
 echo "OK — $OUT"

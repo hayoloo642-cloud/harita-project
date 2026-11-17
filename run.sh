@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
-# MyAct — jalankan server lokal lalu buka dashboard.
+# Harita — jalankan server lokal lalu buka dashboard.
 set -u
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PORT="${MYACT_PORT:-8777}"
+PORT="${HARITA_PORT:-${MYACT_PORT:-8777}}"
 URL="http://127.0.0.1:${PORT}"
 LOG="$DIR/data/server.log"
 mkdir -p "$DIR/data"
 
 open_dashboard() {
   # Mode "aplikasi" ala desktop app; fallback ke browser default.
-  if [ "${MYACT_TAB:-0}" = "1" ]; then
+  if [ "${HARITA_TAB:-${MYACT_TAB:-0}}" = "1" ]; then
     xdg-open "$URL" >/dev/null 2>&1 &
     return
   fi
   if command -v google-chrome >/dev/null 2>&1; then
-    google-chrome --app="$URL" --class=MyAct --name=MyAct \
+    google-chrome --app="$URL" --class=Harita --name=Harita \
       --window-size=1440,900 >/dev/null 2>&1 &
   elif command -v brave-browser >/dev/null 2>&1; then
-    brave-browser --app="$URL" --class=MyAct >/dev/null 2>&1 &
+    brave-browser --app="$URL" --class=Harita >/dev/null 2>&1 &
   elif command -v chromium >/dev/null 2>&1; then
-    chromium --app="$URL" --class=MyAct >/dev/null 2>&1 &
+    chromium --app="$URL" --class=Harita >/dev/null 2>&1 &
   else
     xdg-open "$URL" >/dev/null 2>&1 &
   fi
@@ -42,7 +42,7 @@ for _ in $(seq 1 60); do
   fi
   if ! kill -0 "$SERVER_PID" 2>/dev/null; then
     echo "Server gagal berjalan. Cek log: $LOG" >&2
-    command -v notify-send >/dev/null 2>&1 && notify-send "MyAct gagal dijalankan" "Buka $LOG untuk detail."
+    command -v notify-send >/dev/null 2>&1 && notify-send "Harita gagal dijalankan" "Buka $LOG untuk detail."
     exit 1
   fi
   sleep 0.25

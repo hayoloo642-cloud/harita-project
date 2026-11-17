@@ -129,7 +129,7 @@ function bindGradesActions() {
     const blob = new Blob([csv.join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'myact-nilai.csv';
+    a.download = 'harita-nilai.csv';
     a.click();
     URL.revokeObjectURL(a.href);
     toast('Nilai diunduh sebagai CSV');
@@ -147,7 +147,7 @@ function buildGradePrintBlock() {
   const g = state.grades.grades || [];
   const rows = g.map((it) => `<tr><td>${esc(it.subject)}</td><td>${esc(it.label)}</td><td>${Number(it.score).toFixed(1)}</td><td>${esc(String(it.created_at || '').slice(0, 10))}</td></tr>`).join('');
   block.innerHTML = `
-    <h1 style="font-family:inherit;font-size:22pt;margin:0 0 4px">MyAct — Laporan Nilai</h1>
+    <h1 style="font-family:inherit;font-size:22pt;margin:0 0 4px">Harita — Laporan Nilai</h1>
     <p style="margin:0 0 16px;color:#333">Tanggal cetak: ${esc(fmtLong(todayStr()))} · Rata-rata: <b>${count ? avg.toFixed(1) : '—'}</b> · KKM: <b>${state.grades.kkm}</b></p>
     <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:10pt">
       <thead><tr style="background:#f0f0f0"><th align="left">Mata pelajaran</th><th align="left">Jenis</th><th align="left">Nilai</th><th align="left">Tanggal</th></tr></thead>

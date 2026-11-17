@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# MyAct release readiness check — local, no upload, no publish.
+# Harita release readiness check — local, no upload, no publish.
 set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
@@ -38,8 +38,8 @@ say "==> unit tests"
 ok "recurrence"
 
 say "==> smoke + stress"
-"$PYTHON" tests/smoke.py --stress >/tmp/myact-release-smoke.log
-tail -n 2 /tmp/myact-release-smoke.log
+"$PYTHON" tests/smoke.py --stress >/tmp/harita-release-smoke.log
+tail -n 2 /tmp/harita-release-smoke.log
 
 say "==> asset budget (< 700 KB uncompressed)"
 total=$(find static -type f \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.woff2' \) -printf '%s\n' | awk '{s+=$1} END {print s}')
@@ -50,13 +50,13 @@ ok "asset budget"
 say "==> version consistency"
 PY_VERSION=$(sed -n 's/^__version__ = "\([^"]*\)".*$/\1/p' server.py | head -1)
 APP_VERSION=$(sed -n "s/^const APP_VERSION = '\([^']*\)';.*$/\1/p" static/js/main.js | head -1)
-SW_CACHE=$(sed -n "s/^const CACHE = 'myact-v\([0-9][0-9]*\)';.*$/\1/p" static/sw.js | head -1)
+SW_CACHE=$(sed -n "s/^const CACHE = 'harita-v\([0-9][0-9]*\)';.*$/\1/p" static/sw.js | head -1)
 CHANGELOG_TOP=$(sed -n 's/^## \[\([^]]*\)\].*$/\1/p' CHANGELOG.md | head -1)
 [ -n "$PY_VERSION" ] || die "server.__version__ tidak ditemukan"
 [ "$APP_VERSION" = "$PY_VERSION" ] || die "APP_VERSION ($APP_VERSION) != server ($PY_VERSION)"
 [ "$CHANGELOG_TOP" = "$PY_VERSION" ] || die "CHANGELOG top ($CHANGELOG_TOP) != server ($PY_VERSION)"
 [ -n "$SW_CACHE" ] || die "SW cache tidak ditemukan"
-ok "server=$PY_VERSION app=$APP_VERSION changelog=$CHANGELOG_TOP sw_cache=myact-v$SW_CACHE"
+ok "server=$PY_VERSION app=$APP_VERSION changelog=$CHANGELOG_TOP sw_cache=harita-v$SW_CACHE"
 
 say ""
-say "MyAct $PY_VERSION siap secara lokal untuk release. Belum ada yang di-publish."
+say "Harita $PY_VERSION siap secara lokal untuk release. Belum ada yang di-publish."

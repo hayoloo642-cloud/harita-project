@@ -1,4 +1,4 @@
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.5.0';
 /* ============================================================
    App bootstrap, navigation, realtime tick, settings
    ============================================================ */
@@ -262,7 +262,7 @@ function openSettingsModal() {
       <div class="field full">
         <label>${esc(t('settings.pinLock'))}</label>
         <input name="lock_pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="Buat PIN 4+ digit — kosongkan untuk tetap terbuka" autocomplete="off" />
-        <span class="help">Jika diisi, MyAct terkunci saat dibuka — masukkan PIN untuk membuka data.</span>
+        <span class="help">Jika diisi, Harita terkunci saat dibuka — masukkan PIN untuk membuka data.</span>
         <label class="check-line" style="margin-top:8px"><input type="checkbox" name="lock_disable" />
           <span><strong>Matikan kunci aplikasi</strong>Hapus PIN dan buka kunci — aplikasi terbuka seperti biasa.</span>
         </label>
@@ -283,14 +283,14 @@ function openSettingsModal() {
       </div>
 
       <p style="font-size:9.5px;color:var(--faint);line-height:1.7;margin-top:16px">
-        Semua data tersimpan lokal di <code>data/myact.db</code> (SQLite). Cuaca memakai Open-Meteo tanpa API key.<br>
-        MyAct v${APP_VERSION} · MIT · Changelog &amp; kontribusi tersedia di paket source repository.
+        Semua data tersimpan lokal di <code>data/harita.db</code> (SQLite). Cuaca memakai Open-Meteo tanpa API key.<br>
+        Harita v${APP_VERSION} · MIT · Changelog &amp; kontribusi tersedia di paket source repository.
       </p>
     </div>`;
 
   openModal({
     title: t('settings.title'),
-    eyebrow: 'MyAct',
+    eyebrow: 'Harita',
     wide: true,
     hideSubmit: false,
     submitLabel: t('settings.save'),
@@ -633,7 +633,7 @@ function bindOnboarding() {
       api('/api/settings', { method: 'POST', body: { onboarded: '1' } }).then(() => { state.settings.onboarded = '1'; }).catch(() => {});
       overlay.hidden = true;
       overlay.setAttribute('aria-hidden', 'true');
-      toast('Selamat menggunakan MyAct');
+      toast('Selamat menggunakan Harita');
     }
   });
 }
@@ -1055,7 +1055,7 @@ function recordError(message) {
 function buildDiagnostics() {
   const last = storage.get('last_error', null);
   const lines = [
-    `MyAct v${APP_VERSION}`,
+    `Harita v${APP_VERSION}`,
     `Waktu: ${new Date().toISOString()}`,
     `Halaman: ${state.view || 'beranda'}`,
     `Tema: ${document.documentElement.getAttribute('data-theme') || '-'} / aksen ${document.documentElement.getAttribute('data-accent') || '-'}`,
@@ -1167,7 +1167,7 @@ async function init() {
   } catch (err) {
     const splash = document.getElementById('splash');
     if (splash) splash.hidden = true;
-    toast(`Tidak dapat terhubung ke server MyAct: ${err.message}`, 'error', 8000);
+    toast(`Tidak dapat terhubung ke server Harita: ${err.message}`, 'error', 8000);
   }
 }
 

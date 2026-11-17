@@ -1,4 +1,4 @@
-// Playwright configuration for MyAct.
+// Playwright configuration for Harita.
 // CommonJS on purpose: package.json has no "type": "module", so
 // `node --check playwright.config.js` validates this file as-is.
 
@@ -46,7 +46,7 @@ module.exports = defineConfig({
   webServer: {
     // Boot a throwaway server/database so tests never touch real user data.
     command:
-      'MYACT_DB=.e2e/myact.db MYACT_DATA=.e2e MYACT_PORT=8777 python3 server.py',
+      'HARITA_DB=.e2e/harita.db HARITA_DATA=.e2e HARITA_PORT=8777 python3 server.py',
     url: BASE_URL,
     reuseExistingServer: true,
     timeout: 60_000,

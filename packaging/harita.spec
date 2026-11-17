@@ -1,9 +1,9 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller spec for MyAct (one-file build).
+PyInstaller spec for Harita (one-file build).
 
 Build from the repository root:
-    python -m PyInstaller --clean --noconfirm packaging/myact.spec
+    python -m PyInstaller --clean --noconfirm packaging/harita.spec
 
 The bundle contains:
   - server.py              (entry point)
@@ -13,7 +13,7 @@ The bundle contains:
 server.py resolves ``static/`` via ``sys._MEIPASS`` under a PyInstaller
 one-file build, so the data files below are found at runtime. Frozen builds write SQLite and
 backups to a persistent per-user directory by default (see packaging/README.md);
-set MYACT_DATA to override.
+set HARITA_DATA to override.
 """
 
 import os
@@ -26,7 +26,7 @@ ENTRY_POINT = os.path.join(ROOT, "server.py")
 for required in (ENTRY_POINT, STATIC_DIR):
     if not os.path.exists(required):
         raise SystemExit(
-            "MyAct spec: file tidak ditemukan / missing required path: %s\n"
+            "Harita spec: file tidak ditemukan / missing required path: %s\n"
             "Jalankan PyInstaller dari root repositori." % required
         )
 
@@ -35,11 +35,11 @@ datas = [(STATIC_DIR, "static")]
 if os.path.isfile(LICENSE_PATH):
     datas.append((LICENSE_PATH, "."))
 else:
-    print("MyAct spec: WARNING — LICENSE tidak ditemukan, dilewati.")
+    print("Harita spec: WARNING — LICENSE tidak ditemukan, dilewati.")
 
 # The repository's music/ folder is intentionally not bundled (audio can be
 # large and is user-owned). Frozen builds use a persistent per-user music
-# directory instead: <user data>/music, or MYACT_MUSIC when set.
+# directory instead: <user data>/music, or HARITA_MUSIC when set.
 a = Analysis(
     [ENTRY_POINT],
     pathex=[ROOT],
@@ -60,7 +60,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="MyAct",
+    name="Harita",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

@@ -10,7 +10,7 @@ npm install
 npx playwright install chromium
 ```
 
-Python 3 is required because Playwright starts the MyAct server itself.
+Python 3 is required because Playwright starts the Harita server itself.
 
 ## Running
 
@@ -31,13 +31,13 @@ The config uses Playwright's `webServer` to boot the app with a throwaway
 database:
 
 ```bash
-MYACT_DB=.e2e/myact.db MYACT_DATA=.e2e MYACT_PORT=8777 python3 server.py
+HARITA_DB=.e2e/harita.db HARITA_DATA=.e2e HARITA_PORT=8777 python3 server.py
 ```
 
 If a server is already reachable at `http://127.0.0.1:8777` it is reused
-(`reuseExistingServer: true`), so either start MyAct yourself or let Playwright
+(`reuseExistingServer: true`), so either start Harita yourself or let Playwright
 boot it. When reusing a long-running server, remember it may point at your real
-`data/myact.db` instead of the isolated `.e2e/` database. Tests clean up the
+`data/harita.db` instead of the isolated `.e2e/` database. Tests clean up the
 tasks they create, but prefer stopping the real server if you want a fully
 isolated run.
 

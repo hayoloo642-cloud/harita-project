@@ -1,5 +1,5 @@
 /* Harita service worker — network-first, fallback offline. */
-const CACHE = 'harita-v27';
+const CACHE = 'harita-v28';
 const API_CACHE = 'harita-api-v1';
 const SHELL = [
   '/',
